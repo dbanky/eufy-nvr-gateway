@@ -1,4 +1,4 @@
-# eufy NVR gateway
+# Eufy NVR Gateway
 
 **Always-on RTSP streams for battery-powered eufy cameras — without keeping them awake.**
 
@@ -18,7 +18,7 @@ This gateway sits in between and runs as **one Docker container**:
 ```mermaid
 flowchart LR
   cam["eufy battery camera<br>(asleep most of the time)"] -- "P2P, only during events" --> bridge
-  cloud["eufy cloud<br>(login, push events)"] -- "motion · person · ring" --> bridge
+  cloud["eufy cloud<br>(push events)"] -- "motion · person · ring" --> bridge
   subgraph container ["eufy-nvr-gateway (one container)"]
     bridge["eufy bridge"] -- "events + live video" --> switcher["switcher<br>frozen frame ⇄ live"]
     switcher -- "constant H.264" --> go2rtc

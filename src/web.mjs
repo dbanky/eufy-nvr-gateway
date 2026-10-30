@@ -4,7 +4,7 @@
 export function renderPage({ rtspPort }) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>eufy NVR gateway</title>
+<title>Eufy NVR Gateway</title>
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#667085; --line:#e3e6ea; --accent:#2563eb;
           --ok:#16794a; --warn:#b54708; --live:#c01048; color-scheme: light dark; }
@@ -26,7 +26,7 @@ export function renderPage({ rtspPort }) {
   .scroll { overflow-x:auto } [hidden] { display:none !important }
 </style></head>
 <body><main>
-  <h1>eufy NVR gateway</h1>
+  <h1>Eufy NVR Gateway</h1>
   <div class="muted" id="bridge">Connecting…</div>
 
   <section id="login" class="card" style="margin-top:16px" hidden>
