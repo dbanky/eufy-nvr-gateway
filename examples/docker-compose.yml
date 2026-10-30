@@ -5,7 +5,7 @@
 #   3. docker compose up -d   — then open http://<host>:8099
 services:
   eufy-nvr-gateway:
-    image: ghcr.io/dbanky/eufy-nvr-gateway:latest
+    image: dbanky/eufy-nvr-gateway:latest   # or ghcr.io/dbanky/eufy-nvr-gateway:latest
     # or build it yourself from this repository:
     # build: https://github.com/dbanky/eufy-nvr-gateway.git
     container_name: eufy-nvr-gateway

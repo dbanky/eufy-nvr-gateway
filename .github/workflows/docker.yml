@@ -1,7 +1,14 @@
-# Builds the image for amd64 + arm64 and publishes it to the GitHub Container Registry:
-#   ghcr.io/<owner>/eufy-nvr-gateway:latest   (main branch)
-#   ghcr.io/<owner>/eufy-nvr-gateway:1.2.3    (tag v1.2.3)
+# Builds the image for amd64 + arm64 and publishes it to Docker Hub and the GitHub Container Registry:
+#   <user>/eufy-nvr-gateway:latest              (main branch)
+#   <user>/eufy-nvr-gateway:1.2.3               (tag v1.2.3)
+#   ghcr.io/<owner>/eufy-nvr-gateway:...        (same tags)
 # Pull requests are built but not published.
+#
+# Docker Hub needs, in the repository settings (Secrets and variables → Actions):
+#   variable DOCKERHUB_USERNAME   the Docker Hub user or organisation
+#   secret   DOCKERHUB_TOKEN      a personal access token with Read, Write, Delete scope
+#                                 (Delete is required to update the description on Docker Hub)
+# Without the variable, Docker Hub is skipped and only GHCR is published.
 name: Docker image
 
 on:
@@ -14,6 +21,10 @@ on:
 permissions:
   contents: read
   packages: write
+
+env:
+  PUBLISH: ${{ github.event_name != 'pull_request' }}
+  DOCKERHUB: ${{ vars.DOCKERHUB_USERNAME != '' }}
 
 jobs:
   build:
@@ -28,16 +39,24 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
-        if: github.event_name != 'pull_request'
+        if: env.PUBLISH == 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - uses: docker/login-action@v3
+        if: env.PUBLISH == 'true' && env.DOCKERHUB == 'true'
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: |
+            name=docker.io/${{ vars.DOCKERHUB_USERNAME }}/eufy-nvr-gateway,enable=${{ env.DOCKERHUB }}
+            ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
@@ -48,8 +67,18 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ env.PUBLISH == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Keep the Docker Hub page in sync with README.md (relative links made absolute).
+      - uses: peter-evans/dockerhub-description@v4
+        if: env.PUBLISH == 'true' && env.DOCKERHUB == 'true' && github.ref == 'refs/heads/main'
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ vars.DOCKERHUB_USERNAME }}/eufy-nvr-gateway
+          short-description: ${{ github.event.repository.description }}
+          enable-url-completion: true
