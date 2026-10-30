@@ -1,0 +1,22 @@
+# eufy-nvr-gateway — example Compose file (also works as a Synology Container Manager project).
+#
+#   1. Put config.json next to this file (start from examples/config.example.json).
+#   2. Set EUFY_EMAIL / EUFY_PASSWORD / EUFY_COUNTRY below (a separate eufy account is recommended).
+#   3. docker compose up -d   — then open http://<host>:8099
+services:
+  eufy-nvr-gateway:
+    image: ghcr.io/OWNER/eufy-nvr-gateway:latest
+    # or build it yourself from this repository:
+    # build: https://github.com/OWNER/eufy-nvr-gateway.git
+    container_name: eufy-nvr-gateway
+    restart: unless-stopped
+    # Host networking: NVRs and players reach the RTSP streams directly on the host's address.
+    network_mode: host
+    environment:
+      EUFY_EMAIL: "you@example.com"
+      EUFY_PASSWORD: "your-eufy-password"
+      EUFY_COUNTRY: "GB"            # two-letter country the eufy account was registered in
+      TZ: "Europe/London"
+    volumes:
+      - ./config.json:/config/config.json:ro
+      - ./data:/data                # eufy login session, last frames, generated configs

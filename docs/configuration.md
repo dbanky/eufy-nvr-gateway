@@ -1,0 +1,67 @@
+# Configuration reference
+
+The gateway reads `/config/config.json` at start (override the path with `CONFIG_FILE`). Change it,
+then restart the container. A complete example: [`examples/config.full.example.json`](../examples/config.full.example.json).
+
+## eufy account
+
+| Environment variable | `config.json` | Meaning |
+|---|---|---|
+| `EUFY_EMAIL` | `eufy.email` | Account e-mail. Use a dedicated account the cameras are shared with. |
+| `EUFY_PASSWORD` | `eufy.password` | Account password. Prefer the environment variable over the file. |
+| `EUFY_COUNTRY` | `eufy.country` | Two-letter country the account was registered in (`GB`, `DE`, `US`, …). Default `GB`. |
+
+Environment variables win over `config.json`.
+
+## Top level
+
+| Key | Default | Meaning |
+|---|---|---|
+| `timezone` | `TZ` or `UTC` | Time zone for the `LAST SEEN hh:mm:ss` label |
+| `cameras` | `[]` | The cameras to publish (below) |
+| `defaults` | `{}` | Any camera setting, applied to every camera unless the camera sets it itself |
+| `ports` | see below | Network ports |
+| `bridge.listen` | `127.0.0.1` | Address the bundled eufy bridge listens on. Keep it on localhost: its raw `/stream` URLs wake cameras |
+| `bridge.env` | `{}` | Extra environment variables for the bridge (see the [bridge docs](https://github.com/mega-yfue/ha-eufy-sdk-bridge)) |
+
+## Cameras
+
+| Key | Default | Meaning |
+|---|---|---|
+| `name` | — | Required. Letters, digits, `-`, `_`. RTSP path and display name |
+| `serial` | — | Required. Serial number from the web page's device list |
+| `width`, `height` | — | Required. The camera's native live resolution |
+| `fps` | `15` | Output frame rate |
+| `bitrateKbps` | `4000` | Bitrate ceiling for live video. The frozen picture uses far less |
+| `holdMs` | `120000` | Stay live this long after the last detection, counted from the first live frame |
+| `ringHoldMs` | `120000` | Same, after a doorbell press |
+| `maxLiveMs` | `120000` | Hard cap per session, from the first live frame. Repeated detections cannot extend past it |
+| `firstFrameTimeoutMs` | `60000` | Give up waking the camera if no video arrives by then |
+| `restartGapMs` | `15000` | Minimum pause between two sessions. A doorbell press and *Go live* ignore it |
+| `maxReconnects` | `2` | Reconnect attempts if the live feed drops mid-session |
+| `minBatteryPct` | `15` | Below this, only a doorbell press or *Go live* wakes the camera |
+| `idleBlur` | `2` | Blur of the frozen picture, in pixels at 1080p (scaled to the resolution). `0` = sharp |
+| `triggers` | see below | Bridge events that wake the camera |
+
+Default `triggers`: `motion`, `personDetected`, `vehicleDetected`, `petDetection`,
+`strangerDetected`, `doorbellPress`. Which ones a camera sends depends on the model and its
+detection settings in the eufy app — a camera set to person-only detection sends `personDetected`
+rather than `motion`.
+
+## Ports
+
+| Key | Default | Meaning |
+|---|---|---|
+| `ports.web` | `8099` | Web page and API (also `WEB_PORT`; the Docker health check uses `WEB_PORT`) |
+| `ports.rtsp` | `8554` | RTSP output |
+| `ports.go2rtcApi` | `1984` | go2rtc web UI / API |
+| `ports.webrtc` | `8555` | go2rtc WebRTC |
+| `ports.bridge` | `3000` | eufy bridge (localhost) |
+
+## Files in `/data`
+
+| Path | What |
+|---|---|
+| `bridge/.eufy-session.json` | eufy login session — delete it to force a fresh login |
+| `switcher/last-<name>.jpg` | Last live frame per camera, shown after a restart |
+| `go2rtc/go2rtc.yaml`, `switcher/config.json` | Generated at every start from `config.json` — don't edit |

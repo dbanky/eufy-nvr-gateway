@@ -1,0 +1,18 @@
+{
+  "timezone": "Europe/London",
+  "cameras": [
+    {
+      "name": "front-door",
+      "serial": "T81XXXXXXXXXXXXX",
+      "width": 2048,
+      "height": 1536
+    },
+    {
+      "name": "garden",
+      "serial": "T81XXXXXXXXXXXXX",
+      "width": 2880,
+      "height": 1616,
+      "bitrateKbps": 6000
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "eufy-nvr-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Always-on RTSP streams for battery-powered eufy cameras, without keeping them awake.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/start.mjs",
+    "check": "node --check src/start.mjs && node --check src/switcher.mjs && node --check src/web.mjs"
+  }
+}

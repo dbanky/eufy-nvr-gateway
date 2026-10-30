@@ -1,0 +1,6 @@
+# Your real settings and runtime data never belong in the repository
+/config.json
+/data/
+.env
+node_modules/
+.DS_Store

@@ -1,0 +1,47 @@
+{
+  "timezone": "Europe/London",
+
+  "eufy": { "country": "GB" },
+
+  "ports": {
+    "web": 8099,
+    "rtsp": 8554,
+    "go2rtcApi": 1984,
+    "webrtc": 8555,
+    "bridge": 3000
+  },
+
+  "defaults": {
+    "fps": 15,
+    "holdMs": 120000,
+    "ringHoldMs": 120000,
+    "maxLiveMs": 120000,
+    "restartGapMs": 15000,
+    "minBatteryPct": 15,
+    "idleBlur": 2,
+    "triggers": ["motion", "personDetected", "vehicleDetected", "petDetection", "strangerDetected", "doorbellPress"]
+  },
+
+  "cameras": [
+    {
+      "name": "front-door",
+      "serial": "T81XXXXXXXXXXXXX",
+      "width": 2048,
+      "height": 1536,
+      "bitrateKbps": 4000
+    },
+    {
+      "name": "garden",
+      "serial": "T81XXXXXXXXXXXXX",
+      "width": 2880,
+      "height": 1616,
+      "bitrateKbps": 6000,
+      "idleBlur": 3
+    }
+  ],
+
+  "bridge": {
+    "listen": "127.0.0.1",
+    "env": { "BRIDGE_EVENT_LOG": "1" }
+  }
+}
