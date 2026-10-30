@@ -1,5 +1,9 @@
 # Eufy NVR Gateway
 
+[![Docker Hub](https://img.shields.io/docker/v/dbanky/eufy-nvr-gateway?sort=semver&label=Docker%20Hub)](https://hub.docker.com/r/dbanky/eufy-nvr-gateway)
+[![Image size](https://img.shields.io/docker/image-size/dbanky/eufy-nvr-gateway?sort=semver)](https://hub.docker.com/r/dbanky/eufy-nvr-gateway/tags)
+[![Platforms](https://img.shields.io/badge/platforms-amd64%20%7C%20arm64-blue)](https://hub.docker.com/r/dbanky/eufy-nvr-gateway/tags)
+
 **Always-on RTSP streams for battery-powered eufy cameras — without keeping them awake.**
 
 Network video recorders (Synology Surveillance Station, Frigate, Blue Iris, …) hold
@@ -48,6 +52,33 @@ flowchart LR
   account and share your cameras with it from the eufy app (with admin rights).
 - The cameras must be **armed** in a mode that detects motion/persons — a disarmed camera sends no
   events, so it never goes live.
+
+## Docker image
+
+Ready-made images for 64-bit x86 (`amd64`) and ARM (`arm64`) are published for every release:
+
+| Registry | Image |
+|---|---|
+| [Docker Hub](https://hub.docker.com/r/dbanky/eufy-nvr-gateway) | `dbanky/eufy-nvr-gateway` |
+| [GitHub Container Registry](https://github.com/dbanky/eufy-nvr-gateway/pkgs/container/eufy-nvr-gateway) | `ghcr.io/dbanky/eufy-nvr-gateway` |
+
+| Tag | Meaning |
+|---|---|
+| `latest` | The newest stable release |
+| `0.1`, `0.1.0`, … | A specific release line / version — pin one of these to update only when you choose to |
+| `0.1.1-rc.1`, … | Pre-releases for testing; never become `latest` |
+
+```sh
+docker pull dbanky/eufy-nvr-gateway:latest
+```
+
+**Synology:** the image is on Docker Hub, which Container Manager uses as its built-in registry, so
+nothing needs to be added or configured. Either create a project from the Compose file as described
+in the [quick start](#quick-start) (Container Manager downloads the image by itself), or download it
+by hand: *Container Manager → Registry*, search for `eufy-nvr-gateway`, select
+`dbanky/eufy-nvr-gateway`, *Download*, and pick a tag. To update later: download the same tag again
+in *Registry* (it fetches the newest image), then *Project → select it → Action → Build* to recreate
+the container with it.
 
 ## Quick start
 
