@@ -1,5 +1,5 @@
 // Switcher: one never-ending H.264 stream per camera, for NVRs that hold streams open 24/7.
-// Idle  -> the frozen last frame (slightly blurred, "LAST SEEN" label), camera asleep.
+// Idle  -> the frozen last frame (blurred, "LAST SEEN" label), camera asleep.
 // Event -> wake the camera via the bridge's /stream/<serial>, show live video,
 //          then freeze the last frame again after the hold time.
 // No dependencies: Node 22+ (global WebSocket/fetch) and ffmpeg.
@@ -33,7 +33,7 @@ const CAM_DEFAULTS = {
   restartGapMs: 15000,       // min pause between sessions (doorbell press ignores it)
   maxReconnects: 2,          // re-open if the bridge cuts the feed mid-event
   minBatteryPct: 15,         // below this only doorbell press / manual go live
-  idleBlur: 2,               // blur of the frozen picture, in pixels at 1080p (0 = sharp)
+  idleBlur: 10,              // blur of the frozen picture, in pixels at 1080p (0 = sharp)
 };
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);

@@ -18,7 +18,7 @@
     "maxLiveMs": 120000,
     "restartGapMs": 15000,
     "minBatteryPct": 15,
-    "idleBlur": 2,
+    "idleBlur": 10,
     "triggers": ["motion", "personDetected", "vehicleDetected", "petDetection", "strangerDetected", "doorbellPress"]
   },
 

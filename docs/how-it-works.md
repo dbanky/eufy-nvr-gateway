@@ -19,7 +19,7 @@ The switcher decides what goes into that encoder:
 
 | State | Picture | Camera |
 |---|---|---|
-| `IDLE` | Last frame, frozen, slightly blurred, `LAST SEEN hh:mm:ss` label | Asleep |
+| `IDLE` | Last frame, frozen, blurred, `LAST SEEN hh:mm:ss` label | Asleep |
 | `WAKING` | Frozen frame with a `CONNECTING…` label | Waking up (3–60 s) |
 | `LIVE` | Live video, scaled to the fixed output size | Streaming over P2P |
 

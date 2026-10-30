@@ -41,7 +41,7 @@ Environment variables win over `config.json`.
 | `restartGapMs` | `15000` | Minimum pause between two sessions. A doorbell press and *Go live* ignore it |
 | `maxReconnects` | `2` | Reconnect attempts if the live feed drops mid-session |
 | `minBatteryPct` | `15` | Below this, only a doorbell press or *Go live* wakes the camera |
-| `idleBlur` | `2` | Blur of the frozen picture, in pixels at 1080p (scaled to the resolution). `0` = sharp |
+| `idleBlur` | `10` | Blur of the frozen picture, in pixels at 1080p (scaled to the resolution). `0` = sharp |
 | `triggers` | see below | Bridge events that wake the camera |
 
 Default `triggers`: `motion`, `personDetected`, `vehicleDetected`, `petDetection`,

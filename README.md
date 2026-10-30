@@ -14,7 +14,7 @@ open would drain the battery in days.
 This gateway sits in between and runs as **one Docker container**:
 
 - Every camera gets a **constant H.264 RTSP stream** that never drops, so the NVR is always happy.
-- While nothing happens, that stream shows the **last frame, frozen and slightly blurred**, with a
+- While nothing happens, that stream shows the **last frame, frozen and blurred**, with a
   `LAST SEEN 18:33:15` label — and the camera **sleeps**.
 - When the camera detects motion or a person, or the doorbell is pressed, the gateway **wakes the
   camera, switches the stream to live video** for two minutes, then freezes the last frame again.
@@ -133,7 +133,7 @@ Per camera:
 | `maxLiveMs` | | Hard cap per session, from the first live frame. Default `120000` |
 | `restartGapMs` | | Minimum pause between sessions (a doorbell press ignores it). Default `15000` |
 | `minBatteryPct` | | Below this battery level, only a doorbell press or a manual *Go live* wakes the camera. Default `15` |
-| `idleBlur` | | Blur of the frozen picture (pixels at 1080p, scaled to the resolution). `0` = sharp. Default `2` |
+| `idleBlur` | | Blur of the frozen picture (pixels at 1080p, scaled to the resolution). `0` = sharp. Default `10` |
 | `triggers` | | Events that wake the camera. Default: `motion`, `personDetected`, `vehicleDetected`, `petDetection`, `strangerDetected`, `doorbellPress` |
 
 Top level: `timezone` (for the `LAST SEEN` label), `defaults` (any per-camera key, applied to all
