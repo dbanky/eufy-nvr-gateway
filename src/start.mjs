@@ -1,4 +1,4 @@
-// Container entrypoint: reads /config/config.json (+ environment), writes the configs for the
+// Container entrypoint: reads /data/config.json (+ environment), writes the configs for the
 // bundled services, then runs and supervises them:
 //   bridge    eufy cloud login, events and on-demand P2P video   (ha-eufy-sdk-bridge, localhost only)
 //   go2rtc    serves the always-on RTSP streams to NVRs
@@ -8,8 +8,10 @@ import { spawn } from 'node:child_process';
 import { connect } from 'node:net';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 
-const CONFIG_FILE = process.env.CONFIG_FILE || '/config/config.json';
 const DATA = process.env.DATA_DIR || '/data';
+// config.json lives in the data folder, so one folder mapping is enough. A mounted
+// /config/config.json (older setups) still wins.
+const CONFIG_FILE = process.env.CONFIG_FILE || (existsSync('/config/config.json') ? '/config/config.json' : `${DATA}/config.json`);
 const log = (...a) => console.log(new Date().toISOString(), '[start]', ...a);
 const die = (msg) => { log('ERROR:', msg); process.exit(1); };
 
@@ -18,7 +20,7 @@ let cfg = {};
 if (existsSync(CONFIG_FILE)) {
   try { cfg = JSON.parse(readFileSync(CONFIG_FILE, 'utf8')); }
   catch (e) { die(`${CONFIG_FILE} is not valid JSON: ${e.message}`); }
-} else log(`${CONFIG_FILE} not found: starting without cameras (log in on the web UI, then create it).`);
+} else log(`${CONFIG_FILE} not found: starting without cameras (log in on the web page, then create it and restart).`);
 
 const env = process.env;
 const eufy = {

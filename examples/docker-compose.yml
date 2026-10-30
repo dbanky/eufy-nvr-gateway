@@ -1,8 +1,8 @@
 # eufy-nvr-gateway — example Compose file (also works as a Synology Container Manager project).
 #
-#   1. Put config.json next to this file (start from examples/config.example.json).
-#   2. Set EUFY_EMAIL / EUFY_PASSWORD / EUFY_COUNTRY below (a separate eufy account is recommended).
-#   3. docker compose up -d   — then open http://<host>:8099
+#   1. Set EUFY_EMAIL / EUFY_PASSWORD / EUFY_COUNTRY below (a separate eufy account is recommended).
+#   2. docker compose up -d   — then open http://<host>:8099 and log in.
+#   3. Put the camera list in ./data/config.json (start from examples/config.example.json) and restart.
 services:
   eufy-nvr-gateway:
     image: dbanky/eufy-nvr-gateway:latest   # or ghcr.io/dbanky/eufy-nvr-gateway:latest
@@ -18,5 +18,4 @@ services:
       EUFY_COUNTRY: "GB"            # two-letter country the eufy account was registered in
       TZ: "Europe/London"
     volumes:
-      - ./config.json:/config/config.json:ro
-      - ./data:/data                # eufy login session, last frames, generated configs
+      - ./data:/data                # config.json (cameras), eufy login session, last frames

@@ -30,7 +30,7 @@ WORKDIR /app
 COPY package.json ./
 COPY src ./src
 
-ENV CONFIG_FILE=/config/config.json DATA_DIR=/data
+ENV DATA_DIR=/data
 VOLUME ["/data"]
 EXPOSE 8099 8554 1984 8555/udp
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \

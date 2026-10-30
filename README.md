@@ -53,7 +53,7 @@ flowchart LR
 - The cameras must be **armed** in a mode that detects motion/persons — a disarmed camera sends no
   events, so it never goes live.
 
-## Docker image
+## Installation
 
 Ready-made images for 64-bit x86 (`amd64`) and ARM (`arm64`) are published for every release:
 
@@ -68,41 +68,46 @@ Ready-made images for 64-bit x86 (`amd64`) and ARM (`arm64`) are published for e
 | `0.1`, `0.1.0`, … | A specific release line / version — pin one of these to update only when you choose to |
 | `0.1.1-rc.1`, … | Pre-releases for testing; never become `latest` |
 
+The container needs one folder, mounted at `/data`. It holds your `config.json` (the camera list),
+the eufy login session and the last frame of every camera, so all of it survives updates.
+
+### Synology (Container Manager)
+
+The image is on Docker Hub, Container Manager's built-in registry — nothing needs to be added.
+
+1. **Download the image**: *Container Manager → Registry*, search for `eufy-nvr-gateway`, select
+   `dbanky/eufy-nvr-gateway`, *Download*, tag `latest`.
+2. **Create the container**: *Container Manager → Image*, select the image, *Run*:
+   - Container name `eufy-nvr-gateway`, tick *Enable auto-restart*.
+   - **Volume**: add a folder (e.g. create `docker/eufy-nvr-gateway`) with mount path `/data`.
+   - **Network**: `host`.
+   - **Environment**: `EUFY_EMAIL`, `EUFY_PASSWORD`, `EUFY_COUNTRY` (the two-letter country the
+     account was registered in) and `TZ` (e.g. `Europe/London`).
+3. **Log in**: open `http://<nas>:8099`. If eufy asks for a verification code (usually e-mailed) or a
+   captcha, enter it there.
+4. **Add your cameras**: the page lists every device on the account with its serial number. Write
+   your [`config.json`](#configuration), put it into the folder from step 2 (e.g. with File
+   Station), then restart the container (*Container → Action → Restart*).
+5. **Watch**: `rtsp://<nas>:8554/<camera-name>` in VLC, or add that URL to your NVR.
+
+**Updating**: download the tag again in *Registry* (it fetches the newest image), then stop the
+container and use *Action → Reset* to recreate it from the new image. The folder is kept.
+
+### Other Docker hosts
+
 ```sh
-docker pull dbanky/eufy-nvr-gateway:latest
+docker run -d --name eufy-nvr-gateway --restart unless-stopped --network host \
+  -e EUFY_EMAIL=you@example.com -e EUFY_PASSWORD='your-eufy-password' \
+  -e EUFY_COUNTRY=GB -e TZ=Europe/London \
+  -v "$PWD/data:/data" dbanky/eufy-nvr-gateway:latest
 ```
 
-**Synology:** the image is on Docker Hub, which Container Manager uses as its built-in registry, so
-nothing needs to be added or configured. Either create a project from the Compose file as described
-in the [quick start](#quick-start) (Container Manager downloads the image by itself), or download it
-by hand: *Container Manager → Registry*, search for `eufy-nvr-gateway`, select
-`dbanky/eufy-nvr-gateway`, *Download*, and pick a tag. To update later: download the same tag again
-in *Registry* (it fetches the newest image), then *Project → select it → Action → Build* to recreate
-the container with it.
-
-## Quick start
-
-1. **Create a folder** for the gateway, e.g. `/volume1/docker/eufy-nvr-gateway` on a Synology.
-2. **Copy** [`examples/docker-compose.yml`](examples/docker-compose.yml) into it and fill in
-   `EUFY_EMAIL`, `EUFY_PASSWORD` and `EUFY_COUNTRY` (the two-letter country the account was
-   registered in).
-3. **Create `config.json`** in the same folder with an empty camera list for now:
-
-   ```json
-   { "timezone": "Europe/London", "cameras": [] }
-   ```
-
-4. **Start it**: `docker compose up -d`, or on a Synology: *Container Manager → Project → Create*,
-   choose the folder and *Use existing docker-compose.yml*.
-5. **Log in**: open `http://<host>:8099`. If eufy asks for a verification code (usually e-mailed) or
-   a captcha, enter it there. The login is stored in `data/` and survives restarts.
-6. **Add your cameras**: the page lists every device on the account with its serial number. Add
-   them to `config.json` (see below) and restart the container.
-7. **Watch**: `rtsp://<host>:8554/<camera-name>` in VLC, or add that URL to your NVR.
+or with Compose: [`examples/docker-compose.yml`](examples/docker-compose.yml). Then continue with
+steps 3–5 above; `config.json` goes into `./data`.
 
 ## Configuration
 
-`config.json` (mounted at `/config/config.json`):
+`config.json` in the data folder (`/data/config.json` in the container):
 
 ```json
 {

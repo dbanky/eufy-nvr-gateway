@@ -1,7 +1,8 @@
 # Configuration reference
 
-The gateway reads `/config/config.json` at start (override the path with `CONFIG_FILE`). Change it,
-then restart the container. A complete example: [`examples/config.full.example.json`](../examples/config.full.example.json).
+The gateway reads `config.json` from the data folder (`/data/config.json` in the container) at start.
+Change it, then restart the container. A file mounted at `/config/config.json` takes precedence (older
+setups); `CONFIG_FILE` overrides the path entirely. A complete example: [`examples/config.full.example.json`](../examples/config.full.example.json).
 
 ## eufy account
 
@@ -62,6 +63,7 @@ rather than `motion`.
 
 | Path | What |
 |---|---|
+| `config.json` | Your configuration (cameras etc.) — the only file you edit |
 | `bridge/.eufy-session.json` | eufy login session — delete it to force a fresh login |
 | `switcher/last-<name>.jpg` | Last live frame per camera, shown after a restart |
 | `go2rtc/go2rtc.yaml`, `switcher/config.json` | Generated at every start from `config.json` — don't edit |
