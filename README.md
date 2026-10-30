@@ -219,6 +219,25 @@ Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[bridge]`, `[
 - The eufy password is passed as an environment variable and used only by the bundled bridge to log
   in to eufy. The login session is stored in `data/bridge/`.
 
+## Development
+
+```sh
+npm test            # unit tests: Node 22+, no dependencies (node:test)
+npm run check       # syntax check of every file
+docker build -t eufy-nvr-gateway:dev .
+```
+
+The code is split by concern; the tests in `test/` mirror it and read as a description of the
+behaviour:
+
+| Folder | What |
+|---|---|
+| `src/main.mjs`, `src/gateway/` | Container entrypoint: reads `config.json`, writes the configs for the bundled services, runs and restarts them |
+| `src/switcher/` | One process for all cameras: the state of each camera (`camera.mjs`), when to wake and sleep (`policy.mjs`), what the stream says (`labels.mjs`), the eufy bridge connection, the web page and API |
+| `src/video/` | The never-ending stream: the publisher, what it plays next (`feed.mjs`), the live encoder and decoder, H.264 helpers |
+| `src/overlay/` | The sleeping-state picture: the design in numbers (`design.mjs`), layout, drawing, encoding it into a loop |
+| `assets/icons/` | State icons (SVG), rasterised when the image is built |
+
 ## Credits and licenses
 
 This project is MIT licensed (see [LICENSE](LICENSE)). It builds on, and the Docker image bundles:

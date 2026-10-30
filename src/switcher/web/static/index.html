@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Eufy NVR Gateway</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>Eufy NVR Gateway</h1>
+  <div class="muted" id="bridge">Connecting…</div>
+
+  <section id="login" class="card" hidden>
+    <strong>eufy login needs your attention</strong>
+    <p class="muted" id="loginText"></p>
+    <img id="captcha" alt="captcha" hidden>
+    <form id="loginForm" class="row">
+      <label class="visually-hidden" for="code">Code</label>
+      <input id="code" autocomplete="one-time-code" placeholder="code" required>
+      <button class="primary">Submit</button>
+      <button type="button" id="retrigger">Send a new code</button>
+    </form>
+    <p id="loginMsg" class="muted"></p>
+  </section>
+
+  <h2>Cameras</h2>
+  <div id="cams" class="grid"></div>
+  <p id="noCams" class="muted" hidden>No cameras configured yet. Add them to <code>config.json</code> from the device list below, then restart the container.</p>
+
+  <h2>Devices on the eufy account</h2>
+  <div class="card scroll">
+    <table>
+      <thead><tr><th>Name</th><th>Serial</th><th>Model</th><th>Battery</th><th>Configured</th></tr></thead>
+      <tbody id="devices"><tr><td colspan="5" class="muted">Available after login.</td></tr></tbody>
+    </table>
+  </div>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
