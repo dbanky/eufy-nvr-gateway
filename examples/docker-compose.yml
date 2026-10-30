@@ -5,9 +5,9 @@
 #   3. docker compose up -d   — then open http://<host>:8099
 services:
   eufy-nvr-gateway:
-    image: ghcr.io/OWNER/eufy-nvr-gateway:latest
+    image: ghcr.io/dbanky/eufy-nvr-gateway:latest
     # or build it yourself from this repository:
-    # build: https://github.com/OWNER/eufy-nvr-gateway.git
+    # build: https://github.com/dbanky/eufy-nvr-gateway.git
     container_name: eufy-nvr-gateway
     restart: unless-stopped
     # Host networking: NVRs and players reach the RTSP streams directly on the host's address.
