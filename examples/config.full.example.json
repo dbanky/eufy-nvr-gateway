@@ -5,10 +5,7 @@
 
   "ports": {
     "web": 8099,
-    "rtsp": 8554,
-    "go2rtcApi": 1984,
-    "webrtc": 8555,
-    "bridge": 3000
+    "rtsp": 8554
   },
 
   "defaults": {
@@ -39,7 +36,6 @@
   ],
 
   "bridge": {
-    "listen": "127.0.0.1",
     "env": { "BRIDGE_EVENT_LOG": "1" }
   }
 }

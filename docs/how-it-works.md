@@ -59,8 +59,8 @@ frame, extended by further detections up to `maxLiveMs`.
 - **The bridge's battery budget.** The SDK stops battery streams after 45 s (+10 s grace) unless told
   otherwise. The gateway sets `STREAM_BATTERY_BUDGET_MS` to 24 h, because it ends every session
   itself. Note: `0` or values above 2147483647 silently fall back to 45 s.
-- **No accidental wake-ups.** The bridge listens on localhost only and its own go2rtc is disabled. The
-  raw camera streams are therefore unreachable from the LAN; only the switcher can open them.
+- **No accidental wake-ups.** Only the web page and the RTSP streams are reachable from the network.
+  The raw camera streams are not, so nothing but the switcher can wake a camera.
 - **Snapshots.** The switcher serves `/api/cameras/<name>/snapshot.jpg` itself, from the picture
   currently being streamed — no extra decoding, and it never wakes a camera.
 

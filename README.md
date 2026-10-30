@@ -162,9 +162,6 @@ All on the host (host networking):
 |---|---|
 | `8099` | Web page and API |
 | `8554` | RTSP streams — `rtsp://<host>:8554/<name>` |
-| `1984` | go2rtc web UI (stream debugging, WebRTC/MSE players) |
-| `8555` | go2rtc WebRTC |
-| `3000` | eufy bridge — **localhost only**, deliberately not reachable from the LAN |
 
 Change them under `"ports"` in `config.json` if something else on the host already uses one.
 
@@ -218,7 +215,7 @@ Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[bridge]`, `[
 ## Security
 
 - The web page and API have **no authentication**. Keep port 8099 on your LAN; never forward it to
-  the internet. Same for RTSP and go2rtc.
+  the internet. Same for the RTSP port 8554.
 - The eufy password is passed as an environment variable and used only by the bundled bridge to log
   in to eufy. The login session is stored in `data/bridge/`.
 

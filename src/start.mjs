@@ -30,7 +30,7 @@ const eufy = {
 };
 if (!eufy.email || !eufy.password) die('set EUFY_EMAIL and EUFY_PASSWORD (or "eufy" in config.json). Use a separate eufy account that the cameras are shared with.');
 
-const ports = { web: 8099, rtsp: 8554, go2rtcApi: 1984, webrtc: 8555, bridge: 3000, ...cfg.ports };
+const ports = { web: 8099, rtsp: 8554, bridge: 3000, ...cfg.ports };
 if (env.WEB_PORT) ports.web = Number(env.WEB_PORT);   // also used by the Docker healthcheck
 const timeZone = env.TZ || cfg.timezone || 'UTC';
 
@@ -49,9 +49,9 @@ for (const d of ['bridge', 'go2rtc', 'switcher']) mkdirSync(`${DATA}/${d}`, { re
 const q = JSON.stringify;   // JSON strings are valid YAML scalars
 writeFileSync(`${DATA}/go2rtc/go2rtc.yaml`, [
   '# Generated at container start. Edit config.json instead.',
-  `api:\n  listen: ${q(':' + ports.go2rtcApi)}`,
+  // RTSP only: go2rtc's web UI/API, WebRTC, SRTP and RTMP are not needed and stay closed.
   `rtsp:\n  listen: ${q(':' + ports.rtsp)}`,
-  `webrtc:\n  listen: ${q(':' + ports.webrtc)}`,
+  'api:\n  listen: ""', 'webrtc:\n  listen: ""', 'srtp:\n  listen: ""', 'rtmp:\n  listen: ""',
   'log:\n  level: warn',
   'streams:' + (cameras.length ? '' : ' {}'),
   ...cameras.map((c) => `  ${q(c.name)}:`),
@@ -71,7 +71,7 @@ writeFileSync(`${DATA}/switcher/config.json`, JSON.stringify({
 const services = [
   { name: 'bridge', cmd: 'node', args: ['/opt/bridge/server.mjs'], cwd: `${DATA}/bridge`, env: {
     EUFY_EMAIL: eufy.email, EUFY_PASSWORD: eufy.password, EUFY_COUNTRY: eufy.country,
-    BRIDGE_HOST: cfg.bridge?.listen ?? '127.0.0.1', BRIDGE_PORT: String(ports.bridge),
+    BRIDGE_HOST: '127.0.0.1',   // never on the network: its /stream URLs wake cameras BRIDGE_PORT: String(ports.bridge),
     GO2RTC_ENABLE: '0', GO2RTC_CONFIG: `${DATA}/bridge/go2rtc.yaml`, EUFY_SESSION: `${DATA}/bridge/.eufy-session.json`,
     // The switcher ends every session itself; the bridge's own 45 s battery cut-off would only interrupt it.
     STREAM_BATTERY_BUDGET_MS: env.STREAM_BATTERY_BUDGET_MS ?? '86400000',
@@ -117,7 +117,7 @@ process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
 log(`${cameras.length} camera(s): ${cameras.map((c) => `${c.name} ${c.width}x${c.height}`).join(', ') || 'none'}`);
-log(`web UI :${ports.web}, RTSP :${ports.rtsp}, go2rtc :${ports.go2rtcApi}`);
+log(`web page :${ports.web}, RTSP :${ports.rtsp}`);
 // Resolve once something listens on 127.0.0.1:port (or after timeoutMs, so a broken service can't block the rest).
 function portOpen(port, timeoutMs = 30000) {
   const until = Date.now() + timeoutMs;

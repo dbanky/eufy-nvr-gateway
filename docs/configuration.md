@@ -22,7 +22,6 @@ Environment variables win over `config.json`.
 | `cameras` | `[]` | The cameras to publish (below) |
 | `defaults` | `{}` | Any camera setting, applied to every camera unless the camera sets it itself |
 | `ports` | see below | Network ports |
-| `bridge.listen` | `127.0.0.1` | Address the bundled eufy bridge listens on. Keep it on localhost: its raw `/stream` URLs wake cameras |
 | `bridge.env` | `{}` | Extra environment variables for the bridge (see the [bridge docs](https://github.com/mega-yfue/ha-eufy-sdk-bridge)) |
 
 ## Cameras
@@ -54,9 +53,6 @@ rather than `motion`.
 |---|---|---|
 | `ports.web` | `8099` | Web page and API (also `WEB_PORT`; the Docker health check uses `WEB_PORT`) |
 | `ports.rtsp` | `8554` | RTSP output |
-| `ports.go2rtcApi` | `1984` | go2rtc web UI / API |
-| `ports.webrtc` | `8555` | go2rtc WebRTC |
-| `ports.bridge` | `3000` | eufy bridge (localhost) |
 
 ## Files in `/data`
 
