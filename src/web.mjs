@@ -7,9 +7,11 @@ export function renderPage({ rtspPort }) {
 <title>Eufy NVR Gateway</title>
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#667085; --line:#e3e6ea; --accent:#2563eb;
-          --ok:#16794a; --warn:#b54708; --live:#c01048; color-scheme: light dark; }
+          --ok:#16794a; --warn:#b54708; --live:#c01048; color-scheme: light dark;
+          --asleep:#4c5bc0; --waking:#9a5b00; --lowbattery:#b54708; --nowake:#c2410c; --offline:#667085; }
   @media (prefers-color-scheme: dark) { :root { --bg:#111317; --card:#1a1d23; --text:#e8eaed; --muted:#9aa3af;
-          --line:#2b2f37; --accent:#6ea0ff; --ok:#4ade80; --warn:#fbbf24; --live:#fb7185; } }
+          --line:#2b2f37; --accent:#6ea0ff; --ok:#4ade80; --warn:#fbbf24; --live:#fb7185;
+          --asleep:#a9b8ff; --waking:#ffc447; --lowbattery:#ffa94d; --nowake:#ff8a80; --offline:#b4bcc8; } }
   * { box-sizing:border-box } body { margin:0; font:15px/1.45 system-ui,sans-serif; background:var(--bg); color:var(--text) }
   main { max-width:1100px; margin:0 auto; padding:20px 16px 48px }
   h1 { font-size:20px; margin:0 0 4px } h2 { font-size:16px; margin:28px 0 10px } .muted { color:var(--muted) }
@@ -18,7 +20,9 @@ export function renderPage({ rtspPort }) {
   .cam img { width:100%; aspect-ratio:16/9; object-fit:contain; background:#000; border-radius:6px; display:block }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px }
   .badge { font-size:12px; font-weight:600; padding:2px 8px; border-radius:99px; border:1px solid currentColor }
-  .IDLE { color:var(--muted) } .WAKING { color:var(--warn) } .LIVE { color:var(--live) } .ok { color:var(--ok) } .bad { color:var(--warn) }
+  .badge { display:inline-flex; align-items:center; gap:5px } .badge svg { width:14px; height:14px }
+  .asleep { color:var(--asleep) } .waking { color:var(--waking) } .live { color:var(--live) } .lowbattery { color:var(--lowbattery) }
+  .nowake { color:var(--nowake) } .offline, .nopicture { color:var(--offline) } .ok { color:var(--ok) } .bad { color:var(--warn) }
   code { font:13px ui-monospace,monospace; background:var(--bg); padding:2px 6px; border-radius:4px; word-break:break-all }
   button, input { font:inherit; padding:6px 12px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--text) }
   button { cursor:pointer } button.primary { background:var(--accent); border-color:var(--accent); color:#fff }
@@ -54,6 +58,17 @@ const rtspPort = ${JSON.stringify(rtspPort)};
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 let shown = '';
+// Same state icons as the stream overlay (stroke paths, 24x24).
+const ICONS = {
+  asleep: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  waking: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
+  live: '<circle cx="12" cy="12" r="5" fill="currentColor"/>',
+  lowbattery: '<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M5.5 10v4"/>',
+  nowake: '<path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4.5"/><path d="M12 17.2h.01"/>',
+  offline: '<path d="M3 3l18 18"/><path d="M8.5 6.6A6 6 0 0 1 17.6 10a4.2 4.2 0 0 1 3 5.6"/><path d="M17 18H7a4.5 4.5 0 0 1-1.6-8.7"/>',
+  nopicture: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/><path d="M3 3l18 18"/>',
+};
+const icon = (k) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[k] || '') + '</svg>';
 
 async function refresh() {
   let s; try { s = await (await fetch('api/status')).json(); } catch { $('bridge').textContent = 'Gateway not reachable.'; return; }
@@ -83,9 +98,9 @@ async function refresh() {
   }
   for (const c of s.cameras) {
     const el = $('cam-' + c.name); if (!el) continue;
-    const badge = el.querySelector('.badge'); badge.textContent = c.state; badge.className = 'badge ' + c.state;
-    el.querySelector('.info').textContent = [c.resolution, c.battery != null ? c.battery + '% battery' : null,
-      c.liveUntil ? 'live until ' + c.liveUntil : c.lastSeen ? 'last seen ' + c.lastSeen : null].filter(Boolean).join(' · ');
+    const d = c.display || { kind: 'asleep', title: c.state, detail: '' };
+    const badge = el.querySelector('.badge'); badge.innerHTML = icon(d.kind) + esc(d.title); badge.className = 'badge ' + d.kind;
+    el.querySelector('.info').textContent = [d.detail, c.resolution, c.battery != null ? c.battery + '% battery' : null].filter(Boolean).join(' · ');
   }
 
   if (ok) {

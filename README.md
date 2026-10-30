@@ -14,8 +14,8 @@ open would drain the battery in days.
 This gateway sits in between and runs as **one Docker container**:
 
 - Every camera gets a **constant H.264 RTSP stream** that never drops, so the NVR is always happy.
-- While nothing happens, that stream shows the **last frame, frozen and blurred**, with a
-  `LAST SEEN 18:33:15` label — and the camera **sleeps**.
+- While nothing happens, the stream shows the **last frame, blurred and dimmed, with a moon** and a
+  `Sleeping · since 18:33` label — and the camera **sleeps**.
 - When the camera detects motion or a person, or the doorbell is pressed, the gateway **wakes the
   camera, switches the stream to live video** for two minutes, then freezes the last frame again.
 
@@ -24,7 +24,7 @@ flowchart LR
   cam["eufy battery camera<br>(asleep most of the time)"] -- "P2P, only during events" --> bridge
   cloud["eufy cloud<br>(push events)"] -- "motion · person · ring" --> bridge
   subgraph container ["eufy-nvr-gateway (one container)"]
-    bridge["eufy bridge"] -- "events + live video" --> switcher["switcher<br>frozen frame ⇄ live"]
+    bridge["eufy bridge"] -- "events + live video" --> switcher["switcher<br>sleeping picture ⇄ live"]
     switcher -- "constant H.264" --> go2rtc
   end
   go2rtc -- "RTSP :8554" --> nvr["NVR / VLC / Home Assistant"]
@@ -39,7 +39,10 @@ flowchart LR
 - **Full resolution.** Output is the camera's native live resolution (e.g. 2880×1616 for a 3K
   SoloCam). Measured image quality against the camera's own stream: SSIM 0.993–0.997.
 - **H.265 handled.** Cameras that send H.265 (HEVC) are converted to H.264, which every NVR accepts.
-- **Cheap while idle.** The frozen picture costs ~0.1–0.6 Mbit/s per camera.
+- **Clear states on the stream.** Sleeping, waking up, low battery, didn't wake up, offline: each
+  has its own icon and a short label, readable even in a small NVR tile. Live video stays clean.
+- **Almost free while idle.** The sleeping picture is encoded once and replayed: well under 1 % of
+  a CPU core and ~0.1–0.6 Mbit/s per camera.
 - **Web page** for the eufy login (2FA code / captcha), live status, stream URLs, manual
   *Go live* / *Stop*, and the list of devices on your account (to copy serial numbers from).
 
@@ -133,10 +136,9 @@ Per camera:
 | `maxLiveMs` | | Hard cap per session, from the first live frame. Default `120000` |
 | `restartGapMs` | | Minimum pause between sessions (a doorbell press ignores it). Default `15000` |
 | `minBatteryPct` | | Below this battery level, only a doorbell press or a manual *Go live* wakes the camera. Default `15` |
-| `idleBlur` | | Blur of the frozen picture (pixels at 1080p, scaled to the resolution). `0` = sharp. Default `10` |
 | `triggers` | | Events that wake the camera. Default: `motion`, `personDetected`, `vehicleDetected`, `petDetection`, `strangerDetected`, `doorbellPress` |
 
-Top level: `timezone` (for the `LAST SEEN` label), `defaults` (any per-camera key, applied to all
+Top level: `timezone` (for the `since 18:33` label), `defaults` (any per-camera key, applied to all
 cameras), `ports`, `bridge`. Everything is described in
 [docs/configuration.md](docs/configuration.md), with a complete example in
 [`examples/config.full.example.json`](examples/config.full.example.json).
@@ -179,8 +181,9 @@ Change them under `"ports"` in `config.json` if something else on the host alrea
 
 ## How it works
 
-The short version: one ffmpeg encoder per camera runs forever and feeds go2rtc. The switcher hands
-it either the frozen picture or decoded live frames, so the NVR sees one unbroken stream. Details,
+The short version: per camera, one never-ending stream feeds go2rtc. While the camera sleeps it
+replays a picture that was encoded once; during an event a live encoder takes over, spliced in at a
+keyframe, so the NVR sees one unbroken stream. Details,
 measurements and the problems solved along the way: [docs/how-it-works.md](docs/how-it-works.md).
 
 ## Roadmap
@@ -203,7 +206,7 @@ measurements and the problems solved along the way: [docs/how-it-works.md](docs/
 | Login keeps failing, `Email address or password incorrect` | Check `EUFY_EMAIL`, `EUFY_PASSWORD` and `EUFY_COUNTRY` — the country must be where the account was registered. |
 | The gateway gets logged out now and then | Another login on the same account (phone app, Home Assistant, another bridge) took over the session. Use a dedicated account. |
 | A camera never goes live on motion | It is disarmed, or detection is off in the eufy app. A disarmed camera sends no events. Test with the *Go live* button. |
-| Live video takes 10–60 s to appear | Normal for battery cameras: waking takes 3–12 s, deep sleep longer. The stream shows `CONNECTING…` meanwhile. |
+| Live video takes 10–60 s to appear | Normal for battery cameras: waking takes 3–12 s, deep sleep longer. The stream shows `Waking up` meanwhile. |
 | The first seconds of live video look soft | Some cameras start at a lower resolution and step up (the SoloCam S340 reaches 3K after ~8 s). |
 | Picture is stretched or letterboxed | `width`/`height` don't match the camera's native resolution. |
 | High CPU on the host | Live sessions of H.265 3K cameras are expensive (~1 core). Lower `width`/`height` to trade detail for CPU. |

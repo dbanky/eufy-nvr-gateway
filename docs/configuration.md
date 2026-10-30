@@ -18,7 +18,7 @@ Environment variables win over `config.json`.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `timezone` | `TZ` or `UTC` | Time zone for the `LAST SEEN hh:mm:ss` label |
+| `timezone` | `TZ` or `UTC` | Time zone for the times on the stream labels (`since 18:33`) |
 | `cameras` | `[]` | The cameras to publish (below) |
 | `defaults` | `{}` | Any camera setting, applied to every camera unless the camera sets it itself |
 | `ports` | see below | Network ports |
@@ -33,7 +33,7 @@ Environment variables win over `config.json`.
 | `serial` | — | Required. Serial number from the web page's device list |
 | `width`, `height` | — | Required. The camera's native live resolution |
 | `fps` | `15` | Output frame rate |
-| `bitrateKbps` | `4000` | Bitrate ceiling for live video. The frozen picture uses far less |
+| `bitrateKbps` | `4000` | Bitrate ceiling for live video. The sleeping picture uses far less |
 | `holdMs` | `120000` | Stay live this long after the last detection, counted from the first live frame |
 | `ringHoldMs` | `120000` | Same, after a doorbell press |
 | `maxLiveMs` | `120000` | Hard cap per session, from the first live frame. Repeated detections cannot extend past it |
@@ -41,7 +41,6 @@ Environment variables win over `config.json`.
 | `restartGapMs` | `15000` | Minimum pause between two sessions. A doorbell press and *Go live* ignore it |
 | `maxReconnects` | `2` | Reconnect attempts if the live feed drops mid-session |
 | `minBatteryPct` | `15` | Below this, only a doorbell press or *Go live* wakes the camera |
-| `idleBlur` | `10` | Blur of the frozen picture, in pixels at 1080p (scaled to the resolution). `0` = sharp |
 | `triggers` | see below | Bridge events that wake the camera |
 
 Default `triggers`: `motion`, `personDetected`, `vehicleDetected`, `petDetection`,

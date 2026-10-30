@@ -18,7 +18,6 @@
     "maxLiveMs": 120000,
     "restartGapMs": 15000,
     "minBatteryPct": 15,
-    "idleBlur": 10,
     "triggers": ["motion", "personDetected", "vehicleDetected", "petDetection", "strangerDetected", "doorbellPress"]
   },
 
@@ -35,8 +34,7 @@
       "serial": "T81XXXXXXXXXXXXX",
       "width": 2880,
       "height": 1616,
-      "bitrateKbps": 6000,
-      "idleBlur": 3
+      "bitrateKbps": 6000
     }
   ],
 

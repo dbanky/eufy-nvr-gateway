@@ -12,16 +12,23 @@ stream drop, reconnects, and wakes the camera again — all day.
 
 ## The approach: never switch streams, switch pictures
 
-Each camera has **one ffmpeg encoder that runs forever** and publishes to go2rtc. The NVR connects
-to go2rtc and sees an unbroken H.264 stream at a fixed resolution and frame rate.
-
-The switcher decides what goes into that encoder:
+Each camera has **one publisher that runs forever**: an `ffmpeg -c copy` that sends H.264 frames to
+go2rtc at exactly 15 fps. The NVR connects to go2rtc and sees an unbroken stream at a fixed
+resolution and frame rate. What the publisher is fed depends on the state:
 
 | State | Picture | Camera |
 |---|---|---|
-| `IDLE` | Last frame, frozen, blurred, `LAST SEEN hh:mm:ss` label | Asleep |
-| `WAKING` | Frozen frame with a `CONNECTING…` label | Waking up (3–60 s) |
-| `LIVE` | Live video, scaled to the fixed output size | Streaming over P2P |
+| `IDLE` | The last frame, blurred and dimmed, with a moon and `Sleeping · since 18:33` | Asleep |
+| `WAKING` | The same picture with a spinning ring and `Waking up · Person detected` | Waking up (3–60 s) |
+| `LIVE` | Live video, scaled to the fixed output size, no overlay | Streaming over P2P |
+
+While asleep the label can also read *low battery*, *didn't wake up* or *offline*, and a fresh
+install shows *no picture yet* instead of a black frame.
+
+**Sleeping costs (almost) nothing.** Each state's picture is drawn once and encoded once into an 8 s
+loop (two keyframe intervals); the publisher replays those encoded frames without touching x264.
+Only during a live session does an encoder run. Live and loop use identical x264 settings, so their
+parameter sets match and the publisher can switch between them at any keyframe.
 
 Events (`motion`, `personDetected`, `doorbellPress`, …) come from the bundled
 [ha-eufy-sdk-bridge](https://github.com/mega-yfue/ha-eufy-sdk-bridge) over its WebSocket. On an
@@ -34,13 +41,14 @@ frame, extended by further detections up to `maxLiveMs`.
 
 ## Details that matter
 
-- **Frame pacing.** Raw 3K frames are 7 MB. Writing 15 of them per second while the picture is frozen
-  cost most of a CPU core. Frames are now written only when the picture changes (plus a 1 s
-  heartbeat), with wall-clock timestamps; ffmpeg repeats the last frame to a constant 15 fps
-  (`-use_wallclock_as_timestamps 1 … -fps_mode cfr`).
-- **Static pictures with x264.** With plain CRF, x264 keeps "refining" a frozen frame with ever lower
-  quantizers: ~1.6 Mbit/s for a still image. `qpmin=19` stops that; together with the blur the frozen
-  picture costs 0.1–0.6 Mbit/s.
+- **Idle CPU.** Re-encoding an unchanging 3K picture 15 times a second cost ~15 % of a fast core per
+  camera, more on a NAS. Replaying a pre-encoded loop costs well under 1 %.
+- **Frame pacing while live.** Raw 3K frames are 7 MB. The live encoder only gets a frame when the
+  picture changes (plus a 1 s heartbeat), with wall-clock timestamps; ffmpeg repeats the last frame
+  to a constant 15 fps (`-use_wallclock_as_timestamps 1 … -fps_mode cfr`).
+- **Static pictures with x264.** With plain CRF, x264 keeps "refining" a still frame with ever lower
+  quantizers: ~1.6 Mbit/s. `qpmin=19` stops that; with the blur the sleeping picture costs
+  0.1–0.6 Mbit/s.
 - **Quality.** `crf 20`, High profile, keyframe every 4 s, no B-frames. Measured against the camera's
   own stream: SSIM 0.997 (2048×1536 doorbell), 0.993 (3K SoloCam).
 - **H.265.** Some cameras (e.g. the SoloCam S340) only send H.265. The decoder converts everything;

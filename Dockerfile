@@ -3,6 +3,18 @@
 #
 # Every bundled component is pinned, so a rebuild cannot silently change behaviour.
 
+# Overlay assets: icons rasterised from assets/icons/*.svg, and the Inter typeface (OFL-1.1).
+FROM node:24-alpine AS assets
+ARG INTER_VERSION=4.1
+ARG INTER_SHA256=9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e
+RUN apk add --no-cache rsvg-convert curl unzip
+COPY assets/icons /src/icons
+RUN mkdir -p /out/icons /out/fonts \
+ && for f in /src/icons/*.svg; do rsvg-convert -w 256 -h 256 "$f" -o "/out/icons/$(basename "$f" .svg).png"; done \
+ && curl -fsSL -o /tmp/inter.zip "https://github.com/rsms/inter/releases/download/v${INTER_VERSION}/Inter-${INTER_VERSION}.zip" \
+ && echo "${INTER_SHA256}  /tmp/inter.zip" | sha256sum -c - \
+ && unzip -j /tmp/inter.zip extras/ttf/Inter-Regular.ttf extras/ttf/Inter-SemiBold.ttf LICENSE.txt -d /out/fonts
+
 FROM node:24-alpine
 
 ARG TARGETARCH
@@ -11,7 +23,7 @@ ARG GO2RTC_VERSION=1.9.15
 ARG BRIDGE_REPO=https://github.com/mega-yfue/ha-eufy-sdk-bridge.git
 ARG BRIDGE_COMMIT=6b3ccbc09293da019e6f91db516856644501dbd2
 
-RUN apk add --no-cache ffmpeg font-dejavu tzdata curl git
+RUN apk add --no-cache ffmpeg tzdata curl git
 
 # go2rtc (MIT): a single static binary
 RUN case "${TARGETARCH:-amd64}" in \
@@ -29,6 +41,7 @@ RUN git clone "$BRIDGE_REPO" /opt/bridge && cd /opt/bridge && git checkout "$BRI
 WORKDIR /app
 COPY package.json ./
 COPY src ./src
+COPY --from=assets /out ./assets
 
 ENV DATA_DIR=/data
 VOLUME ["/data"]

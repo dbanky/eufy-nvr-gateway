@@ -10,7 +10,7 @@ its own license; nothing from them is copied into this repository.
 | go2rtc | 1.9.15 | MIT | https://github.com/AlexxIT/go2rtc |
 | Node.js | 24 (Alpine image) | MIT | https://nodejs.org |
 | FFmpeg, x264 | Alpine packages | LGPL-2.1+ / GPL-2.0+ | https://ffmpeg.org |
-| DejaVu fonts | Alpine package | Bitstream Vera / public domain | https://dejavu-fonts.github.io |
+| Inter typeface | 4.1 | SIL Open Font License 1.1 | https://github.com/rsms/inter |
 
 Because the image contains FFmpeg built with x264 (GPL), redistributing the built image is subject
 to the GPL; the source of every component is available at the links above.

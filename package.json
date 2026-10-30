@@ -10,6 +10,6 @@
   },
   "scripts": {
     "start": "node src/start.mjs",
-    "check": "node --check src/start.mjs && node --check src/switcher.mjs && node --check src/web.mjs"
+    "check": "node --check src/start.mjs && node --check src/switcher.mjs && node --check src/web.mjs && node --check src/render.mjs"
   }
 }
