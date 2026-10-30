@@ -24,9 +24,8 @@ describe('"Sleeping since …"', () => {
   });
 
   test('"yesterday" is decided in the camera\'s time zone, not UTC', () => {
-    // 23:30 UTC on the 29th is already the 30th in Budapest (UTC+1)
-    const budapest = createTimeFormat('Europe/Budapest');
-    assert.equal(budapest.since(at('2026-10-29T23:30:00Z'), now), 'since 00:30');
+    // In summer (BST, UTC+1), 23:30 UTC on the 29th is already the 30th in London
+    assert.equal(time.since(at('2026-07-29T23:30:00Z'), at('2026-07-30T20:00:00Z')), 'since 00:30');
   });
 });
 

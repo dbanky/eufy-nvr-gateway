@@ -41,8 +41,8 @@ describe('settings', () => {
   });
 
   test('the time zone comes from TZ, then config.json, then UTC', () => {
-    assert.equal(resolveSettings({ timezone: 'Europe/Budapest' }, { ...login, TZ: 'Europe/London' }).timeZone, 'Europe/London');
-    assert.equal(resolveSettings({ timezone: 'Europe/Budapest' }, login).timeZone, 'Europe/Budapest');
+    assert.equal(resolveSettings({ timezone: 'Europe/London' }, { ...login, TZ: 'UTC' }).timeZone, 'UTC');
+    assert.equal(resolveSettings({ timezone: 'Europe/London' }, login).timeZone, 'Europe/London');
     assert.equal(resolveSettings({}, login).timeZone, 'UTC');
   });
 });
