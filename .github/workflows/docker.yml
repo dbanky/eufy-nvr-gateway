@@ -1,8 +1,9 @@
-# Builds the image for amd64 + arm64 and publishes it to Docker Hub and the GitHub Container Registry:
-#   <user>/eufy-nvr-gateway:latest              (main branch)
-#   <user>/eufy-nvr-gateway:1.2.3               (tag v1.2.3)
+# Builds the image for amd64 + arm64 and publishes it to Docker Hub and the GitHub Container Registry
+# when a version tag is pushed (git tag v1.2.3 && git push origin v1.2.3):
+#   <user>/eufy-nvr-gateway:1.2.3, :1.2, :latest
 #   ghcr.io/<owner>/eufy-nvr-gateway:...        (same tags)
-# Pull requests are built but not published.
+# Pre-releases (v1.2.3-rc.1) get only their own tag, not :latest.
+# Pull requests and manual runs on a branch are built but not published.
 #
 # Docker Hub needs, in the repository settings (Secrets and variables → Actions):
 #   variable DOCKERHUB_USERNAME   the Docker Hub user or organisation
@@ -13,7 +14,6 @@ name: Docker image
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -23,7 +23,7 @@ permissions:
   packages: write
 
 env:
-  PUBLISH: ${{ github.event_name != 'pull_request' }}
+  PUBLISH: ${{ startsWith(github.ref, 'refs/tags/v') }}   # only version tags publish
   DOCKERHUB: ${{ vars.DOCKERHUB_USERNAME != '' }}
 
 jobs:
@@ -57,10 +57,11 @@ jobs:
           images: |
             name=docker.io/${{ vars.DOCKERHUB_USERNAME }}/eufy-nvr-gateway,enable=${{ env.DOCKERHUB }}
             ghcr.io/${{ github.repository }}
+          flavor: latest=false
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-') }}
             type=sha,format=short
 
       - uses: docker/build-push-action@v6
@@ -75,7 +76,7 @@ jobs:
 
       # Keep the Docker Hub page in sync with README.md (relative links made absolute).
       - uses: peter-evans/dockerhub-description@v4
-        if: env.PUBLISH == 'true' && env.DOCKERHUB == 'true' && github.ref == 'refs/heads/main'
+        if: env.PUBLISH == 'true' && env.DOCKERHUB == 'true' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-')
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
