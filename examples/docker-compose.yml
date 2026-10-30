@@ -15,7 +15,7 @@ services:
     environment:
       EUFY_EMAIL: "you@example.com"
       EUFY_PASSWORD: "your-eufy-password"
-      EUFY_COUNTRY: "GB"            # two-letter country the eufy account was registered in
+      EUFY_COUNTRY: "GB"            # two-letter country the eufy account was registered in, e.g. GB, DE, US
       TZ: "Europe/London"
     volumes:
       - ./data:/data                # config.json (cameras), eufy login session, last frames

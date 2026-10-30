@@ -81,8 +81,8 @@ The image is on Docker Hub, Container Manager's built-in registry — nothing ne
    - Container name `eufy-nvr-gateway`, tick *Enable auto-restart*.
    - **Volume**: add a folder (e.g. create `docker/eufy-nvr-gateway`) with mount path `/data`.
    - **Network**: `host`.
-   - **Environment**: `EUFY_EMAIL`, `EUFY_PASSWORD`, `EUFY_COUNTRY` (the two-letter country the
-     account was registered in) and `TZ` (e.g. `Europe/London`).
+   - **Environment**: `EUFY_EMAIL`, `EUFY_PASSWORD`, `EUFY_COUNTRY` (the two-letter code of the
+     country the account was registered in, e.g. `GB`, `DE`, `US`) and `TZ` (e.g. `Europe/London`).
 3. **Log in**: open `http://<nas>:8099`. If eufy asks for a verification code (usually e-mailed) or a
    captcha, enter it there.
 4. **Add your cameras**: the page lists every device on the account with its serial number. Write
