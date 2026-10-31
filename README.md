@@ -48,6 +48,9 @@ flowchart LR
   has its own icon and a short label, readable even in a small NVR tile. Live video stays clean.
 - **Almost free while idle.** The sleeping picture is encoded once and replayed: well under 1 % of
   a CPU core and ~0.1–0.6 Mbit/s per camera.
+- **ONVIF, for UniFi Protect** and other NVRs that only adopt ONVIF cameras: each camera can be
+  published as an ONVIF device with motion events, pointing at the same stream (nothing is encoded
+  twice). See [docs/onvif.md](docs/onvif.md).
 - **Web page** for the eufy login (2FA code / captcha), live status, stream URLs, each stream's codec
   and whether it is converted, manual *Go live* / *Stop*, and the list of devices on your account (to
   copy serial numbers from).
@@ -170,8 +173,11 @@ All on the host (host networking):
 |---|---|
 | `8099` | Web page and API |
 | `8554` | RTSP streams — `rtsp://<host>:8554/<name>` |
+| `8000` | ONVIF, only on the addresses of cameras published as ONVIF devices ([docs/onvif.md](docs/onvif.md)) |
+| `3702/udp` | ONVIF discovery, only when cameras are published as ONVIF devices |
 
-Change them under `"ports"` in `config.json` if something else on the host already uses one.
+Change the first two under `"ports"` in `config.json` if something else on the host already uses
+one; the ONVIF port is set per camera (`onvif.port`).
 
 ## API
 
@@ -194,13 +200,8 @@ Details, measurements and the problems solved along the way:
 
 ## Roadmap
 
-- **ONVIF for UniFi Protect** (next). UniFi Protect only adopts ONVIF cameras, treats each one as a
-  separate device with its own MAC and IP address, and records third-party cameras on motion only if
-  they send ONVIF motion events. Plan: publish every camera as a virtual ONVIF device (one macvlan
-  interface per camera on the host) and raise ONVIF *motion* exactly while the camera is live, so
-  Protect records just the live sessions. A prototype based on
-  [onvif-server](https://github.com/daniela-hase/onvif-server) with a motion-events patch works in
-  the lab; it will land here once it has been tested with a real Protect console.
+- **ONVIF with a real UniFi Protect console:** tested with the ONVIF client library Protect uses,
+  not yet with Protect itself.
 - Ideas: show each camera's detected source resolution on the web page; optional password for the
   web page; Home Assistant MQTT discovery for the *Go live* buttons.
 
@@ -226,6 +227,7 @@ Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[bridge]`, `[
 
 - The web page and API have **no authentication**. Keep port 8099 on your LAN; never forward it to
   the internet. Same for the RTSP port 8554.
+- ONVIF cameras are protected by the `onvif.username` / `onvif.password` login (if set).
 - The eufy password is passed as an environment variable and used only by the bundled bridge to log
   in to eufy. The login session is stored in `data/bridge/`.
 

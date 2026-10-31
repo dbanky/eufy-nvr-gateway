@@ -7,6 +7,16 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Added
+
+- **ONVIF, for UniFi Protect** and other NVRs that only adopt ONVIF cameras. A camera with an
+  `onvif` section (its own IP on the LAN) is published as an ONVIF device: device and media
+  services pointing at its existing RTSP stream and snapshot (nothing is encoded for ONVIF),
+  motion events while it is waking up or live (PullPoint, two motion topics), WS-Discovery, and a
+  login (`onvif.username` / `onvif.password`). `examples/onvif-addresses.sh` gives each camera its
+  own IP and MAC (macvlan). Tested with the ONVIF client library UniFi Protect uses; not yet with a
+  Protect console. See docs/onvif.md.
+
 ### Changed
 
 - **Redesigned web page**, in the stream overlay's design language (dark, Inter, one accent colour

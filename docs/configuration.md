@@ -23,6 +23,7 @@ Environment variables win over `config.json`.
 | `cameras` | `[]` | The cameras to publish (below) |
 | `defaults` | `{}` | Any camera setting, applied to every camera unless the camera sets it itself |
 | `ports` | see below | Network ports |
+| `onvif` | — | The login NVRs use for ONVIF cameras: `{ "username", "password" }` ([onvif.md](onvif.md)) |
 | `bridge.env` | `{}` | Extra environment variables for the bridge (see the [bridge docs](https://github.com/mega-yfue/ha-eufy-sdk-bridge)) |
 
 ## Cameras
@@ -43,6 +44,7 @@ Environment variables win over `config.json`.
 | `minBatteryPct` | `15` | Below this, only a doorbell press or *Go live* wakes the camera |
 | `transcode` | `false` | Pass the camera's own H.264 or H.265 through. `true` converts live video to H.264 instead (see below) |
 | `triggers` | see below | Bridge events that wake the camera |
+| `onvif` | — | Publish the camera as an ONVIF device: `{ "address", "port", "mac" }`, its own IP on the LAN ([onvif.md](onvif.md)) |
 
 Default `triggers`: `motion`, `personDetected`, `vehicleDetected`, `petDetection`,
 `strangerDetected`, `doorbellPress`. Which ones a camera sends depends on the model and its

@@ -1,0 +1,51 @@
+// ONVIF for the gateway's cameras, so NVRs that only take ONVIF cameras (UniFi Protect) can adopt
+// them. Each camera with an `onvif` section gets its own ONVIF device on its own address: device
+// and media services pointing at the gateway's existing RTSP stream (nothing extra is encoded),
+// motion events while the camera is waking up or live, and WS-Discovery.
+
+import { createHash } from 'node:crypto';
+import { createCameraServer } from './camera-server.mjs';
+import { MotionEvents } from './events.mjs';
+import { startDiscovery } from './discovery.mjs';
+import { baseUrl } from './device.mjs';
+
+export const DEFAULT_PORT = 8000;
+
+// A stable UUID per camera (from its serial), so an NVR recognises it after a restart.
+export function deviceUuid(serial) {
+  const h = createHash('sha1').update(`eufy-nvr-gateway:${serial}`).digest('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-${(8 + (parseInt(h[16], 16) & 3)).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+// The ONVIF view of one camera. Model and codec are read live: both can change at runtime.
+export function onvifDevice(camera, { rtspPort, webPort, version }) {
+  const { address, port = DEFAULT_PORT, mac = null } = camera.onvif;
+  return {
+    name: camera.name, serial: camera.serial, manufacturer: 'eufy', firmware: version,
+    get model() { return camera.model ?? 'eufy camera'; },
+    uuid: deviceUuid(camera.serial), mac, address, port,
+    rtspUrl: `rtsp://${address}:${rtspPort}/${camera.name}`,
+    snapshotUrl: `http://${address}:${webPort}/api/cameras/${encodeURIComponent(camera.name)}/snapshot.jpg`,
+    width: camera.width, height: camera.height, fps: camera.fps, bitrateKbps: camera.bitrateKbps,
+    codec: () => camera.deps.feed.codec,
+  };
+}
+
+// cameras: [Camera]; only those with an `onvif` section are published.
+export function startOnvif({ cameras, credentials, rtspPort, webPort, version, log }) {
+  const published = cameras.filter((c) => c.onvif?.address);
+  if (!published.length) return null;
+  if (!credentials) log('ONVIF: no "onvif.username"/"onvif.password" in config.json: anyone on the LAN can use the ONVIF cameras');
+  const devices = published.map((camera) => {
+    const device = onvifDevice(camera, { rtspPort, webPort, version });
+    const events = new MotionEvents({ baseUrl: baseUrl(device) });
+    const server = createCameraServer({ device, events, credentials, log });
+    server.on('error', (e) => log(camera.name, `ONVIF can't listen on ${device.address}:${device.port}: ${e.message}`));
+    server.listen(device.port, device.address, () => log(camera.name, `ONVIF device on ${baseUrl(device)}/onvif/device_service`));
+    // motion = the camera is waking up or live
+    setInterval(() => events.setMotion(camera.state !== 'IDLE'), 500).unref();
+    return device;
+  });
+  startDiscovery(devices, log);
+  return devices;
+}

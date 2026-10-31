@@ -3,6 +3,8 @@
 
   "eufy": { "country": "GB" },
 
+  "onvif": { "username": "protect", "password": "choose-a-password" },
+
   "ports": {
     "web": 8099,
     "rtsp": 8554
@@ -31,7 +33,8 @@
       "serial": "T81XXXXXXXXXXXXX",
       "width": 2880,
       "height": 1616,
-      "bitrateKbps": 6600
+      "bitrateKbps": 6600,
+      "onvif": { "address": "192.168.1.51", "port": 8000, "mac": "02:00:00:00:00:01" }
     }
   ],
 

@@ -50,6 +50,11 @@ describe('eufy bridge', () => {
 });
 
 describe('switcher', () => {
+  test('gets the ONVIF login, if there is one', () => {
+    assert.deepEqual(switcherConfig({ ...settings, onvif: { username: 'protect', password: 'secret' } }, '/data').onvif,
+      { username: 'protect', password: 'secret' });
+  });
+
   test('reaches the bridge and go2rtc on localhost', () => {
     const config = switcherConfig(settings, '/data');
     assert.equal(config.bridgeWs, 'ws://127.0.0.1:3000/ws');

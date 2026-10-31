@@ -13,6 +13,7 @@ import { createTimeFormat } from './time-format.mjs';
 import { loadInitialPicture } from './initial-picture.mjs';
 import { createWebServer } from './web/server.mjs';
 import { encodeJpeg } from '../video/ffmpeg.mjs';
+import { startOnvif } from '../onvif/index.mjs';
 
 const config = JSON.parse(readFileSync(process.argv[2] ?? '/data/switcher/config.json', 'utf8'));
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -34,6 +35,10 @@ for (const camera of cameras) {
   camera.refresh();
 }
 bridge.connect();
+
+// ONVIF devices for cameras with an `onvif` section (NVRs such as UniFi Protect adopt only ONVIF).
+const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+startOnvif({ cameras, credentials: config.onvif ?? null, rtspPort: config.rtspPort ?? 8554, webPort, version, log });
 
 setInterval(() => cameras.forEach((c) => c.check()), 1000);
 // Labels follow battery, login state and the date ("since yesterday …"); rendered only on change.
