@@ -7,6 +7,11 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.4.0-beta.3] - 2026-10-31
+
+Pre-release for testing: a logo, equal tile heights when details open, and ONVIF cameras whose
+address comes up late (with plain-word network errors).
+
 ### Changed
 
 - **A logo**: a camera asleep (its lens is the stream's moon) with its stream still on (the live dot),
@@ -197,7 +202,8 @@ First release: always-on H.264 RTSP streams for battery-powered eufy cameras, wi
 awake. One container with the eufy bridge, go2rtc and the switcher; frozen last frame while idle,
 live video on motion, person detection or a doorbell press; web page for the eufy login and status.
 
-[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0-beta.2...HEAD
+[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0-beta.3...HEAD
+[0.4.0-beta.3]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0-beta.2...v0.4.0-beta.3
 [0.4.0-beta.2]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0-beta.1...v0.4.0-beta.2
 [0.4.0-beta.1]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.3.0-beta.2...v0.4.0-beta.1
 [0.3.0-beta.2]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.3.0-beta.1...v0.3.0-beta.2
