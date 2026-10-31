@@ -7,6 +7,11 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Changed
+
+- README: which ports to map when the container uses a `bridge` network instead of `host`
+  (`8099` and `8554` TCP), and that ONVIF (`8000` TCP, `3702` UDP) needs host networking.
+
 ## [0.4.0-beta.1] - 2026-10-31
 
 Pre-release for testing: ONVIF for UniFi Protect, and a redesigned web page.

@@ -93,7 +93,9 @@ The image is on Docker Hub, Container Manager's built-in registry — nothing ne
 2. **Create the container**: *Container Manager → Image*, select the image, *Run*:
    - Container name `eufy-nvr-gateway`, tick *Enable auto-restart*.
    - **Volume**: add a folder (e.g. create `docker/eufy-nvr-gateway`) with mount path `/data`.
-   - **Network**: `host`.
+   - **Network**: `host` (recommended: nothing to map). If you use the default `bridge` network
+     instead, map the ports under *Port Settings*, local port = container port: `8099` TCP and
+     `8554` TCP — see [Ports](#ports). ONVIF needs `host`.
    - **Environment**: `EUFY_EMAIL`, `EUFY_PASSWORD`, `EUFY_COUNTRY` (the two-letter code of the
      country the account was registered in, e.g. `GB`, `DE`, `US`) and `TZ` (e.g. `Europe/London`).
 3. **Log in**: open `http://<nas>:8099`. If eufy asks for a verification code (usually e-mailed) or a
@@ -167,17 +169,23 @@ Measured on real devices; other models: start with 1920×1080 and check the web 
 
 ## Ports
 
-All on the host (host networking):
+With host networking (recommended) the gateway listens on the host directly and nothing needs to
+be mapped. With a `bridge` network, map these from the host to the same port in the container
+(Synology: *Container → Edit → Port Settings*; Docker: `-p 8099:8099 -p 8554:8554`):
 
-| Port | What |
-|---|---|
-| `8099` | Web page and API |
-| `8554` | RTSP streams — `rtsp://<host>:8554/<name>` |
-| `8000` | ONVIF, only on the addresses of cameras published as ONVIF devices ([docs/onvif.md](docs/onvif.md)) |
-| `3702/udp` | ONVIF discovery, only when cameras are published as ONVIF devices |
+| Port | Protocol | What | Map with `bridge` |
+|---|---|---|---|
+| `8099` | TCP | Web page and API | yes |
+| `8554` | TCP | RTSP streams — `rtsp://<host>:8554/<name>` | yes |
+| `8000` | TCP | ONVIF, only on the addresses of cameras published as ONVIF devices ([docs/onvif.md](docs/onvif.md)); one port per camera (`onvif.port`) | — ONVIF needs host networking |
+| `3702` | UDP | ONVIF discovery, only when cameras are published as ONVIF devices | — ONVIF needs host networking |
+
+ONVIF works only with host networking: each camera's ONVIF device listens on its own LAN address
+(`onvif.address`), which a container on a `bridge` network doesn't have, and discovery is multicast,
+which a bridge doesn't pass on.
 
 Change the first two under `"ports"` in `config.json` if something else on the host already uses
-one; the ONVIF port is set per camera (`onvif.port`).
+one (and map the new numbers instead); the ONVIF port is set per camera (`onvif.port`).
 
 ## API
 

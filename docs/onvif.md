@@ -25,7 +25,11 @@ router's DHCP range), and run it as root at every boot, before the gateway start
 *Control Panel → Task Scheduler → Create → Triggered Task → User-defined script*, user `root`,
 event *Boot-up*. On DSM with Open vSwitch the parent interface is `ovs_eth0` instead of `eth0`.
 
-The gateway uses host networking, so it can listen on these addresses directly.
+The container must use **host networking** (Synology: *Network* `host`), so it can listen on
+these addresses directly and receive discovery probes. Nothing needs to be mapped then: the ONVIF
+ports (`8000` TCP per camera, `3702` UDP for discovery) are open on the host. On a `bridge` network
+ONVIF can't work — the container doesn't have the cameras' addresses, and multicast discovery
+doesn't get through.
 
 Note: a host can't reach its own macvlan addresses. Test from another machine (or let the NVR
 find the cameras).
