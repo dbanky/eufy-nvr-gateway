@@ -84,10 +84,10 @@ describe('the web page', () => {
   test('is served as static files', async () => {
     assert.match(await (await fetch(`${base}/`)).text(), /<title>Eufy NVR Gateway<\/title>/);
     for (const file of ['app.js', 'camera-tile.js', 'connection.js', 'devices.js', 'icons.js', 'escape.js', 'login.js',
-      'gateway.js', 'onvif-info.js', 'update.js', 'theme.js', 'theme-toggle.js', 'signin.js']) {
+      'gateway.js', 'onvif-info.js', 'update.js', 'theme.js', 'theme-toggle.js', 'signin.js', 'tiles.js']) {
       assert.equal((await fetch(`${base}/${file}`)).headers.get('content-type'), 'text/javascript; charset=utf-8', file);
     }
-    assert.equal((await fetch(`${base}/style.css`)).headers.get('content-type'), 'text/css; charset=utf-8');
+    for (const file of ['style.css', 'tiles.css']) assert.equal((await fetch(`${base}/${file}`)).headers.get('content-type'), 'text/css; charset=utf-8');
   });
 
   test('only files of the page: nothing else on disk can be read', async () => {

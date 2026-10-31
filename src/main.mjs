@@ -5,7 +5,8 @@
 //   switcher  sleeping picture while idle, live video on events (src/switcher)
 
 import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { configPath, readConfigFile, resolveSettings, openToTheLan, configWarnings } from './gateway/config.mjs';
+import { configPath, readConfigFile, resolveSettings } from './gateway/config.mjs';
+import { openToTheLan, configWarnings } from './gateway/access.mjs';
 import { ensureCertificate } from './gateway/certificate.mjs';
 import { go2rtcYaml, switcherConfig, bridgeEnv } from './gateway/service-configs.mjs';
 import { Supervisor } from './gateway/supervisor.mjs';

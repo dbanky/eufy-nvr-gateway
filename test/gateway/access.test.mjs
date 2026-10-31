@@ -1,6 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveSettings, validateCameras, openToTheLan, configWarnings } from '../../src/gateway/config.mjs';
+import { resolveSettings, validateCameras } from '../../src/gateway/config.mjs';
+import { openToTheLan, configWarnings } from '../../src/gateway/access.mjs';
 
 const login = { EUFY_EMAIL: 'you@example.com', EUFY_PASSWORD: 'secret' };
 const camera = { name: 'garden', serial: 'T81XXXXXXXXXXXXX', width: 2880, height: 1616 };

@@ -1,15 +1,16 @@
 // Motion events for one camera, the way UniFi Protect (≥ 7.1) reads them to record third-party
 // cameras only on motion: PullPoint subscriptions that clients long-poll with PullMessages.
-// "Motion" here means: the camera is waking up or live. The messages themselves: event-messages.mjs.
+// "Motion" here means: the camera is waking up or live. The messages themselves: event-messages.mjs;
+// one subscription's queue and long poll: pull-point.mjs.
 
 import { randomUUID } from 'node:crypto';
 import { valueOf } from './xml.mjs';
 import { parseDuration, motionMessages, eventProperties } from './event-messages.mjs';
+import { Subscription } from './pull-point.mjs';
 
 const TEV = 'http://www.onvif.org/ver10/events/wsdl';
 const WSN = 'http://docs.oasis-open.org/wsn/bw-2';
 const MAX_SUBSCRIPTIONS = 20;
-const MAX_QUEUE = 50;            // messages kept per subscription that nobody pulls
 const MAX_PULL_MS = 60000;
 const DEFAULT_LIFETIME_MS = 120000;
 
@@ -25,14 +26,14 @@ export class MotionEvents {
     Object.assign(this, { baseUrl, now });
     this.motion = false;
     this.changedAt = now();
-    this.subscriptions = new Map();   // id -> { expires, queue, waiter }
+    this.subscriptions = new Map();   // id -> Subscription
   }
 
   setMotion(motion) {
     if (motion === this.motion) return;
     this.motion = motion;
     this.changedAt = this.now();
-    for (const sub of this.subscriptions.values()) this.deliver(sub, this.messages('Changed'));
+    for (const sub of this.subscriptions.values()) sub.deliver(this.messages('Changed'));
   }
 
   expire() {
@@ -75,7 +76,7 @@ export class MotionEvents {
         this.drop(id);
         return answer(`${WSN}/SubscriptionManager/UnsubscribeResponse`, '<wsnt:UnsubscribeResponse/>');
       case 'SetSynchronizationPoint':
-        this.deliver(sub, this.messages('Initialized'));
+        sub.deliver(this.messages('Initialized'));
         return answer(`${TEV}/PullPointSubscription/SetSynchronizationPointResponse`, '<tev:SetSynchronizationPointResponse/>');
       default:
         return null;
@@ -84,41 +85,24 @@ export class MotionEvents {
 
   subscribe(lifetime) {
     if (this.subscriptions.size >= MAX_SUBSCRIPTIONS) this.drop(this.subscriptions.keys().next().value);   // oldest
-    const sub = { id: randomUUID().replaceAll('-', ''), queue: [], waiter: null,
-      expires: this.now() + parseDuration(lifetime, DEFAULT_LIFETIME_MS, this.now()) };
+    const sub = new Subscription(randomUUID().replaceAll('-', ''), this.now() + parseDuration(lifetime, DEFAULT_LIFETIME_MS, this.now()));
     this.subscriptions.set(sub.id, sub);
-    this.deliver(sub, this.messages('Initialized'));   // clients start from the current state
+    sub.deliver(this.messages('Initialized'));   // clients start from the current state
     return sub;
   }
 
   // Answers at once if there is something to say, otherwise when motion changes or the timeout ends.
-  pull(sub, xml) {
+  async pull(sub, xml) {
     const timeout = Math.min(parseDuration(valueOf(xml, 'Timeout'), 10000, this.now()), MAX_PULL_MS);
     const limit = Math.max(1, parseInt(valueOf(xml, 'MessageLimit'), 10) || 10);
     sub.expires = Math.max(sub.expires, this.now() + timeout + 30000);   // being polled keeps it alive
-    sub.waiter?.respond();                                                // one pull at a time
-    return new Promise((resolve) => {
-      const respond = () => {
-        clearTimeout(timer);
-        if (sub.waiter === waiter) sub.waiter = null;
-        resolve(answer(`${TEV}/PullPointSubscription/PullMessagesResponse`, '<tev:PullMessagesResponse>'
-          + `${this.times(sub, 'tev')}${sub.queue.splice(0, limit).join('')}</tev:PullMessagesResponse>`));
-      };
-      const waiter = { respond };
-      const timer = setTimeout(respond, timeout);
-      if (sub.queue.length) return respond();
-      sub.waiter = waiter;
-    });
-  }
-
-  deliver(sub, messages) {
-    sub.queue.push(...messages);
-    sub.queue.splice(0, Math.max(0, sub.queue.length - MAX_QUEUE));
-    sub.waiter?.respond();
+    const messages = await sub.wait(timeout, limit);
+    return answer(`${TEV}/PullPointSubscription/PullMessagesResponse`,
+      `<tev:PullMessagesResponse>${this.times(sub, 'tev')}${messages.join('')}</tev:PullMessagesResponse>`);
   }
 
   drop(id) {
-    this.subscriptions.get(id)?.waiter?.respond();
+    this.subscriptions.get(id)?.close();
     this.subscriptions.delete(id);
   }
 
