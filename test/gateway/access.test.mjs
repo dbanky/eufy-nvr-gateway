@@ -48,6 +48,12 @@ describe('ONVIF (for NVRs such as UniFi Protect)', () => {
   });
 });
 
+test('a camera\'s "audio" is true or false, also through "defaults"', () => {
+  assert.equal(validateCameras({ cameras: [{ ...camera, audio: true }] })[0].audio, true);
+  assert.equal(validateCameras({ defaults: { audio: true }, cameras: [camera] })[0].audio, true);
+  assert.throws(() => validateCameras({ cameras: [{ ...camera, audio: 'yes' }] }), /"audio" must be true or false/);
+});
+
 describe('the web page', () => {
   test('defaults: no login, the theme follows the system, plain HTTP', () => {
     assert.deepEqual(resolveSettings({}, login).web, { login: null, theme: 'auto', https: false, certFile: null, keyFile: null });

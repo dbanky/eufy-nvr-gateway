@@ -64,6 +64,8 @@ flowchart LR
 - **Light on CPU.** Passing the camera's video through costs a few percent of a CPU core. If your NVR
   doesn't accept a camera's format (some don't take H.265), set `"transcode": true` for it: its video
   is then converted to H.264, which every NVR accepts.
+- **Sound, if you want it.** `"audio": true` adds an AAC track (16 kHz mono, what eufy cameras
+  send): the camera's sound while it is live, silence while it sleeps, so the track never stops.
 - **Almost free while idle.** The sleeping picture is encoded once and replayed: well under 1 % of
   a CPU core and ~0.1–0.6 Mbit/s per camera.
 - **Clear states on the stream.** Sleeping, waking up, low battery, didn't wake up, offline: each
@@ -249,6 +251,7 @@ Per camera:
 | `restartGapMs` | | Minimum pause between sessions (a doorbell press ignores it). Default `15000` |
 | `minBatteryPct` | | Below this battery level, only a doorbell press or *Wake up* on the web page wakes the camera. Default `15` |
 | `transcode` | | `false`: the camera's own H.264 or H.265 is passed through, a few % CPU; your NVR must accept that format. `true`: converted to H.264, which every NVR accepts, up to two cores while live. Default `false` |
+| `audio` | | `true`: the stream carries an AAC track (AAC-LC, 16 kHz, mono): the camera's sound while it is live, silence while it sleeps. Costs next to nothing. Default `false` (video only) |
 | `triggers` | | Events that wake the camera. Default: `motion`, `personDetected`, `vehicleDetected`, `petDetection`, `strangerDetected`, `doorbellPress` |
 | `onvif` | | Publish the camera as an ONVIF device: `{ "address", "port", "mac" }` ([docs/onvif.md](docs/onvif.md)) |
 
@@ -420,7 +423,8 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 This project is MIT licensed (see [LICENSE](LICENSE)). It builds on, and the Docker image bundles:
 
 - [ha-eufy-sdk-bridge](https://github.com/mega-yfue/ha-eufy-sdk-bridge) and
-  [eufy-sdk](https://github.com/mega-yfue/eufy-sdk) by mega-yfue — Apache-2.0
+  [eufy-sdk](https://github.com/mega-yfue/eufy-sdk) by mega-yfue — Apache-2.0. The image adds one
+  route to the bridge, for live audio ([patches/bridge-live-audio.patch](patches/bridge-live-audio.patch))
 - [go2rtc](https://github.com/AlexxIT/go2rtc) by AlexxIT — MIT
 - [FFmpeg](https://ffmpeg.org) with x264 and x265 (Alpine packages) — LGPL/GPL
 - [Inter](https://github.com/rsms/inter) typeface by Rasmus Andersson — SIL Open Font License 1.1

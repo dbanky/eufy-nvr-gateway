@@ -1,0 +1,63 @@
+# eufy-nvr-gateway: an /audio/<serial> route for the live audio of a camera whose video is streaming.
+# Applied to ha-eufy-sdk-bridge at the pinned commit (see Dockerfile).
+--- a/src/http-routes.mjs
++++ b/src/http-routes.mjs
+@@ -42,6 +42,8 @@
+   // A failed session is never reused, but it is not dropped under a request still streaming on it:
+   // such a lease is dropped once its last feed ends (see cleanup).
+   const dropWhenIdle = new WeakSet();
++  // eufy-nvr-gateway: sn -> Set<end()> of /audio requests, ended together with the camera's last /stream.
++  const audioListeners = new Map();
+ 
+   /** The persisted image when it was written after `since` and differs from `jpeg`, else undefined. */
+   async function diskCopyNewerThan(file, since, jpeg) {
+@@ -298,6 +300,41 @@
+       return res.end(clip.mp4);
+     }
+ 
++    // eufy-nvr-gateway: the live audio of a camera whose video is already streaming — the camera's AAC-LC
++    // frames (ADTS) as they arrive. It joins the same shared pull as /stream, so it costs no extra session,
++    // and it never opens a camera by itself: without live video it answers 409, and it ends with the video.
++    if (kind === "audio" && sn) {
++      const video = activeStreams.get(sn);
++      if (!video?.lease) return json(res, 409, { error: "no live video for this camera: audio follows /stream" });
++      let consumer;
++      try {
++        const client = await video.lease;
++        const cam = (await client.getDevice(sn)).camera?.();
++        if (!cam?.live) return json(res, 404, { error: "no live audio on this device" });
++        const budget = cfg.streamBatteryBudgetMs;
++        consumer = await cam.live(budget ? { batteryBudgetMs: budget } : undefined);
++      } catch (e) {
++        return json(res, 502, { error: String(e?.message ?? e) });
++      }
++      if (!activeStreams.has(sn) || res.destroyed) return consumer.stop();
++      res.writeHead(200, { "content-type": "audio/aac", "cache-control": "no-cache" });
++      let ended = false;
++      const end = () => {
++        if (ended) return;
++        ended = true;
++        consumer.stop(); // detaches only this consumer; the video keeps the shared pull
++        audioListeners.get(sn)?.delete(end);
++        if (!res.writableEnded) res.end();
++      };
++      let listeners = audioListeners.get(sn);
++      if (!listeners) audioListeners.set(sn, (listeners = new Set()));
++      listeners.add(end);
++      consumer.on("audio", (frame) => frame.codec === "aac-lc" && res.write(frame.data));
++      consumer.on("error", end);
++      req.on("close", end);
++      return;
++    }
++
+     if (kind === "stream" && sn) {
+       noteStreamRequest(sn, req); // trace who is pulling this stream (incl. go2rtc's real consumers)
+       if (cfg.streamIdleMs) lastPullAttempt.set(sn, Date.now()); // consumer is asking (watched vs. gone)
+@@ -382,6 +419,7 @@
+           }
+           if (feeds.size) return;
+           openFeeds.delete(sn);
++          for (const end of [...(audioListeners.get(sn) ?? [])]) end(); // eufy-nvr-gateway: audio ends with the video
+           if (streaming.delete(sn)) ctx.broadcast({ event: "streamState", deviceSn: sn, active: false });
+         };
+         req.on("close", cleanup);

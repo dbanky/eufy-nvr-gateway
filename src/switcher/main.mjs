@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { BridgeClient } from './bridge/client.mjs';
 import { connectBridgeEvents } from './bridge-events.mjs';
 import { createCamera } from './create-camera.mjs';
+import { silentFrame } from '../audio/silence.mjs';
 import { createSnapshots } from './snapshots.mjs';
 import { createTimeFormat } from './time-format.mjs';
 import { loadInitialPicture } from './initial-picture.mjs';
@@ -49,6 +50,15 @@ if (!cameras.length) log('No cameras configured yet: log in on the web page, the
 for (const camera of cameras) {
   const initial = await loadInitialPicture({ cam: camera, dataDir: config.dataDir, tmpDir, bridgeHttp: config.bridgeHttp });
   Object.assign(camera, { picture: initial.picture, pictureFromEvent: initial.fromEvent, lastLiveAt: initial.takenAt });
+  if (camera.publisher.audio) {
+    try {
+      camera.publisher.audio.silence = await silentFrame();
+    } catch (e) {
+      log(camera.name, `audio off: ${e.message}`);
+      camera.publisher.audio = null;
+      delete camera.deps.openLiveAudio;
+    }
+  }
   camera.publisher.start();
   camera.refresh();
 }

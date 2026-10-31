@@ -33,8 +33,10 @@ RUN case "${TARGETARCH:-amd64}" in \
  && curl -fsSL -o /usr/local/bin/go2rtc "https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/${g2}" \
  && chmod +x /usr/local/bin/go2rtc
 
-# eufy bridge
+# eufy bridge, with one addition: /audio/<serial>, the live audio of a camera that is streaming
+COPY patches/bridge-live-audio.patch /tmp/
 RUN git clone "$BRIDGE_REPO" /opt/bridge && cd /opt/bridge && git checkout "$BRIDGE_COMMIT" \
+ && git apply /tmp/bridge-live-audio.patch && rm /tmp/bridge-live-audio.patch \
  && npm ci --omit=dev --no-audit --no-fund && rm -rf .git test docs
 
 # This project

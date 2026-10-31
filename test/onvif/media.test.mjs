@@ -32,7 +32,20 @@ describe('the media service', () => {
     assert.match(answer('GetVideoEncoderConfigurations', { codec: () => 'hevc' }), /<tt:Encoding>H265<\/tt:Encoding>/);
   });
 
-  test('no audio', () => {
+  test('no audio for a camera without it', () => {
     assert.match(answer('GetAudioSources'), /<trt:GetAudioSourcesResponse\/>/);
+    assert.doesNotMatch(answer('GetProfiles'), /Audio/);
+    assert.equal(answer('GetAudioEncoderConfiguration'), null);
+  });
+
+  test('with audio: the profile names an audio source and the AAC encoder (16 kHz), in the schema\'s order', () => {
+    const audio = { audio: () => true };
+    const profile = answer('GetProfiles', audio);
+    const order = ['VideoSourceConfiguration', 'AudioSourceConfiguration', 'VideoEncoderConfiguration', 'AudioEncoderConfiguration'].map((t) => profile.indexOf(`<tt:${t} `));
+    assert.ok(order.every((i, n) => i > 0 && (n === 0 || i > order[n - 1])), `order: ${order}`);
+    assert.match(profile, /<tt:Encoding>AAC<\/tt:Encoding><tt:Bitrate>32<\/tt:Bitrate><tt:SampleRate>16<\/tt:SampleRate>/);
+    assert.match(answer('GetAudioSources', audio), /<trt:AudioSources token="audio_src"><tt:Channels>1<\/tt:Channels>/);
+    assert.match(answer('GetAudioEncoderConfigurations', audio), /<tt:Encoding>AAC<\/tt:Encoding>/);
+    assert.match(answer('GetAudioEncoderConfiguration', audio), /token="audio_encoder"/);
   });
 });

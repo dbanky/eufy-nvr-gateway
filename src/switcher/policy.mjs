@@ -11,6 +11,7 @@ export const CAMERA_DEFAULTS = {
   maxReconnects: 2,           // re-open the feed if it drops mid-session
   minBatteryPct: 15,          // below this only a doorbell press or a manual request wakes it
   transcode: false,           // pass the camera's own H.264/H.265 through (far less CPU); true: always convert to H.264
+  audio: false,               // true: the stream carries an AAC track: the camera's sound while live, silence while it sleeps
 };
 
 // A doorbell press and a request from the web page always wake the camera.

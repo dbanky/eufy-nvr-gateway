@@ -75,6 +75,7 @@ or names each open part with the setting that closes it, e.g.
 | `maxReconnects` | `2` | Reconnect attempts if the live feed drops mid-session |
 | `minBatteryPct` | `15` | Below this, only a doorbell press or *Wake up* on the web page wakes the camera |
 | `transcode` | `false` | Pass the camera's own H.264 or H.265 through. `true` converts live video to H.264 instead (see below) |
+| `audio` | `false` | `true`: an AAC track in the stream (see below) |
 | `triggers` | see below | Bridge events that wake the camera |
 | `onvif` | — | Publish the camera as an ONVIF device: `{ "address", "port", "mac" }`, its own IP on the LAN ([onvif.md](onvif.md)) |
 
@@ -89,6 +90,22 @@ rather than `motion`.
 |---|---|---|
 | `ports.web` | `8099` | Web page and API, HTTP or HTTPS (also `WEB_PORT`) |
 | `ports.rtsp` | `8554` | RTSP output |
+
+## Sound (`audio`)
+
+With `"audio": true` the camera's stream carries an audio track: **AAC-LC, 16 kHz, mono**, the
+format eufy cameras send. While the camera is live it is the camera's own sound; while it sleeps it
+is silence, so the track never comes and goes (NVRs expect it to be there all the time). The sound is
+encoded once more on its way out, which costs next to nothing; the video is untouched.
+
+- The sound starts when the live picture does and ends with the session.
+- It follows the picture's timeline, so the two stay together. The camera's sound reaches the
+  gateway over the network in bursts; a quarter of a second of buffer smooths that, and a gap is
+  filled with silence.
+- A camera that sends another audio format stays silent; the log says which format it sent.
+- The ONVIF device then reports an audio source and an AAC encoder (16 kHz).
+- UniFi Protect: Ubiquiti lists audio among the features that may not work for third-party cameras.
+  See the [UniFi Protect guide](unifi-protect.md#sound).
 
 ## Passing through or converting (`transcode`)
 

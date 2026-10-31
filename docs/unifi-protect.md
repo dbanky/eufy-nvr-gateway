@@ -67,6 +67,23 @@ If your Protect version doesn't have that setting, or it doesn't help, let the g
 camera to H.264 instead: `"transcode": true` for the camera in `config.json`. That costs CPU on the
 gateway while the camera is live.
 
+## Sound
+
+Battery eufy cameras send their sound as AAC (16 kHz, mono). With `"audio": true` for a camera, its
+stream carries it, and the ONVIF device reports the audio track to Protect:
+
+```json
+{ "name": "front-door", "serial": "T81XXXXXXXXXXXXX", "width": 1600, "height": 1200, "audio": true,
+  "onvif": { "address": "192.168.1.51", "port": 8000 } }
+```
+
+Restart the container, then remove and adopt the camera again in Protect, so it reads the new
+profile. While the camera sleeps the track is silent; when it wakes you hear the camera.
+
+Ubiquiti's [Third-Party Cameras in UniFi Protect](https://help.ui.com/hc/en-us/articles/26301104828439-Third-Party-Cameras-in-UniFi-Protect)
+lists audio among the features that may not be supported for third-party cameras, so whether Protect
+plays it depends on your Protect version. Other NVRs and VLC play it either way.
+
 ## 4. Record events
 
 The gateway sends ONVIF motion events exactly while a camera is waking up or live, and none while it

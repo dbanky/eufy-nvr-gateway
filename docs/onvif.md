@@ -12,6 +12,7 @@ so the NVR can record only while the camera is awake.
 |---|---|
 | Device | Manufacturer `eufy`, the camera's model and serial, one stream profile |
 | Stream | The gateway's RTSP stream of that camera — H.264, or the camera's own H.265 when passed through |
+| Audio | With `"audio": true`: an audio source and an AAC encoder configuration (AAC-LC, 16 kHz, mono); otherwise none |
 | Snapshot | What the stream shows, as a JPEG on the camera's ONVIF port (`/onvif/snapshot.jpg`), behind the login (`rtsp.username`) |
 | Motion | `true` while the camera is waking up or live, `false` when it sleeps (ONVIF PullPoint events, topics `RuleEngine/CellMotionDetector/Motion` and `VideoSource/MotionAlarm`) |
 | Adding | By IP address and port, with the login (UniFi Protect: *Advanced Adoption*). There is no WS-Discovery: Protect didn't find the cameras with it in practice |

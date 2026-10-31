@@ -29,6 +29,7 @@ export function onvifDevice(camera, { rtspPort, version }) {
     rtspUrl: `rtsp://${address}:${rtspPort}/${camera.name}`,
     width: camera.width, height: camera.height, fps: camera.fps, bitrateKbps: camera.bitrateKbps,
     codec: () => camera.deps.feed.codec,
+    audio: () => !!camera.publisher?.audio,   // the stream has an AAC track
   };
   // On the ONVIF port, not the web page's: it stays reachable when the web page has a login.
   device.snapshotUrl = `${baseUrl(device)}/onvif/snapshot.jpg`;

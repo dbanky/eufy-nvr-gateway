@@ -21,6 +21,7 @@
     "restartGapMs": 15000,
     "minBatteryPct": 15,
     "transcode": false,
+    "audio": false,
     "triggers": ["motion", "personDetected", "vehicleDetected", "petDetection", "strangerDetected", "doorbellPress"]
   },
 

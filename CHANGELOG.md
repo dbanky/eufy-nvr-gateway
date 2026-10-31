@@ -7,6 +7,14 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Added
+
+- **Sound** (optional, per camera): `"audio": true` adds an AAC track to the stream (AAC-LC, 16 kHz,
+  mono, the format eufy cameras send). The camera's sound while it is live, silence while it sleeps,
+  so the track never stops; it shares the picture's timeline. The ONVIF device reports the audio
+  track, and the tile details show it. The bundled eufy bridge gets one added route for live audio
+  (`patches/bridge-live-audio.patch`), on the same camera session as the video.
+
 ## [0.4.0] - 2026-10-31
 
 The first stable release since 0.2.1. It brings everything from the 0.3.0 and 0.4.0 pre-releases

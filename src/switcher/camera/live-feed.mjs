@@ -46,6 +46,8 @@ function onPassedThroughFrame(cam, frame) {
 // A pass-through feed is all that's on air, so it stays until the sleeping loop is ready (a
 // converted session keeps its encoder running instead).
 export function endLiveFeed(cam) {
+  cam.liveAudio?.stop();   // silence at once; the picture follows at the next keyframe
+  cam.liveAudio = null;
   const passedThrough = cam.liveMode === 'passthrough';
   const last = passedThrough ? cam.liveJpeg && { jpeg: cam.liveJpeg } : cam.liveStart && { raw: cam.frame };
   if (cam.liveStart && last) {

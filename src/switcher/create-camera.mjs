@@ -12,6 +12,8 @@ import { openLiveDecoder } from '../video/live-decoder.mjs';
 import { openPassthrough } from '../video/passthrough.mjs';
 import { encodeJpeg } from '../video/ffmpeg.mjs';
 import { renderStateLoop } from '../overlay/index.mjs';
+import { AudioFeed } from '../audio/audio-feed.mjs';
+import { openLiveAudio } from '../audio/live-audio.mjs';
 
 export function createCamera(settings, { config, bridge, log, time, tmpDir }) {
   const streamUrl = (cam) => `${config.bridgeHttp}/stream/${cam.serial}`;
@@ -32,7 +34,13 @@ export function createCamera(settings, { config, bridge, log, time, tmpDir }) {
   });
   camera.codec = loadCodec(config.dataDir, camera);
   feed.codec = camera.streamCodec();   // the publisher starts in the right format
-  camera.publisher = new Publisher({ name: camera.name, fps: camera.fps, output: config.output.replace('{name}', camera.name), feed, log });
+  // With audio: an AAC track (the camera's sound while live, silence otherwise). Its silent frame is
+  // made at start-up (silence.mjs) before the publisher starts.
+  const audio = camera.audio ? new AudioFeed({ silence: null }) : null;
+  if (audio) {
+    camera.deps.openLiveAudio = (cam) => openLiveAudio({ name: cam.name, url: `${config.bridgeHttp}/audio/${cam.serial}`, audioFeed: audio, log });
+  }
+  camera.publisher = new Publisher({ name: camera.name, fps: camera.fps, output: config.output.replace('{name}', camera.name), feed, audio, log });
   return camera;
 }
 

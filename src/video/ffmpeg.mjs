@@ -2,8 +2,11 @@ import { spawn } from 'node:child_process';
 
 // A long-running ffmpeg. A closed stdin (the process ended) is not worth crashing over.
 // logLevel 'info' also prints the input's description (codec, size), without progress lines.
-export function spawnFfmpeg(args, { logLevel = 'error' } = {}) {
-  const child = spawn('ffmpeg', ['-hide_banner', '-loglevel', logLevel, ...(logLevel === 'info' ? ['-nostats'] : []), ...args]);
+// extraPipes: more input pipes after stdin (pipe:3, …), as child.stdio[3], ….
+export function spawnFfmpeg(args, { logLevel = 'error', extraPipes = 0 } = {}) {
+  const stdio = ['pipe', 'pipe', 'pipe', ...Array(extraPipes).fill('pipe')];
+  const child = spawn('ffmpeg', ['-hide_banner', '-loglevel', logLevel, ...(logLevel === 'info' ? ['-nostats'] : []), ...args], { stdio });
+  for (const extra of child.stdio.slice(3)) extra?.on('error', () => {});
   child.stdin.on('error', () => {});
   return child;
 }

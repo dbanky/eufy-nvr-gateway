@@ -1,11 +1,24 @@
 // The ONVIF media service (version 1, what UniFi Protect uses): one profile per camera that points
 // at the gateway's own RTSP stream and snapshot. Nothing is encoded for ONVIF.
+// A camera with audio (d.audio()) also gets an audio source and an AAC encoder configuration: the
+// stream's AAC-LC 16 kHz mono track.
 // Pure: operation + device -> response body, or null for operations it doesn't support.
 
 import { xmlEscape as x } from './xml.mjs';
 
 const PROFILE = 'main', SOURCE = 'video_src', SOURCE_CONFIG = 'video_src_config', ENCODER = 'video_encoder';
 const ENCODINGS = { h264: 'H264', hevc: 'H265' };
+const AUDIO_SOURCE = 'audio_src', AUDIO_SOURCE_CONFIG = 'audio_src_config', AUDIO_ENCODER = 'audio_encoder';
+const hasAudio = (d) => !!d.audio?.();
+
+const audioSourceConfig = (tag) => `<tt:${tag} token="${AUDIO_SOURCE_CONFIG}"><tt:Name>${AUDIO_SOURCE_CONFIG}</tt:Name>`
+  + `<tt:UseCount>1</tt:UseCount><tt:SourceToken>${AUDIO_SOURCE}</tt:SourceToken></tt:${tag}>`;
+
+// SampleRate is in kHz, Bitrate in kbit/s (ONVIF ver10).
+const audioEncoderConfig = (tag) => `<tt:${tag} token="${AUDIO_ENCODER}"><tt:Name>${AUDIO_ENCODER}</tt:Name><tt:UseCount>1</tt:UseCount>`
+  + '<tt:Encoding>AAC</tt:Encoding><tt:Bitrate>32</tt:Bitrate><tt:SampleRate>16</tt:SampleRate>'
+  + '<tt:Multicast><tt:Address><tt:Type>IPv4</tt:Type><tt:IPv4Address>0.0.0.0</tt:IPv4Address></tt:Address><tt:Port>0</tt:Port>'
+  + `<tt:TTL>0</tt:TTL><tt:AutoStart>false</tt:AutoStart></tt:Multicast><tt:SessionTimeout>PT60S</tt:SessionTimeout></tt:${tag}>`;
 
 const resolution = (d) => `<tt:Resolution><tt:Width>${d.width}</tt:Width><tt:Height>${d.height}</tt:Height></tt:Resolution>`;
 
@@ -25,8 +38,11 @@ function encoderConfig(tag, d) {
     + `</tt:${tag}>`;
 }
 
+// The schema's order: video source, audio source, video encoder, audio encoder.
 const profile = (tag, d) => `<trt:${tag} token="${PROFILE}" fixed="true"><tt:Name>${x(d.name)}</tt:Name>`
-  + sourceConfig('VideoSourceConfiguration', d) + encoderConfig('VideoEncoderConfiguration', d) + `</trt:${tag}>`;
+  + sourceConfig('VideoSourceConfiguration', d) + (hasAudio(d) ? audioSourceConfig('AudioSourceConfiguration') : '')
+  + encoderConfig('VideoEncoderConfiguration', d) + (hasAudio(d) ? audioEncoderConfig('AudioEncoderConfiguration') : '')
+  + `</trt:${tag}>`;
 
 const uri = (u) => `<trt:MediaUri><tt:Uri>${x(u)}</tt:Uri><tt:InvalidAfterConnect>false</tt:InvalidAfterConnect>`
   + '<tt:InvalidAfterReboot>false</tt:InvalidAfterReboot><tt:Timeout>PT0S</tt:Timeout></trt:MediaUri>';
@@ -58,9 +74,17 @@ export function mediaResponse(op, d) {
       return '<trt:GetServiceCapabilitiesResponse><trt:Capabilities SnapshotUri="true" Rotation="false" VideoSourceMode="false" OSD="false">'
         + '<trt:ProfileCapabilities MaximumNumberOfProfiles="1"/><trt:StreamingCapabilities RTPMulticast="false" RTP_TCP="false" RTP_RTSP_TCP="true"/>'
         + '</trt:Capabilities></trt:GetServiceCapabilitiesResponse>';
-    case 'GetAudioSources': return '<trt:GetAudioSourcesResponse/>';
-    case 'GetAudioSourceConfigurations': return '<trt:GetAudioSourceConfigurationsResponse/>';
-    case 'GetAudioEncoderConfigurations': return '<trt:GetAudioEncoderConfigurationsResponse/>';
+    case 'GetAudioSources':
+      return hasAudio(d) ? `<trt:GetAudioSourcesResponse><trt:AudioSources token="${AUDIO_SOURCE}"><tt:Channels>1</tt:Channels></trt:AudioSources></trt:GetAudioSourcesResponse>`
+        : '<trt:GetAudioSourcesResponse/>';
+    case 'GetAudioSourceConfigurations':
+      return `<trt:GetAudioSourceConfigurationsResponse>${hasAudio(d) ? audioSourceConfig('Configurations') : ''}</trt:GetAudioSourceConfigurationsResponse>`;
+    case 'GetAudioSourceConfiguration':
+      return hasAudio(d) ? `<trt:GetAudioSourceConfigurationResponse>${audioSourceConfig('Configuration')}</trt:GetAudioSourceConfigurationResponse>` : null;
+    case 'GetAudioEncoderConfigurations':
+      return `<trt:GetAudioEncoderConfigurationsResponse>${hasAudio(d) ? audioEncoderConfig('Configurations') : ''}</trt:GetAudioEncoderConfigurationsResponse>`;
+    case 'GetAudioEncoderConfiguration':
+      return hasAudio(d) ? `<trt:GetAudioEncoderConfigurationResponse>${audioEncoderConfig('Configuration')}</trt:GetAudioEncoderConfigurationResponse>` : null;
     case 'GetAudioOutputs': return '<trt:GetAudioOutputsResponse/>';
     case 'GetOSDs': return '<trt:GetOSDsResponse/>';
     case 'GetVideoAnalyticsConfigurations': return '<trt:GetVideoAnalyticsConfigurationsResponse/>';

@@ -67,6 +67,8 @@ export function tileDetailsHtml(camera, where) {
   <dl>
     <dt>RTSP</dt>${rtspHtml(camera, where)}
     <dt>Video</dt><dd>${esc(camera.video?.text ?? '')}</dd>
+    <dt>Audio</dt><dd>${camera.audio ? `${esc(camera.audio)}<span class="sub">The camera's sound while live, silence while it sleeps</span>`
+      : 'Off<span class="sub"><code>"audio": true</code> adds the camera\'s sound</span>'}</dd>
     <dt>Size</dt><dd>${esc(w)} × ${esc(h)}</dd>
   </dl>
   <h3 class="details-heading">ONVIF</h3>

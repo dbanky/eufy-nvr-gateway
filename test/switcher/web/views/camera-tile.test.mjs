@@ -90,6 +90,13 @@ describe('stream details', () => {
   });
 });
 
+describe('the audio line', () => {
+  test('says whether the stream has sound, and how to add it', () => {
+    assert.match(tileDetailsHtml(camera({ audio: 'AAC · 16 kHz mono' }), where), /<dt>Audio<\/dt><dd>AAC · 16 kHz mono<span class="sub">The camera's sound while live, silence while it sleeps/);
+    assert.match(tileDetailsHtml(camera({ audio: null }), where), /<dt>Audio<\/dt><dd>Off<span class="sub"><code>"audio": true<\/code> adds/);
+  });
+});
+
 describe('the RTSP line', () => {
   test('says whether a login is needed, never what it is', () => {
     assert.match(tileDetailsHtml(camera(), { ...where, rtsp: { login: true } }), /Login required \(rtsp\.username/);

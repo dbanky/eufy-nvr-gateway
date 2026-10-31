@@ -16,6 +16,7 @@
 //   openPassthrough({ cam, codec, onFrame, onPicture, onClose })  passing through  -> { stop() }
 //   createEncoder({ cam, getFrame, onFrame }) -> { start(), stop() }
 //   saveLastFrame(cam, { raw } | { jpeg }), saveCodec(cam, codec)   kept for after a restart
+//   openLiveAudio(cam) -> { stop() }        only with `audio: true`: the camera's sound while live
 
 import { CAMERA_DEFAULTS, decideTrigger, stopReason, deadlineWhenLive } from '../policy.mjs';
 import { viewFor } from '../labels.mjs';
@@ -81,6 +82,7 @@ export class Camera {
     this.failedAt = 0;
     this.deadline = deadlineWhenLive(this, this.liveStart);
     cancelRendering(this);
+    this.liveAudio = this.deps.openLiveAudio?.(this) ?? null;
     this.deps.log(this.name, `live after ${((this.liveStart - this.sessionStart) / 1000).toFixed(1)} s`);
   }
 
@@ -114,6 +116,7 @@ export class Camera {
       resolution: `${this.width}x${this.height}`, rtsp: `/${this.name}`,
       display: { kind, title, detail },
       video: videoInfo({ transcode: this.transcode, codec: this.codec, streamCodec: this.deps.feed.codec }),
+      audio: this.deps.openLiveAudio ? 'AAC · 16 kHz mono' : null,
       liveUntil: this.state === 'IDLE' ? null : this.deps.time.hms(this.deadline),
       lastSeen: this.lastLiveAt ? this.deps.time.hms(this.lastLiveAt) : null,
     };

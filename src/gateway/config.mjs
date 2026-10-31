@@ -68,7 +68,9 @@ export function validateCameras(cfg) {
     if (!name || !CAMERA_NAME.test(name)) throw new Error(`camera #${i + 1}: "name" must be letters, digits, - or _ (it becomes the RTSP path)`);
     if (!serial) throw new Error(`camera "${name}": "serial" is missing (see the device list on the web page)`);
     if (!c.width || !c.height) throw new Error(`camera "${name}": set "width" and "height" to the camera's native live resolution`);
-    return { ...cfg.defaults, ...c, name, serial };
+    const cam = { ...cfg.defaults, ...c, name, serial };
+    if (cam.audio != null && typeof cam.audio !== 'boolean') throw new Error(`camera "${name}": "audio" must be true or false`);
+    return cam;
   });
   if (new Set(cameras.map((c) => c.name)).size !== cameras.length) throw new Error('camera names must be unique');
   const endpoints = cameras.filter((c) => c.onvif).map(validateOnvif);
