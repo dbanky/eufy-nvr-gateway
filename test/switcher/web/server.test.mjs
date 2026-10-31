@@ -88,6 +88,7 @@ describe('the web page', () => {
       assert.equal((await fetch(`${base}/${file}`)).headers.get('content-type'), 'text/javascript; charset=utf-8', file);
     }
     for (const file of ['style.css', 'tiles.css']) assert.equal((await fetch(`${base}/${file}`)).headers.get('content-type'), 'text/css; charset=utf-8');
+    assert.equal((await fetch(`${base}/logo.svg`)).headers.get('content-type'), 'image/svg+xml');
   });
 
   test('only files of the page: nothing else on disk can be read', async () => {
@@ -119,7 +120,7 @@ describe('with a login ("web" in config.json)', () => {
     const res = await fetch(`${url}/`, { redirect: 'manual' });
     assert.equal(res.status, 302);
     assert.equal(res.headers.get('location'), 'signin.html');
-    for (const file of ['signin.html', 'signin.js', 'style.css', 'theme.js', 'theme-toggle.js', 'icons.js']) {
+    for (const file of ['signin.html', 'signin.js', 'style.css', 'theme.js', 'theme-toggle.js', 'icons.js', 'logo.svg']) {
       assert.equal((await fetch(`${url}/${file}`)).status, 200, file);
     }
     assert.equal((await fetch(`${url}/app.js`)).status, 401);

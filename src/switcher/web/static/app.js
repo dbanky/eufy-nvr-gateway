@@ -51,7 +51,6 @@ $('signout').addEventListener('click', async () => {
   await fetch('api/signout', { method: 'POST' });
   signInPage();
 });
-$('brandMark').innerHTML = icon('asleep');
 bindThemeToggle($('theme'));
 bindLogin(refresh);
 bindTiles(refresh);

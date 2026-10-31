@@ -4,7 +4,7 @@ import { sendJson, readJson, serveStatic } from './http.mjs';
 import { signedOutCookie } from './auth.mjs';
 
 // What the sign-in page needs before anyone is signed in.
-const OPEN_FILES = /^\/(signin\.html|signin\.js|theme\.js|theme-toggle\.js|icons\.js|style\.css|fonts\/[^/]+)$/;
+const OPEN_FILES = /^\/(signin\.html|signin\.js|theme\.js|theme-toggle\.js|icons\.js|logo\.svg|style\.css|fonts\/[^/]+)$/;
 const FAILED_SIGNIN_DELAY_MS = 1000;   // slows down guessing
 
 export async function signIn(req, res, auth) {

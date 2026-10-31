@@ -1,13 +1,11 @@
 // The sign-in page: shown when "web" in config.json asks for a login.
 
 import { bindThemeToggle } from './theme-toggle.js';
-import { icon } from './icons.js';
 
 const $ = (id) => document.getElementById(id);
 const home = () => location.replace('./');
 
 bindThemeToggle($('theme'));
-$('brandMark').innerHTML = icon('asleep');
 
 // Already signed in, or no login configured: straight to the page.
 fetch('api/session').then((r) => r.json()).then((s) => { if (s.signedIn) home(); }).catch(() => {});

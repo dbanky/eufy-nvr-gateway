@@ -5,13 +5,13 @@ import { fileURLToPath } from 'node:url';
 
 const STATIC_DIR = fileURLToPath(new URL('./static/', import.meta.url));
 const FONTS_DIR = fileURLToPath(new URL('../../../assets/fonts/', import.meta.url));   // built into the image
-const TYPES = { html: 'text/html', css: 'text/css', js: 'text/javascript', ttf: 'font/ttf' };
+const TYPES = { html: 'text/html', css: 'text/css', js: 'text/javascript', svg: 'image/svg+xml', ttf: 'font/ttf' };
 
 // The file a request path names, or null: "/" is the page; otherwise only plain names of the page's
 // own files (and its fonts), so nothing else on disk can be reached.
 export function staticFile(path) {
   if (path === '/') return STATIC_DIR + 'index.html';
-  let match = /^\/([a-z0-9-]+\.(?:html|css|js))$/.exec(path);
+  let match = /^\/([a-z0-9-]+\.(?:html|css|js|svg))$/.exec(path);
   if (match) return STATIC_DIR + match[1];
   match = /^\/fonts\/(Inter-[A-Za-z]+\.ttf)$/.exec(path);
   return match ? FONTS_DIR + match[1] : null;
@@ -23,7 +23,7 @@ export function serveStatic(res, path, { theme = 'auto' } = {}) {
   const file = staticFile(path);
   if (!file || !existsSync(file)) return false;
   const type = TYPES[file.split('.').pop()];
-  res.writeHead(200, { 'content-type': type.startsWith('font/') ? type : `${type}; charset=utf-8`, 'cache-control': 'no-cache' });
+  res.writeHead(200, { 'content-type': type.startsWith('font/') || type.startsWith('image/') ? type : `${type}; charset=utf-8`, 'cache-control': 'no-cache' });
   const body = readFileSync(file);
   res.end(type === 'text/html' ? withTheme(String(body), theme) : body);
   return true;

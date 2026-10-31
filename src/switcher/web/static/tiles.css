@@ -1,8 +1,9 @@
 /* The camera tiles and the device list: the main page only (the sign-in page doesn't load this).
    Tokens and shared parts (buttons, tags, panels): style.css. */
 
-/* camera tiles: all the same size, so rows line up */
-.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); }
+/* camera tiles: all the same size, so rows line up; opening one tile's details grows only that tile
+   (align-items: start, or the grid would stretch its neighbours to the same height) */
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); align-items: start; }
 .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
   display: flex; flex-direction: column; box-shadow: var(--shadow); }
 .tile-media { position: relative; aspect-ratio: 16 / 9; background: #0e1014; overflow: hidden; }

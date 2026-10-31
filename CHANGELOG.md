@@ -7,6 +7,16 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Changed
+
+- **A logo**: a camera asleep (its lens is the stream's moon) with its stream still on (the live dot),
+  in the page header and as the browser tab's icon. It replaces the plain moon, which looked like a
+  second theme switch.
+
+### Fixed
+
+- Opening a tile's *Stream details* no longer stretches the other tiles in its row.
+
 ## [0.4.0-beta.2] - 2026-10-31
 
 Pre-release for testing: logins and HTTPS for everything on the network, one login for RTSP and

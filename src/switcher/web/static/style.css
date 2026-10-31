@@ -67,8 +67,7 @@ svg { width: 16px; height: 16px; flex: none; }
 .top { width: 100%; max-width: 1280px; margin: 0 auto; padding: 18px 16px 10px; display: flex; align-items: center;
   justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand-mark { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
-  color: var(--asleep); background: color-mix(in srgb, var(--asleep) 16%, transparent); }
+.brand-mark { width: 30px; height: 30px; display: block; flex: none; }   /* logo.svg: a camera asleep, its stream on */
 .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; min-height: 34px;
   background: var(--surface); border: 1px solid var(--line); font-size: 13px; color: var(--text-2); text-decoration: none; }
