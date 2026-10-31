@@ -7,7 +7,23 @@
 .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
   display: flex; flex-direction: column; box-shadow: var(--shadow); }
 .tile-media { position: relative; aspect-ratio: 16 / 9; background: #0e1014; overflow: hidden; }
-.tile-media img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.tile-media img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 0.35s; }
+.tile[data-picture="shown"] .tile-media img { opacity: 1; }
+
+/* until the first picture arrives: the stream's own look (dark, a round chip in the middle, title and
+   detail under it), with a spinner in the chip */
+.picture-wait { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 2px;
+  padding: 16px; text-align: center; color: #f4f6fa; transition: opacity 0.35s;
+  background: radial-gradient(ellipse at center, #1b1f27 0%, #0e1014 72%); }
+.tile[data-picture="shown"] .picture-wait { opacity: 0; visibility: hidden; }
+.wait-chip { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.10); }
+.spinner { width: 24px; height: 24px; border-radius: 50%; border: 2.5px solid rgba(169, 184, 255, 0.22);
+  border-top-color: #a9b8ff; animation: spin 0.9s linear infinite; }
+.picture-wait strong { font-size: 14px; font-weight: 600; }
+.picture-wait span:last-child { font-size: 12px; color: #9aa2b1; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
 .tile-media .picture { object-fit: contain; }
 /* another shape than 16:9: the camera's whole picture over a blurred, dimmed copy of itself */
 .tile-media .backdrop { object-fit: cover; filter: blur(22px) brightness(0.55) saturate(1.1); transform: scale(1.15); }

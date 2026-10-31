@@ -5,6 +5,9 @@
 // Every tile has the same 16:9 picture area, so a row of tiles lines up: a camera of another shape
 // (a 4:3 doorbell) is shown whole over a blurred copy of itself — the stream's sleeping look.
 //
+// Until its first picture has arrived (making it can take a few seconds after a start), a tile shows
+// a placeholder in the stream's style instead of a broken image: tiles.js loads the picture.
+//
 // tileHtml builds a tile once; tileStatusHtml and tileDetailsHtml are refreshed in place, so the
 // picture doesn't flicker and an opened disclosure stays open. Pure: data in, HTML out.
 
@@ -14,16 +17,16 @@ import { onvifTagHtml, onvifDetailsHtml } from './onvif-info.js';
 
 const LOW_BATTERY = 20;   // %
 
-const snapshotUrl = (camera) => `api/cameras/${encodeURIComponent(camera.name)}/snapshot.jpg?t=${Date.now()}`;
+export const snapshotUrl = (camera) => `api/cameras/${encodeURIComponent(camera.name)}/snapshot.jpg?t=${Date.now()}`;
 const streamUrl = (camera, { host, rtspPort }) => `rtsp://${host}:${rtspPort}/${camera.name}`;
 const id = (camera) => 'cam-' + esc(camera.name);
 
 export function tileHtml(camera, where) {
-  const src = snapshotUrl(camera);   // one URL for both: the picture is downloaded once
-  return `<article class="tile" id="${id(camera)}" data-kind="${esc(camera.display.kind)}">
+  return `<article class="tile" id="${id(camera)}" data-kind="${esc(camera.display.kind)}" data-picture="waiting">
   <div class="tile-media">
-    <img class="backdrop" alt="" aria-hidden="true" src="${src}">
-    <img class="picture" alt="What ${esc(camera.name)}'s stream shows" src="${src}">
+    ${PICTURE_WAIT}
+    <img class="backdrop" alt="" aria-hidden="true">
+    <img class="picture" alt="What ${esc(camera.name)}'s stream shows">
     <span class="tile-name"><span class="dot"></span>${esc(camera.name)}</span>
   </div>
   <div class="tile-status" data-part="status">${tileStatusHtml(camera)}</div>
@@ -33,6 +36,12 @@ export function tileHtml(camera, where) {
   </details>
 </article>`;
 }
+
+// Like the stream's own pictures: a round chip in the middle (here a spinner), title and detail under it.
+const PICTURE_WAIT = `<div class="picture-wait" role="status">
+      <span class="wait-chip"><span class="spinner"></span></span>
+      <strong>Getting the picture</strong><span>The first one takes a few seconds</span>
+    </div>`;
 
 export function tileStatusHtml(camera) {
   const { kind, title, detail } = camera.display;

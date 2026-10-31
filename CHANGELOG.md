@@ -7,6 +7,12 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **No broken image while a tile's first picture is being made**: the tile shows a placeholder in
+  the stream's style (a spinner in the round chip, *Getting the picture*). Pictures are downloaded in
+  the background and swapped in only once complete, so a slow or failed refresh keeps the last one.
+
 ### Changed
 
 - The README shows the logo next to the title (`docs/logo.png`, rendered from the web page's

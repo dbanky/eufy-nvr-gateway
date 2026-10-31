@@ -18,11 +18,18 @@ describe('a camera tile', () => {
     assert.equal(b.match(/<div class="tile-media">/g).length, 1);
   });
 
-  test('shows the whole picture over a blurred copy of itself, downloaded once', () => {
+  test('shows the whole picture over a blurred copy of itself', () => {
     const html = tileHtml(camera(), where);
-    const [backdrop, picture] = [/class="backdrop"[^>]*src="([^"]+)"/, /class="picture"[^>]*src="([^"]+)"/].map((r) => r.exec(html)[1]);
-    assert.equal(backdrop, picture);
-    assert.match(html, /class="backdrop" alt="" aria-hidden="true"/);
+    assert.match(html, /<img class="backdrop" alt="" aria-hidden="true">/);
+    assert.match(html, /<img class="picture" alt="What garden's stream shows">/);
+  });
+
+  test('waits for its first picture with a placeholder, never a broken image', () => {
+    const html = tileHtml(camera(), where);
+    assert.match(html, /data-picture="waiting"/);
+    assert.doesNotMatch(html, /<img[^>]* src=/, 'no picture address until the picture has arrived');
+    assert.match(html, /<div class="picture-wait" role="status">[\s\S]*class="spinner"[\s\S]*Getting the picture[\s\S]*The first one takes a few seconds/);
+    assert.ok(html.indexOf('picture-wait') < html.indexOf('tile-name'), 'the name stays on top');
   });
 
   test('says on the details line whether the camera is published as ONVIF', () => {
