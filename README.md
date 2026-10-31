@@ -70,8 +70,8 @@ flowchart LR
 - **Web page** for the eufy login (2FA code / captcha), each camera's state, battery, stream and
   ONVIF details (address, discovery, whether an NVR is connected), *Wake up* / *Stop*, and the
   devices on your account. Light or dark, and it tells you when a newer version is out.
-- **Locked down if you want it.** Optional logins for the web page, the RTSP streams and the ONVIF
-  cameras, HTTPS for the web page, and RTSP off the network entirely. At startup the log names
+- **Locked down if you want it.** Optional logins for the web page and for the streams (RTSP and
+  ONVIF), HTTPS for the web page, and RTSP off the network entirely. At startup the log names
   anything still open to your LAN. See [Security](#security).
 
 ## Requirements
@@ -170,7 +170,7 @@ number. Create `config.json` in the folder from step 2 (e.g. with File Station o
 - **UniFi Protect:** publish the cameras as ONVIF devices and adopt them — follow
   [docs/onvif.md](docs/onvif.md).
 
-Then, optionally, [lock it down](#security): logins for the page, the streams and ONVIF, and HTTPS.
+Then, optionally, [lock it down](#security): a login for the page, one for the streams (RTSP and ONVIF), and HTTPS.
 
 ## Updating
 
@@ -258,8 +258,7 @@ Top level:
 | `defaults` | Any per-camera key, applied to every camera unless the camera sets it |
 | `eufy` | `{ "email", "password", "country" }` — instead of the environment variables |
 | `web` | The web page: `username` / `password` (a login), `theme` (`"auto"`, `"light"`, `"dark"`), `https` (`true`/`false`), `certFile` / `keyFile` (your own certificate) |
-| `rtsp` | The RTSP streams: `username` / `password` (a login), `enabled` (`false`: not on the network) |
-| `onvif` | `username` / `password`: the login NVRs use for the ONVIF cameras |
+| `rtsp` | The streams: `username` / `password` (one login for RTSP and the ONVIF cameras), `enabled` (`false`: not on the network) |
 | `checkForUpdates` | `false` stops the gateway asking GitHub for new releases. Default `true` |
 | `ports` | `web` (8099), `rtsp` (8554) |
 | `bridge.env` | Extra environment variables for the eufy bridge |
@@ -286,7 +285,6 @@ and the web page can use HTTPS:
 {
   "web":   { "username": "admin",   "password": "choose-a-password", "https": true },
   "rtsp":  { "username": "protect", "password": "choose-another-password" },
-  "onvif": { "username": "protect", "password": "choose-another-password" },
   "cameras": [ … ]
 }
 ```
@@ -295,13 +293,12 @@ and the web page can use HTTPS:
 |---|---|---|
 | **Web page and API** (8099) | Anyone on the LAN | `web.username` / `web.password`: browsers get a sign-in page and a 30-day session; scripts send HTTP Basic (`curl -u admin:…`). Changing the password signs everybody out |
 | **HTTPS** for the web page | Plain HTTP | `"web.https": true`: the gateway makes a self-signed certificate once (in `/data/web/`; browsers warn about it the first time), or uses yours (`web.certFile`, `web.keyFile`). Plain `http://` on the same port redirects to `https://` |
-| **RTSP streams** (8554) | Anyone on the LAN can watch | `rtsp.username` / `rtsp.password`: players and NVRs need `rtsp://user:password@host:8554/<name>`. Or `"rtsp.enabled": false` keeps the streams inside the container (not possible with ONVIF cameras, which point NVRs at them) |
-| **ONVIF cameras** (8000) | Anyone on the LAN can adopt them | `onvif.username` / `onvif.password`: WS-UsernameToken for the ONVIF services, HTTP Digest/Basic for the snapshot |
+| **RTSP streams** (8554) and **ONVIF cameras** (8000) | Anyone on the LAN can watch and adopt them | `rtsp.username` / `rtsp.password`, one login for both: players and NVRs need `rtsp://user:password@host:8554/<name>`; ONVIF uses WS-UsernameToken, the snapshot HTTP Digest/Basic. Or `"rtsp.enabled": false` keeps the streams inside the container (not possible with ONVIF cameras, which point NVRs at them) |
 
 Notes:
 
-- **UniFi Protect uses the ONVIF login for the stream too**, so give `rtsp` the same login as `onvif`.
-  The log says so if they differ.
+- **One login for the streams**, because UniFi Protect opens the RTSP stream with the ONVIF login.
+  The old `onvif.username` / `onvif.password` (0.4.0-beta.1) still work; the log asks you to move them.
 - At startup the log either confirms *Every web page, API, stream and ONVIF camera asks for a login*
   or names what is still open, with the setting that closes it.
 - Always closed: the eufy bridge listens inside the container only (its raw camera streams would keep
@@ -379,7 +376,7 @@ Details, measurements and the problems solved along the way:
 | The first seconds of live video look soft, or the size changes | Some cameras change their resolution during a session (the SoloCam S340: 1080p → 1296p → 3K over ~20 s, and down again at the end). Passed through, the NVR gets those size changes too. VLC resizes its window with them unless you untick *Preferences → Interface → Resize interface to video size*; most NVRs scale to their tile. If yours can't cope, set `"transcode": true` for the camera (fixed size, more CPU). |
 | Picture is stretched or letterboxed | `width`/`height` don't match the camera's native resolution. |
 | No picture in the NVR from one camera (often after its first live session) | Your NVR probably doesn't accept that camera's format (usually H.265). Set `"transcode": true` for it and restart: its video is then converted to H.264. |
-| The NVR or VLC says *401 Unauthorized* | The RTSP streams have a login (`rtsp.username`): use `rtsp://user:password@host:8554/<name>`. In UniFi Protect, give `rtsp` the same login as `onvif`. |
+| The NVR or VLC says *401 Unauthorized* | The RTSP streams have a login (`rtsp.username`): use `rtsp://user:password@host:8554/<name>`. In UniFi Protect, enter the same login when adopting. |
 | The browser warns about the certificate | Expected with `"web.https": true` and the generated self-signed certificate: accept it once, or set your own (`web.certFile`, `web.keyFile`). |
 | High CPU on the host | A camera with `"transcode": true` is converted while live, which is expensive for 3K H.265 (one to two cores). Leave `transcode` off if your NVR accepts the camera's format; otherwise lower `width`/`height` to trade detail for CPU. |
 | Port already in use | Change it under `"ports"` in `config.json`. |

@@ -1,5 +1,5 @@
-// Who may reach what: the logins (web page, RTSP, ONVIF), HTTPS and the theme of the web page, and
-// a summary of what is still open to the LAN. Pure: settings in, settings or messages out.
+// Who may reach what: the logins (the web page's; one for the streams, RTSP and ONVIF), HTTPS and
+// the theme of the web page, and a summary of what is still open to the LAN. Pure: settings in, settings or messages out.
 
 const THEMES = ['auto', 'light', 'dark'];
 
@@ -18,29 +18,35 @@ export function webSettings(web = {}) {
   };
 }
 
-// The RTSP streams NVRs read: on the network (default) or only inside the container, optional login.
-export function rtspSettings(rtsp = {}) {
+// The streams NVRs read: on the network (default) or only inside the container, and one optional
+// login for them. ONVIF uses the same login: an NVR that adopts an ONVIF camera (UniFi Protect)
+// opens its RTSP stream with the ONVIF login, so two different logins could never work.
+// v0.4.0-beta.1 had it as "onvif.username" / "onvif.password": still accepted.
+export function rtspSettings(rtsp = {}, oldOnvif = undefined) {
   if (rtsp.enabled != null && typeof rtsp.enabled !== 'boolean') throw new Error('"rtsp.enabled" must be true or false');
-  return { enabled: rtsp.enabled !== false, login: login(rtsp, 'rtsp', 'the login NVRs use for the RTSP streams') };
+  const own = login(rtsp, 'rtsp', 'the login NVRs use for the RTSP streams and ONVIF cameras');
+  const old = login(oldOnvif, 'onvif', 'the old place of the stream login: use "rtsp.username" / "rtsp.password"');
+  if (own && old && (own.username !== old.username || own.password !== old.password)) {
+    throw new Error('one login covers RTSP and ONVIF: keep "rtsp.username" / "rtsp.password" and remove "onvif.username" / "onvif.password"');
+  }
+  return { enabled: rtsp.enabled !== false, login: own ?? old, oldKeys: !!old };
 }
 
 // What is open to anyone on the LAN, for the log at startup: [] when everything asks for a login.
-export function openToTheLan({ web, rtsp, onvif, cameras }) {
+export function openToTheLan({ web, rtsp, cameras }) {
   const open = [];
   if (!web.login) open.push('web page and API without login (set "web.username" / "web.password")');
   else if (!web.https) open.push('web page login over plain HTTP (set "web.https": true)');
-  if (rtsp.enabled && !rtsp.login) open.push('RTSP streams without login (set "rtsp.username" / "rtsp.password", or "rtsp.enabled": false)');
-  if (cameras.some((c) => c.onvif) && !onvif) open.push('ONVIF cameras without login (set "onvif.username" / "onvif.password")');
+  const onvif = cameras.some((c) => c.onvif);
+  if (rtsp.enabled && !rtsp.login) {
+    open.push(`RTSP streams${onvif ? ' and ONVIF cameras' : ''} without login (set "rtsp.username" / "rtsp.password"${onvif ? '' : ', or "rtsp.enabled": false'})`);
+  }
   return open;
 }
 
 // Things that work but probably not as meant.
-export function configWarnings({ rtsp, onvif, cameras }) {
-  const warnings = [];
-  if (cameras.some((c) => c.onvif) && rtsp.login && (!onvif || onvif.username !== rtsp.login.username || onvif.password !== rtsp.login.password)) {
-    warnings.push('the RTSP login differs from the ONVIF login: NVRs that adopt ONVIF cameras (UniFi Protect) use the ONVIF login for the stream too');
-  }
-  return warnings;
+export function configWarnings({ rtsp }) {
+  return rtsp.oldKeys ? ['"onvif.username" / "onvif.password" are now "rtsp.username" / "rtsp.password" (one login for RTSP and ONVIF): please move them'] : [];
 }
 
 // A { username, password } section: both or neither (null).

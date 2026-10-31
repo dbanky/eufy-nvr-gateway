@@ -7,8 +7,6 @@
 
   "rtsp": { "username": "protect", "password": "choose-another-password" },
 
-  "onvif": { "username": "protect", "password": "choose-another-password" },
-
   "checkForUpdates": true,
 
   "ports": {

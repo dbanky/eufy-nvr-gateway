@@ -15,14 +15,14 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 - **HTTPS for the web page** (optional): `"web": { "https": true }`. Uses your certificate
   (`web.certFile`, `web.keyFile`) or makes a self-signed one once in `/data/web/`; plain `http://`
   on the same port redirects to `https://`.
-- **Login for the RTSP streams** (optional): `"rtsp": { "username", "password" }`. Or
+- **Login for the RTSP streams** (optional): `"rtsp": { "username", "password" }`, the same login
+  for the ONVIF cameras (UniFi Protect opens the stream with the ONVIF login, so they can't differ). Or
   `"rtsp": { "enabled": false }` keeps the streams off the network (not with ONVIF cameras).
-- **The ONVIF snapshot needs the ONVIF login** (HTTP Digest or Basic) when one is set.
+- **The ONVIF snapshot needs the login** (HTTP Digest or Basic) when one is set.
 - **Theme in `config.json`**: `"web": { "theme": "light" }` (or `"dark"`) fixes the page's theme;
   `"auto"` (the default) follows the system, with the switch in the header.
 - **Security summary at startup**: the log names whatever is still open to the LAN and the setting
-  that closes it, and notes when the RTSP login differs from the ONVIF one (UniFi Protect uses the
-  ONVIF login for the stream).
+  that closes it.
 - The tile details say whether the RTSP stream needs a login, or is off the network.
 - **Light and dark theme**: follows the system until you pick one with the header's switch (the
   choice is remembered in that browser).
@@ -35,6 +35,9 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ### Changed
 
+- **The ONVIF login moved to `rtsp.username` / `rtsp.password`**: one login for RTSP and ONVIF.
+  `onvif.username` / `onvif.password` from 0.4.0-beta.1 still work and now lock the RTSP streams
+  too (players then need `rtsp://user:password@…`); the log asks you to move them.
 - **All camera tiles are the same size.** The picture area is 16:9 for every camera; a camera of
   another shape (a 4:3 doorbell) is shown whole over a blurred copy of itself.
 - *Live until* shows seconds (`until 19:42:35`): the live hold is counted in seconds.

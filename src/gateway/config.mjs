@@ -2,7 +2,7 @@
 // Everything here is pure except reading the file, so the rules are easy to test.
 
 import { readFileSync, existsSync } from 'node:fs';
-import { login, webSettings, rtspSettings } from './access.mjs';
+import { webSettings, rtspSettings } from './access.mjs';
 
 export const DEFAULT_PORTS = { web: 8099, rtsp: 8554, bridge: 3000 };
 const CAMERA_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;   // becomes the RTSP path
@@ -44,11 +44,11 @@ export function resolveSettings(cfg, env) {
     timeZone: env.TZ || cfg.timezone || 'UTC',
     cameras: validateCameras(cfg),
     bridgeEnv: cfg.bridge?.env ?? {},
-    onvif: login(cfg.onvif, 'onvif', 'the login your NVR uses for the ONVIF cameras'),
     web: webSettings(cfg.web),
-    rtsp: rtspSettings(cfg.rtsp),
+    rtsp: rtspSettings(cfg.rtsp, cfg.onvif),
     checkForUpdates: cfg.checkForUpdates !== false,
   };
+  settings.onvif = settings.rtsp.login;   // one login for the streams: ONVIF uses the RTSP one
   if (!settings.rtsp.enabled && settings.cameras.some((c) => c.onvif)) {
     throw new Error('"rtsp.enabled" is false, but ONVIF cameras point NVRs at their RTSP stream: turn RTSP on or remove the cameras\' "onvif" sections');
   }

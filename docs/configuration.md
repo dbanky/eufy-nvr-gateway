@@ -46,11 +46,13 @@ Environment variables win over `config.json`.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `rtsp.username`, `rtsp.password` | — | A login for the RTSP streams (both or neither): `rtsp://user:password@host:8554/<name>`. The gateway's own publishing inside the container needs none |
+| `rtsp.username`, `rtsp.password` | — | The login for the streams (both or neither): RTSP (`rtsp://user:password@host:8554/<name>`) and the ONVIF cameras. The gateway's own publishing inside the container needs none |
 | `rtsp.enabled` | `true` | `false`: the streams stay inside the container, nothing on the network can read them. Not possible together with ONVIF cameras, which point NVRs at their stream |
 
-UniFi Protect reads the stream with the ONVIF login, so with ONVIF cameras give `rtsp` the same
-login as `onvif`. The log notes it when they differ.
+**One login for RTSP and ONVIF.** An NVR that adopts an ONVIF camera (UniFi Protect) opens its
+RTSP stream with the ONVIF login, so the two can't differ: `rtsp.username` / `rtsp.password` is
+both. Version 0.4.0-beta.1 had it as `onvif.username` / `onvif.password`; that still works (and now
+locks RTSP too), and the log asks you to move it.
 
 ## What is open to your LAN
 

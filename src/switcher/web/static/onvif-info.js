@@ -44,7 +44,7 @@ export function onvifDetailsHtml(onvif, cameraName) {
     <dd class="copy-row"><input readonly value="${esc(onvif.deviceService)}" aria-label="ONVIF address of ${esc(cameraName)}">`
     + `<button type="button" class="icon-button" data-copy="${esc(onvif.deviceService)}" aria-label="Copy the ONVIF address">${icon('copy')}</button></dd>
     <dt>Address</dt><dd>${esc(onvif.address)} · port ${esc(onvif.port)}${onvif.mac ? ` · MAC ${esc(onvif.mac)}` : ''}</dd>
-    <dt>Login</dt><dd>${onvif.login ? 'Required (onvif.username / onvif.password)'
+    <dt>Login</dt><dd>${onvif.login ? 'Required: the RTSP login (rtsp.username / rtsp.password)'
       : `<span class="warn">${icon('nowake')}None: anyone on the LAN can adopt it</span>`}</dd>
     <dt>Discovery</dt><dd>${esc(discoveryText(d))}<span class="sub">as “${esc(d.name)}” · ${esc(d.hardware)} · <code>${esc(d.uuid)}</code></span></dd>
     <dt>NVR</dt><dd>${esc(nvrText(onvif))}</dd>

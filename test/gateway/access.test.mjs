@@ -26,11 +26,25 @@ describe('ONVIF (for NVRs such as UniFi Protect)', () => {
     assert.throws(() => validateCameras({ cameras: [onvifCamera({ address: '192.168.1.51' }), second] }), /same ONVIF address/);
   });
 
-  test('the login NVRs use comes from config.json, and is optional', () => {
-    assert.deepEqual(resolveSettings({ onvif: { username: 'protect', password: 'secret' } }, login).onvif,
-      { username: 'protect', password: 'secret' });
+  test('ONVIF uses the RTSP login: one login for the streams', () => {
+    const settings = resolveSettings({ rtsp: { username: 'protect', password: 'secret' } }, login);
+    assert.deepEqual(settings.onvif, { username: 'protect', password: 'secret' });
+    assert.equal(settings.onvif, settings.rtsp.login);
     assert.equal(resolveSettings({}, login).onvif, null);
+  });
+
+  test('the old place of the login ("onvif", v0.4.0-beta.1) still works, with a note to move it', () => {
+    const settings = resolveSettings({ onvif: { username: 'protect', password: 'secret' } }, login);
+    assert.deepEqual(settings.rtsp.login, { username: 'protect', password: 'secret' }, 'it locks RTSP too');
+    assert.deepEqual(settings.onvif, settings.rtsp.login);
+    assert.match(configWarnings(settings)[0], /now "rtsp.username"/);
     assert.throws(() => resolveSettings({ onvif: { username: 'protect' } }, login), /"onvif.password"/);
+  });
+
+  test('two different logins are refused: they could never work together', () => {
+    const both = (onvif) => resolveSettings({ rtsp: { username: 'protect', password: 'secret' }, onvif }, login);
+    assert.throws(() => both({ username: 'protect', password: 'other' }), /one login covers RTSP and ONVIF/);
+    assert.deepEqual(both({ username: 'protect', password: 'secret' }).onvif, { username: 'protect', password: 'secret' });
   });
 });
 
@@ -61,8 +75,8 @@ describe('the web page', () => {
 
 describe('the RTSP streams', () => {
   test('on the network without a login by default; a login is optional', () => {
-    assert.deepEqual(resolveSettings({}, login).rtsp, { enabled: true, login: null });
-    assert.deepEqual(resolveSettings({ rtsp: { username: 'nvr', password: 'secret' } }, login).rtsp, { enabled: true, login: { username: 'nvr', password: 'secret' } });
+    assert.deepEqual(resolveSettings({}, login).rtsp, { enabled: true, login: null, oldKeys: false });
+    assert.deepEqual(resolveSettings({ rtsp: { username: 'nvr', password: 'secret' } }, login).rtsp.login, { username: 'nvr', password: 'secret' });
     assert.throws(() => resolveSettings({ rtsp: { username: 'nvr' } }, login), /"rtsp.password" is missing/);
   });
 
@@ -75,7 +89,7 @@ describe('the RTSP streams', () => {
 
 describe('what is open to the LAN (logged at startup)', () => {
   const everything = { web: { username: 'a', password: 'b', https: true }, rtsp: { username: 'c', password: 'd' },
-    onvif: { username: 'c', password: 'd' }, cameras: [{ ...camera, onvif: { address: '192.168.1.51' } }] };
+    cameras: [{ ...camera, onvif: { address: '192.168.1.51' } }] };
 
   test('nothing, when every part asks for a login and the page is HTTPS', () => {
     assert.deepEqual(openToTheLan(resolveSettings(everything, login)), []);
@@ -83,16 +97,11 @@ describe('what is open to the LAN (logged at startup)', () => {
 
   test('names every open part and the setting that closes it', () => {
     const open = openToTheLan(resolveSettings({ cameras: [{ ...camera, onvif: { address: '192.168.1.51' } }] }, login));
-    assert.equal(open.length, 3);
-    assert.match(open.join('\n'), /web page and API without login[\s\S]*RTSP streams without login[\s\S]*ONVIF cameras without login/);
+    assert.equal(open.length, 2);
+    assert.match(open.join('\n'), /web page and API without login[\s\S]*RTSP streams and ONVIF cameras without login/);
+    assert.match(openToTheLan(resolveSettings({}, login))[1], /RTSP streams without login.*"rtsp.enabled": false/);
     assert.match(openToTheLan(resolveSettings({ ...everything, web: { username: 'a', password: 'b' } }, login))[0], /plain HTTP/);
     assert.deepEqual(openToTheLan(resolveSettings({ rtsp: { enabled: false }, web: everything.web }, login)), [], 'RTSP off is closed');
-  });
-
-  test('warns when the RTSP login differs from the ONVIF one (Protect uses the ONVIF login for the stream)', () => {
-    assert.deepEqual(configWarnings(resolveSettings(everything, login)), []);
-    const differs = resolveSettings({ ...everything, rtsp: { username: 'x', password: 'y' } }, login);
-    assert.match(configWarnings(differs)[0], /RTSP login differs from the ONVIF login/);
   });
 });
 

@@ -52,7 +52,7 @@ export function onvifStatus({ device, events, contact, discovery, credentials, n
 export function startOnvif({ cameras, credentials, rtspPort, version, snapshot, log }) {
   const published = cameras.filter((c) => c.onvif?.address);
   if (!published.length) return () => null;
-  if (!credentials) log('ONVIF: no "onvif.username"/"onvif.password" in config.json: anyone on the LAN can use the ONVIF cameras');
+  if (!credentials) log('ONVIF: no "rtsp.username"/"rtsp.password" in config.json: anyone on the LAN can use the ONVIF cameras');
   const entries = published.map((camera) => {
     const device = onvifDevice(camera, { rtspPort, version });
     const events = new MotionEvents({ baseUrl: baseUrl(device) });
