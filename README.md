@@ -17,7 +17,8 @@ This gateway sits in between and runs as **one Docker container**:
 - While nothing happens, the stream shows the **last frame, blurred and dimmed, with a moon** and a
   `Sleeping · since 18:33` label — and the camera **sleeps**.
 - When the camera detects motion or a person, or the doorbell is pressed, the gateway **wakes the
-  camera, switches the stream to live video** for two minutes, then freezes the last frame again.
+  camera and switches the stream to live video** — until there has been no motion for two minutes —
+  then shows the sleeping picture again.
 
 ```mermaid
 flowchart LR
@@ -131,9 +132,9 @@ Per camera:
 | `width`, `height` | yes | The camera's **native live resolution**. The output always has this size; set it to what the camera really sends so nothing is scaled. See [known resolutions](#known-live-resolutions) |
 | `fps` | | Output frame rate. Default `15` (what eufy cameras send) |
 | `bitrateKbps` | | Upper bitrate limit during live video. Default `4000`; use ~`6000` for 3K |
-| `holdMs` | | How long to stay live after the last detection. Default `120000` (2 min) |
+| `holdMs` | | Stay live until this long after the last detection: continuing motion keeps the stream live. Default `120000` (2 min) |
 | `ringHoldMs` | | Same, after a doorbell press. Default `120000` |
-| `maxLiveMs` | | Hard cap per session, from the first live frame. Default `120000` |
+| `maxLiveMs` | | Optional cap per session, from the first live frame, to save battery when motion never stops (e.g. a busy street). Default `0` (no cap) |
 | `restartGapMs` | | Minimum pause between sessions (a doorbell press ignores it). Default `15000` |
 | `minBatteryPct` | | Below this battery level, only a doorbell press or a manual *Go live* wakes the camera. Default `15` |
 | `triggers` | | Events that wake the camera. Default: `motion`, `personDetected`, `vehicleDetected`, `petDetection`, `strangerDetected`, `doorbellPress` |

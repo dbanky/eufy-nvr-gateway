@@ -36,8 +36,9 @@ event the switcher opens the bridge's `/stream/<serial>`, decodes it to raw fram
 the encoder. When the hold time ends it closes the stream — the bridge then ends the P2P session at
 once (measured: ~0.1 s) and the camera sleeps.
 
-There is no "motion ended" event, so sessions are timed: by default two minutes from the first live
-frame, extended by further detections up to `maxLiveMs`.
+There is no "motion ended" event, so "no more motion" means "no new detection for `holdMs`" (two
+minutes by default). Every detection while live pushes the end back; the session ends two minutes after
+the last one. An optional `maxLiveMs` caps a session for places where motion never stops.
 
 ## Details that matter
 

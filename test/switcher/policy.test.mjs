@@ -46,8 +46,14 @@ describe('a session ends', () => {
     assert.equal(stopReason({ ...session, state: 'LIVE', deadline: now - 1 }, now), 'hold time over');
   });
 
-  test('at the hard cap, however often it was extended', () => {
-    assert.equal(stopReason({ ...session, state: 'LIVE', liveStart: now - 121000, deadline: now + 999999 }, now), 'max live time');
+  test('not while motion keeps coming: by default there is no cap on a session', () => {
+    const anHourOfMotion = { ...session, state: 'LIVE', liveStart: now - 3600000, deadline: now + 60000 };
+    assert.equal(stopReason(anHourOfMotion, now), null);
+  });
+
+  test('at maxLiveMs, if set, however often it was extended (to save battery)', () => {
+    const capped = { ...session, state: 'LIVE', maxLiveMs: 600000, liveStart: now - 600001, deadline: now + 60000 };
+    assert.equal(stopReason(capped, now), 'max live time');
   });
 
   test('otherwise it keeps going', () => {

@@ -90,6 +90,24 @@ describe('a motion event', () => {
     assert.equal(cam.frame, livePicture);
   });
 
+  test('stays live while motion continues, and stops holdMs after the last detection', () => {
+    const { cam, world } = setup({ holdMs: 120000 });
+    cam.trigger('motion');
+    world.liveFeeds[0].onFrame(livePicture);
+    for (let minute = 0; minute < 10; minute++) {   // ten minutes of motion, a detection every minute
+      world.advance(60000);
+      cam.trigger('motion');
+      cam.check();
+    }
+    assert.equal(cam.state, 'LIVE', 'still live after 10 minutes of motion');
+    world.advance(119000);
+    cam.check();
+    assert.equal(cam.state, 'LIVE', 'the last detection was less than 2 minutes ago');
+    world.advance(2000);
+    cam.check();
+    assert.equal(cam.state, 'IDLE', 'no motion for 2 minutes');
+  });
+
   test('a second event while awake extends the session instead of waking it twice', () => {
     const { cam, world } = setup();
     cam.trigger('motion');

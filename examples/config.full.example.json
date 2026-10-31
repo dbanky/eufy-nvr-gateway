@@ -12,7 +12,6 @@
     "fps": 15,
     "holdMs": 120000,
     "ringHoldMs": 120000,
-    "maxLiveMs": 120000,
     "restartGapMs": 15000,
     "minBatteryPct": 15,
     "triggers": ["motion", "personDetected", "vehicleDetected", "petDetection", "strangerDetected", "doorbellPress"]

@@ -3,9 +3,9 @@
 export const CAMERA_DEFAULTS = {
   width: 1920, height: 1080, fps: 15, bitrateKbps: 4000,   // set to the camera's native size: no downscaling
   triggers: ['motion', 'personDetected', 'vehicleDetected', 'petDetection', 'strangerDetected', 'doorbellPress'],
-  holdMs: 120000,             // stay live this long after the last trigger
+  holdMs: 120000,             // stay live until this long after the last detection
   ringHoldMs: 120000,         // ...and this long after a doorbell press
-  maxLiveMs: 120000,          // hard cap per session, counted from the first live frame
+  maxLiveMs: 0,               // optional cap per session from the first live frame; 0 = none
   firstFrameTimeoutMs: 60000, // give up if the camera hasn't sent a picture by then
   restartGapMs: 15000,        // minimum pause between sessions
   maxReconnects: 2,           // re-open the feed if it drops mid-session
@@ -33,7 +33,7 @@ export function decideTrigger(cam, kind, now) {
 export function stopReason(cam, now) {
   if (cam.state === 'WAKING' && now - cam.sessionStart > cam.firstFrameTimeoutMs) return 'no video from camera';
   if (cam.state !== 'IDLE' && now > cam.deadline) return 'hold time over';
-  if (cam.state === 'LIVE' && now - cam.liveStart > cam.maxLiveMs) return 'max live time';
+  if (cam.state === 'LIVE' && cam.maxLiveMs > 0 && now - cam.liveStart > cam.maxLiveMs) return 'max live time';
   return null;
 }
 
