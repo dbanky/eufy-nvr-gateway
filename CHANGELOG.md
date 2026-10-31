@@ -7,11 +7,23 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-31
+
+The first stable release since 0.2.1. It brings everything from the 0.3.0 and 0.4.0 pre-releases
+below: ONVIF for UniFi Protect, H.265 pass-through, a redesigned web page with a light and dark
+theme, optional logins and HTTPS for everything on the network, and a step-by-step
+[UniFi Protect guide](docs/unifi-protect.md).
+
 ### Added
 
 - **[UniFi Protect guide](docs/unifi-protect.md)**, from a real Protect setup: one IP per camera,
   adding each camera with *Advanced Adoption*, and *Stream Compatibility Mode: Improved* for H.265
   cameras that flicker or turn black in Protect's live view.
+
+### Changed
+
+- The README shows the logo next to the title (`docs/logo.png`, rendered from the web page's
+  `logo.svg`, so Docker Hub shows it too).
 
 ### Removed
 
@@ -27,11 +39,6 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 - **No broken image while a tile's first picture is being made**: the tile shows a placeholder in
   the stream's style (a spinner in the round chip, *Getting the picture*). Pictures are downloaded in
   the background and swapped in only once complete, so a slow or failed refresh keeps the last one.
-
-### Changed
-
-- The README shows the logo next to the title (`docs/logo.png`, rendered from the web page's
-  `logo.svg`, so Docker Hub shows it too).
 
 ## [0.4.0-beta.4] - 2026-10-31
 
@@ -240,7 +247,8 @@ First release: always-on H.264 RTSP streams for battery-powered eufy cameras, wi
 awake. One container with the eufy bridge, go2rtc and the switcher; frozen last frame while idle,
 live video on motion, person detection or a doorbell press; web page for the eufy login and status.
 
-[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0-beta.4...HEAD
+[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0-beta.4...v0.4.0
 [0.4.0-beta.4]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0-beta.3...v0.4.0-beta.4
 [0.4.0-beta.3]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0-beta.2...v0.4.0-beta.3
 [0.4.0-beta.2]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0-beta.1...v0.4.0-beta.2
