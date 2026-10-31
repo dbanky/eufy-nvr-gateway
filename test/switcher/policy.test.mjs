@@ -6,8 +6,8 @@ const now = 1_000_000;
 const asleep = { ...CAMERA_DEFAULTS, state: 'IDLE', battery: 80, lastStop: 0, deadline: 0 };
 
 describe('a trigger', () => {
-  test('wakes a sleeping camera for the hold time', () => {
-    assert.deepEqual(decideTrigger(asleep, 'motion', now), { action: 'wake', holdUntil: now + 120000 });
+  test('wakes a sleeping camera for the hold time: 30 s by default', () => {
+    assert.deepEqual(decideTrigger(asleep, 'motion', now), { action: 'wake', holdUntil: now + 30000 });
   });
 
   test('a doorbell press holds for ringHoldMs instead', () => {
@@ -17,7 +17,7 @@ describe('a trigger', () => {
   test('extends a session that is already running, never shortens it', () => {
     const live = { ...asleep, state: 'LIVE', deadline: now + 500000 };
     assert.deepEqual(decideTrigger(live, 'motion', now), { action: 'extend', holdUntil: now + 500000 });
-    assert.deepEqual(decideTrigger({ ...live, deadline: now + 1000 }, 'motion', now), { action: 'extend', holdUntil: now + 120000 });
+    assert.deepEqual(decideTrigger({ ...live, deadline: now + 1000 }, 'motion', now), { action: 'extend', holdUntil: now + 30000 });
   });
 
   test('is ignored below the battery limit…', () => {
@@ -64,8 +64,8 @@ describe('a session ends', () => {
 
 describe('timing details', () => {
   test('the hold time counts from the first live frame, not from the trigger: waking can take a minute', () => {
-    const woke = { ...asleep, deadline: now + 120000 };
-    assert.equal(deadlineWhenLive(woke, now + 45000), now + 165000);
+    const woke = { ...asleep, deadline: now + 30000 };
+    assert.equal(deadlineWhenLive(woke, now + 45000), now + 75000);
   });
 
   test('a dropped feed is re-opened only within the session and up to maxReconnects', () => {

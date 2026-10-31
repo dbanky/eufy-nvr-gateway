@@ -10,7 +10,7 @@
 
   "defaults": {
     "fps": 15,
-    "holdMs": 120000,
+    "holdMs": 30000,
     "ringHoldMs": 120000,
     "restartGapMs": 15000,
     "minBatteryPct": 15,
