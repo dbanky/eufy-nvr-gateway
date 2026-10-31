@@ -14,8 +14,8 @@ describe('the web page says which codec the stream uses, and whether it is conve
     assert.equal(info({ codec: 'hevc' }).text, 'H.264 · converted from H.265');
   });
 
-  test('converting an H.264 camera (re-encoded, same format)', () => {
-    assert.equal(info({ codec: 'h264' }).text, 'H.264 · converted from H.264');
+  test('an H.264 camera stays H.264: no conversion is mentioned', () => {
+    assert.equal(info({ codec: 'h264' }).text, 'H.264, as the camera sends it');
   });
 
   test('passing the camera\'s own H.265 through', () => {

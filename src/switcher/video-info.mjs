@@ -9,6 +9,7 @@ export function videoInfo({ transcode, codec, streamCodec }) {
   let text;
   if (!converted) text = `${NAMES[streamCodec]} · passed through, no conversion`;
   else if (transcode === false) text = `${NAMES[streamCodec]} · converted until the camera's format is known`;
+  else if (codec === streamCodec) text = `${NAMES[streamCodec]}, as the camera sends it`;   // same format: no conversion to speak of
   else text = `${NAMES[streamCodec]} · converted${codec ? ` from ${NAMES[codec]}` : ''}`;
   return { codec: streamCodec, cameraCodec: codec ?? null, converted, text };
 }
