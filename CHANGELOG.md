@@ -12,6 +12,18 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 - **Login for the web page** (optional): `"web": { "username", "password" }` in `config.json`.
   Browsers get a sign-in page and a 30-day session; scripts send HTTP Basic. `/api/health` stays
   open for Docker's health check.
+- **HTTPS for the web page** (optional): `"web": { "https": true }`. Uses your certificate
+  (`web.certFile`, `web.keyFile`) or makes a self-signed one once in `/data/web/`; plain `http://`
+  on the same port redirects to `https://`.
+- **Login for the RTSP streams** (optional): `"rtsp": { "username", "password" }`. Or
+  `"rtsp": { "enabled": false }` keeps the streams off the network (not with ONVIF cameras).
+- **The ONVIF snapshot needs the ONVIF login** (HTTP Digest or Basic) when one is set.
+- **Theme in `config.json`**: `"web": { "theme": "light" }` (or `"dark"`) fixes the page's theme;
+  `"auto"` (the default) follows the system, with the switch in the header.
+- **Security summary at startup**: the log names whatever is still open to the LAN and the setting
+  that closes it, and notes when the RTSP login differs from the ONVIF one (UniFi Protect uses the
+  ONVIF login for the stream).
+- The tile details say whether the RTSP stream needs a login, or is off the network.
 - **Light and dark theme**: follows the system until you pick one with the header's switch (the
   choice is remembered in that browser).
 - **Version and updates**: the footer shows the version and links the GitHub project; when a newer
@@ -28,6 +40,11 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 - *Live until* shows seconds (`until 19:42:35`): the live hold is counted in seconds.
 - The ONVIF snapshot is served on the camera's ONVIF port (`/onvif/snapshot.jpg`), so it stays
   reachable for NVRs when the web page has a login.
+- **Documentation**: RTSP/ONVIF and UniFi Protect named up front; setup in five steps; a section
+  on the eufy account and its two-factor login (second account, sharing, codes, captcha, what ends
+  a session); a Security section; every new option in docs/configuration.md; the diagram shows
+  ONVIF, UniFi Protect and the web page.
+- Docker's health check is a small Node script that follows the web page to HTTPS.
 - README: which ports to map when the container uses a `bridge` network instead of `host`
   (`8099` and `8554` TCP), and that ONVIF (`8000` TCP, `3702` UDP) needs host networking.
 

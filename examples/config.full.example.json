@@ -3,7 +3,9 @@
 
   "eufy": { "country": "GB" },
 
-  "web": { "username": "admin", "password": "choose-a-password" },
+  "web": { "username": "admin", "password": "choose-a-password", "theme": "auto", "https": false },
+
+  "rtsp": { "username": "protect", "password": "choose-another-password" },
 
   "onvif": { "username": "protect", "password": "choose-another-password" },
 

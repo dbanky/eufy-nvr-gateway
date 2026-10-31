@@ -3,6 +3,7 @@
 #   1. Set EUFY_EMAIL / EUFY_PASSWORD / EUFY_COUNTRY below (a separate eufy account is recommended).
 #   2. docker compose up -d   — then open http://<host>:8099 and log in.
 #   3. Put the camera list in ./data/config.json (start from examples/config.example.json) and restart.
+#   4. Optional: logins for the web page, RTSP and ONVIF, and HTTPS — see "Security" in the README.
 services:
   eufy-nvr-gateway:
     image: dbanky/eufy-nvr-gateway:latest   # or ghcr.io/dbanky/eufy-nvr-gateway:latest
@@ -10,7 +11,8 @@ services:
     # build: https://github.com/dbanky/eufy-nvr-gateway.git
     container_name: eufy-nvr-gateway
     restart: unless-stopped
-    # Host networking: NVRs and players reach the RTSP streams directly on the host's address.
+    # Host networking: NVRs and players reach the streams directly on the host's address, and ONVIF
+    # (UniFi Protect) needs it. Without it, map 8099 and 8554 (see "Ports" in the README).
     network_mode: host
     environment:
       EUFY_EMAIL: "you@example.com"

@@ -23,10 +23,40 @@ Environment variables win over `config.json`.
 | `cameras` | `[]` | The cameras to publish (below) |
 | `defaults` | `{}` | Any camera setting, applied to every camera unless the camera sets it itself |
 | `ports` | see below | Network ports |
-| `web` | — | A login for the web page and API: `{ "username", "password" }`. Browsers get a sign-in page, scripts send HTTP Basic. Without it, anyone on the LAN can use the page |
+| `web` | see below | The web page: login, theme, HTTPS |
+| `rtsp` | see below | The RTSP streams: login, or off the network |
 | `onvif` | — | The login NVRs use for ONVIF cameras: `{ "username", "password" }` ([onvif.md](onvif.md)) |
 | `checkForUpdates` | `true` | Ask GitHub for new releases every 6 h and show them on the web page. `false`: no request leaves the gateway |
 | `bridge.env` | `{}` | Extra environment variables for the bridge (see the [bridge docs](https://github.com/mega-yfue/ha-eufy-sdk-bridge)) |
+
+## Web page (`web`)
+
+| Key | Default | Meaning |
+|---|---|---|
+| `web.username`, `web.password` | — | A login for the web page and API (both or neither). Browsers get a sign-in page and a 30-day session cookie; scripts and NVRs send HTTP Basic. Changing the password ends every session. Without it, anyone on the LAN can use the page |
+| `web.theme` | `"auto"` | `"auto"`: the system's light or dark setting, with a switch in the header (remembered per browser). `"light"` or `"dark"`: always that, no switch |
+| `web.https` | `false` | `true`: the page and API over HTTPS on the same port; plain `http://` redirects to `https://`, and the session cookie is never sent unencrypted |
+| `web.certFile`, `web.keyFile` | — | Your own certificate and key (PEM, paths inside the container, e.g. `/data/web/my-cert.pem`). Without them, `https` makes a self-signed certificate once (`/data/web/cert.pem`, `key.pem`, valid 10 years, for the host's name and addresses); browsers warn about it the first time |
+
+```json
+"web": { "username": "admin", "password": "choose-a-password", "theme": "light", "https": true }
+```
+
+## RTSP streams (`rtsp`)
+
+| Key | Default | Meaning |
+|---|---|---|
+| `rtsp.username`, `rtsp.password` | — | A login for the RTSP streams (both or neither): `rtsp://user:password@host:8554/<name>`. The gateway's own publishing inside the container needs none |
+| `rtsp.enabled` | `true` | `false`: the streams stay inside the container, nothing on the network can read them. Not possible together with ONVIF cameras, which point NVRs at their stream |
+
+UniFi Protect reads the stream with the ONVIF login, so with ONVIF cameras give `rtsp` the same
+login as `onvif`. The log notes it when they differ.
+
+## What is open to your LAN
+
+At every start the log says either *Every web page, API, stream and ONVIF camera asks for a login*,
+or names each open part with the setting that closes it, e.g.
+`Open to anyone on your LAN: RTSP streams without login (set "rtsp.username" / "rtsp.password", or "rtsp.enabled": false)`.
 
 ## Cameras
 
@@ -41,9 +71,9 @@ Environment variables win over `config.json`.
 | `ringHoldMs` | `120000` | Same, after a doorbell press |
 | `maxLiveMs` | `0` | Optional cap per session, from the first live frame; repeated detections cannot extend past it. `0` = no cap. Set it (e.g. `600000`) if constant motion would drain the battery |
 | `firstFrameTimeoutMs` | `60000` | Give up waking the camera if no video arrives by then |
-| `restartGapMs` | `15000` | Minimum pause between two sessions. A doorbell press and *Go live* ignore it |
+| `restartGapMs` | `15000` | Minimum pause between two sessions. A doorbell press and *Wake up* on the web page ignore it |
 | `maxReconnects` | `2` | Reconnect attempts if the live feed drops mid-session |
-| `minBatteryPct` | `15` | Below this, only a doorbell press or *Go live* wakes the camera |
+| `minBatteryPct` | `15` | Below this, only a doorbell press or *Wake up* on the web page wakes the camera |
 | `transcode` | `false` | Pass the camera's own H.264 or H.265 through. `true` converts live video to H.264 instead (see below) |
 | `triggers` | see below | Bridge events that wake the camera |
 | `onvif` | — | Publish the camera as an ONVIF device: `{ "address", "port", "mac" }`, its own IP on the LAN ([onvif.md](onvif.md)) |
@@ -57,7 +87,7 @@ rather than `motion`.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `ports.web` | `8099` | Web page and API (also `WEB_PORT`; the Docker health check uses `WEB_PORT`) |
+| `ports.web` | `8099` | Web page and API, HTTP or HTTPS (also `WEB_PORT`) |
 | `ports.rtsp` | `8554` | RTSP output |
 
 ## Passing through or converting (`transcode`)
@@ -90,4 +120,5 @@ two CPU cores on a small NAS.
 | `bridge/.eufy-session.json` | eufy login session — delete it to force a fresh login |
 | `switcher/last-<name>.jpg` | Last live frame per camera, shown after a restart |
 | `switcher/codec-<name>.txt` | The format a camera sends (`h264` / `hevc`), learned in its first live session for passing it through |
-| `go2rtc/go2rtc.yaml`, `switcher/config.json` | Generated at every start from `config.json` — don't edit |
+| `web/cert.pem`, `web/key.pem` | The self-signed HTTPS certificate, made once when `web.https` is on without own files — delete both to make a new one |
+| `go2rtc/go2rtc.yaml`, `switcher/config.json` | Generated at every start from `config.json` — don't edit (they contain the logins) |

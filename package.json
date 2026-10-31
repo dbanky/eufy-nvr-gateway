@@ -3,7 +3,7 @@
   "version": "0.4.0-beta.1",
   "private": true,
   "type": "module",
-  "description": "Always-on RTSP streams for battery-powered eufy cameras, without keeping them awake.",
+  "description": "Always-on RTSP/ONVIF streams for battery-powered eufy cameras, without keeping them awake.",
   "license": "MIT",
   "engines": {
     "node": ">=22"

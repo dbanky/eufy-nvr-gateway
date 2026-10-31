@@ -9,7 +9,7 @@ so the NVR can record only while the camera is awake.
 |---|---|
 | Device | Manufacturer `eufy`, the camera's model and serial, one stream profile |
 | Stream | The gateway's RTSP stream of that camera — H.264, or the camera's own H.265 when passed through |
-| Snapshot | What the stream shows, as a JPEG on the camera's ONVIF port (`/onvif/snapshot.jpg`) — reachable even when the web page has a login |
+| Snapshot | What the stream shows, as a JPEG on the camera's ONVIF port (`/onvif/snapshot.jpg`), behind the ONVIF login |
 | Motion | `true` while the camera is waking up or live, `false` when it sleeps (ONVIF PullPoint events, topics `RuleEngine/CellMotionDetector/Motion` and `VideoSource/MotionAlarm`) |
 | Discovery | WS-Discovery (UDP 3702), so the NVR can find the cameras by itself |
 
@@ -53,7 +53,7 @@ In `config.json`, the login your NVR will use, and an `onvif` section for every 
 
 | Key | Default | Meaning |
 |---|---|---|
-| `onvif.username`, `onvif.password` | — | Top level. The login the NVR uses (ONVIF WS-UsernameToken). Without it, anyone on the LAN can use the ONVIF cameras. |
+| `onvif.username`, `onvif.password` | — | Top level. The login the NVR uses (ONVIF WS-UsernameToken; HTTP Digest or Basic for the snapshot). Without it, anyone on the LAN can use the ONVIF cameras. |
 | `cameras[].onvif.address` | — | Required to publish the camera: its own IPv4 address (step 1) |
 | `cameras[].onvif.port` | `8000` | ONVIF port on that address |
 | `cameras[].onvif.mac` | — | The interface's MAC, reported to the NVR as the camera's |
@@ -65,6 +65,16 @@ The web page shows it too, under each camera's *Stream details*: the device addr
 port and MAC, whether a login is required, what discovery tells NVRs (name, model, UUID) and whether
 an NVR is talking to the camera (its address, last request and motion-event subscriptions). Cameras
 without an `onvif` section are marked *RTSP only*.
+
+### A login for the stream too
+
+The ONVIF login protects the ONVIF services; the video itself comes from the RTSP stream. To protect
+that as well, give `rtsp` **the same login** — UniFi Protect uses the ONVIF login for the stream:
+
+```json
+"rtsp":  { "username": "protect", "password": "choose-a-password" },
+"onvif": { "username": "protect", "password": "choose-a-password" }
+```
 
 ## 3. Adopt them in the NVR
 
@@ -83,4 +93,5 @@ while a camera is awake.
 - **The first seconds of an event are missing** from recordings: the camera needs 3–8 seconds to
   wake (longer from deep sleep), and only then is there live video.
 - **The doorbell is a plain camera** in Protect: no ring event, no chime, no audio.
-- The RTSP stream and the snapshot have no login (like most cameras); keep the gateway on your LAN.
+- Without an `rtsp` login, anyone on the LAN can watch the RTSP stream; see "A login for the stream
+  too" above, and [Security](../README.md#security).
