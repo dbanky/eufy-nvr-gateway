@@ -82,3 +82,16 @@ describe('stream details', () => {
     assert.match(html, /2880 × 1616/);
   });
 });
+
+describe('the RTSP line', () => {
+  test('says whether a login is needed, never what it is', () => {
+    assert.match(tileDetailsHtml(camera(), { ...where, rtsp: { enabled: true, login: true } }), /Login required \(rtsp\.username/);
+    assert.match(tileDetailsHtml(camera(), { ...where, rtsp: { enabled: true, login: false } }), /No login: anyone on the LAN can watch/);
+  });
+
+  test('says when RTSP is off the network, with no address to copy', () => {
+    const html = tileDetailsHtml(camera(), { ...where, rtsp: { enabled: false, login: false } });
+    assert.match(html, /Off: not on the network/);
+    assert.doesNotMatch(html, /rtsp:\/\//);
+  });
+});

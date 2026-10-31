@@ -1,13 +1,14 @@
 // One ONVIF camera's HTTP endpoint: routes SOAP requests to the device, media and events services,
 // checks the login, and always answers in SOAP (faults included). Also serves the snapshot
-// (GET /onvif/snapshot.jpg, open like the RTSP stream it shows) and remembers the last request, so
-// the web page can show whether an NVR talks to the camera.
+// (GET /onvif/snapshot.jpg, with the same login over HTTP Digest or Basic) and remembers the last
+// request, so the web page can show whether an NVR talks to the camera.
 
 import { createServer } from 'node:http';
 import { operation, envelope, fault } from './xml.mjs';
 import { checkUsernameToken } from './auth.mjs';
 import { deviceResponse } from './device.mjs';
 import { mediaResponse } from './media.mjs';
+import { createHttpAuth } from './http-auth.mjs';
 
 // What a client may ask before logging in (ONVIF "pre-auth" operations).
 const OPEN = new Set(['GetSystemDateAndTime', 'GetCapabilities', 'GetServices', 'GetServiceCapabilities', 'GetHostname', 'GetEndpointReference']);
@@ -15,8 +16,13 @@ const OPEN = new Set(['GetSystemDateAndTime', 'GetCapabilities', 'GetServices', 
 // device: see index.mjs   events: MotionEvents   credentials: { username, password } | null
 // snapshot() -> Promise<jpeg Buffer>   contact: filled with { at, from, op } of the last SOAP request
 export function createCameraServer({ device, events, credentials, log, snapshot, contact = {}, now = Date.now }) {
+  const httpAuth = createHttpAuth(credentials, { now });
   const server = createServer(async (req, res) => {
-    if (req.method === 'GET' && req.url.split('?')[0] === '/onvif/snapshot.jpg') return sendSnapshot(res, snapshot);
+    if (req.method === 'GET' && req.url.split('?')[0] === '/onvif/snapshot.jpg') {
+      if (httpAuth.allows(req)) return sendSnapshot(res, snapshot);
+      res.writeHead(401, { 'www-authenticate': httpAuth.challenges() });
+      return res.end();
+    }
     const send = (status, xml) => {
       res.writeHead(status, { 'content-type': 'application/soap+xml; charset=utf-8' });
       res.end(xml);

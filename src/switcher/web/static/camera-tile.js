@@ -53,16 +53,23 @@ function batteryHtml(battery) {
 }
 
 export function tileDetailsHtml(camera, where) {
-  const url = streamUrl(camera, where);
   const [w, h] = String(camera.resolution).split('x');
   return `<h3 class="details-heading">Stream</h3>
   <dl>
-    <dt>RTSP</dt>
-    <dd class="copy-row"><input readonly value="${esc(url)}" aria-label="RTSP address of ${esc(camera.name)}">`
-    + `<button type="button" class="icon-button" data-copy="${esc(url)}" aria-label="Copy the RTSP address">${icon('copy')}</button></dd>
+    <dt>RTSP</dt>${rtspHtml(camera, where)}
     <dt>Video</dt><dd>${esc(camera.video?.text ?? '')}</dd>
     <dt>Size</dt><dd>${esc(w)} × ${esc(h)}</dd>
   </dl>
   <h3 class="details-heading">ONVIF</h3>
   ${onvifDetailsHtml(camera.onvif, camera.name)}`;
+}
+
+// The address to copy, and whether NVRs need a login for it; or that RTSP is off.
+function rtspHtml(camera, where) {
+  const rtsp = where.rtsp ?? { enabled: true, login: false };
+  if (!rtsp.enabled) return '<dd>Off: not on the network ("rtsp.enabled": false)</dd>';
+  const url = streamUrl(camera, where);
+  return `<dd><div class="copy-row"><input readonly value="${esc(url)}" aria-label="RTSP address of ${esc(camera.name)}">`
+    + `<button type="button" class="icon-button" data-copy="${esc(url)}" aria-label="Copy the RTSP address">${icon('copy')}</button></div>`
+    + `<span class="sub">${rtsp.login ? 'Login required (rtsp.username / rtsp.password)' : 'No login: anyone on the LAN can watch'}</span></dd>`;
 }

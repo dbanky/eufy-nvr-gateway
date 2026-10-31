@@ -17,6 +17,15 @@ describe('go2rtc', () => {
     assert.match(yaml, /streams:\n {2}"garden":\n {2}"front-door":/);
   });
 
+  test('with a login, RTSP asks for it (localhost, where the switcher publishes, needs none)', () => {
+    const yaml = go2rtcYaml({ ...settings, rtsp: { enabled: true, login: { username: 'nvr', password: 'p"w' } } });
+    assert.match(yaml, /rtsp:\n {2}listen: ":8554"\n {2}username: "nvr"\n {2}password: "p\\"w"/);
+  });
+
+  test('"rtsp.enabled": false keeps RTSP inside the container', () => {
+    assert.match(go2rtcYaml({ ...settings, rtsp: { enabled: false, login: null } }), /listen: "127\.0\.0\.1:8554"/);
+  });
+
   test('opens nothing but RTSP: web UI/API, WebRTC, SRTP and RTMP stay closed', () => {
     const yaml = go2rtcYaml(settings);
     for (const module of ['api', 'webrtc', 'srtp', 'rtmp']) assert.match(yaml, new RegExp(`${module}:\\n {2}listen: ""`));
@@ -55,11 +64,24 @@ describe('switcher', () => {
       { username: 'protect', password: 'secret' });
   });
 
-  test('gets the web page login and the update check setting', () => {
-    const config = switcherConfig({ ...settings, web: { username: 'admin', password: 'secret' }, checkForUpdates: false }, '/data');
-    assert.deepEqual(config.web, { username: 'admin', password: 'secret' });
+  test('gets the web page login, theme and HTTPS files, and the update check setting', () => {
+    const web = { login: { username: 'admin', password: 'secret' }, theme: 'light', https: true, certFile: null, keyFile: null };
+    const config = switcherConfig({ ...settings, web, checkForUpdates: false }, '/data');
+    assert.deepEqual(config.web, { login: { username: 'admin', password: 'secret' }, theme: 'light',
+      tls: { cert: '/data/web/cert.pem', key: '/data/web/key.pem' } });
     assert.equal(config.checkForUpdates, false);
+    assert.equal(switcherConfig(settings, '/data').web.tls, null);
     assert.equal(switcherConfig(settings, '/data').checkForUpdates, true);
+  });
+
+  test('own certificate files are used as they are', () => {
+    const web = { login: null, theme: 'auto', https: true, certFile: '/data/mine.pem', keyFile: '/data/mine.key' };
+    assert.deepEqual(switcherConfig({ ...settings, web }, '/data').web.tls, { cert: '/data/mine.pem', key: '/data/mine.key' });
+  });
+
+  test('knows whether RTSP is on and needs a login, never its password', () => {
+    const config = switcherConfig({ ...settings, rtsp: { enabled: true, login: { username: 'nvr', password: 'secret' } } }, '/data');
+    assert.deepEqual(config.rtsp, { enabled: true, login: true });
   });
 
   test('reaches the bridge and go2rtc on localhost', () => {

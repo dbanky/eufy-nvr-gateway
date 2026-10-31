@@ -17,34 +17,32 @@
 
 import { createServer } from 'node:http';
 import { serveStatic, sendJson, readJson, forward } from './http.mjs';
-import { signedOutCookie } from './auth.mjs';
-
-// What the sign-in page needs before anyone is signed in.
-const OPEN_FILES = /^\/(signin\.html|signin\.js|theme\.js|theme-toggle\.js|icons\.js|style\.css|fonts\/[^/]+)$/;
-const FAILED_SIGNIN_DELAY_MS = 1000;   // slows down guessing
+import { signIn, signOut, refuse } from './signin-routes.mjs';
 
 // cameras: [Camera]   bridge: BridgeClient   snapshot(camera) -> Promise<jpeg Buffer>
 // auth: createAuth(...) or null   gateway() -> { version, update }   onvif(name) -> ONVIF status or null
-export function createWebServer({ cameras, bridge, rtspPort, snapshot, auth = null, gateway = () => ({}), onvif = () => null }) {
+// rtsp: { enabled, login } (login: whether one is required)   theme: 'auto' | 'light' | 'dark'
+export const createWebServer = (options) => createServer(webHandler(options));
+
+export function webHandler({ cameras, bridge, rtspPort, snapshot, auth = null, gateway = () => ({}), onvif = () => null,
+  rtsp = { enabled: true, login: false }, theme = 'auto' }) {
   const byName = new Map(cameras.map((c) => [c.name, c]));
   const configured = new Set(cameras.map((c) => c.serial));
+  const page = { theme };
 
-  return createServer(async (req, res) => {
+  return async (req, res) => {
     const path = req.url.split('?')[0];
     const route = `${req.method} ${path}`;
     if (route === 'GET /api/health') return sendJson(res, 200, { ok: true });
     if (route === 'GET /api/session') return sendJson(res, 200, { login: !!auth, signedIn: !auth || auth.allows(req) });
     if (route === 'POST /api/signin') return signIn(req, res, auth);
-    if (route === 'POST /api/signout') {
-      res.setHeader('set-cookie', signedOutCookie);
-      return sendJson(res, 200, { ok: true });
-    }
-    if (auth && !auth.allows(req)) return refuse(req, res, path);
+    if (route === 'POST /api/signout') return signOut(res);
+    if (auth && !auth.allows(req)) return refuse(req, res, path, page);
 
-    if (req.method === 'GET' && serveStatic(res, path)) return;
+    if (req.method === 'GET' && serveStatic(res, path, page)) return;
     if (route === 'GET /api/status' || route === 'GET /status') {
       return sendJson(res, 200, {
-        bridge: bridge.status(), rtspPort, gateway: { ...gateway(), login: !!auth },
+        bridge: bridge.status(), rtspPort, rtsp, gateway: { ...gateway(), login: !!auth, theme },
         cameras: cameras.map((c) => ({ ...c.status(), onvif: onvif(c.name) })),
       });
     }
@@ -62,31 +60,7 @@ export function createWebServer({ cameras, bridge, rtspPort, snapshot, auth = nu
     const camera = byName.get(name);
     if (camera) return cameraAction(req, res, camera, action, snapshot);
     sendJson(res, 404, { error: 'not found' });
-  });
-}
-
-async function signIn(req, res, auth) {
-  if (!auth) return sendJson(res, 200, { ok: true });   // nothing to sign in to
-  const { username, password } = await readJson(req);
-  if (!auth.matches(username, password)) {
-    await new Promise((resolve) => setTimeout(resolve, FAILED_SIGNIN_DELAY_MS));
-    return sendJson(res, 401, { ok: false, error: 'Wrong username or password.' });
-  }
-  res.setHeader('set-cookie', auth.sessionCookie());
-  sendJson(res, 200, { ok: true });
-}
-
-// Not signed in: the sign-in page's own files are open, pages lead to it, everything else is 401.
-// Browsers (they send Sec-Fetch-Mode) get no Basic challenge, so they never show a login dialog;
-// other clients (curl, NVRs fetching snapshots) do, so they can answer it.
-function refuse(req, res, path) {
-  if (req.method === 'GET' && OPEN_FILES.test(path) && serveStatic(res, path)) return;
-  if (req.method === 'GET' && (path === '/' || path.endsWith('.html'))) {
-    res.writeHead(302, { location: 'signin.html' });
-    return res.end();
-  }
-  if (!req.headers['sec-fetch-mode']) res.setHeader('www-authenticate', 'Basic realm="Eufy NVR Gateway", charset="UTF-8"');
-  sendJson(res, 401, { error: 'sign in first' });
+  };
 }
 
 // "/api/cameras/garden/live" and "/garden/live" -> ["garden", "live"]

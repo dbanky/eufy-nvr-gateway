@@ -5,7 +5,8 @@
 //   switcher  sleeping picture while idle, live video on events (src/switcher)
 
 import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { configPath, readConfigFile, resolveSettings } from './gateway/config.mjs';
+import { configPath, readConfigFile, resolveSettings, openToTheLan, configWarnings } from './gateway/config.mjs';
+import { ensureCertificate } from './gateway/certificate.mjs';
 import { go2rtcYaml, switcherConfig, bridgeEnv } from './gateway/service-configs.mjs';
 import { Supervisor } from './gateway/supervisor.mjs';
 import { waitForPort } from './gateway/wait-for-port.mjs';
@@ -28,7 +29,20 @@ try {
 
 for (const dir of ['bridge', 'go2rtc', 'switcher']) mkdirSync(`${DATA}/${dir}`, { recursive: true });
 writeFileSync(`${DATA}/go2rtc/go2rtc.yaml`, go2rtcYaml(settings));
-writeFileSync(`${DATA}/switcher/config.json`, JSON.stringify(switcherConfig(settings, DATA), null, 2));
+const generated = switcherConfig(settings, DATA);
+writeFileSync(`${DATA}/switcher/config.json`, JSON.stringify(generated, null, 2));
+
+if (generated.web.tls && !settings.web.certFile) {
+  try {
+    if (ensureCertificate(generated.web.tls)) log(`HTTPS: made a self-signed certificate in ${DATA}/web/ (browsers warn about it once)`);
+  } catch (e) {
+    die(`HTTPS: can't make a certificate: ${e.message}`);
+  }
+}
+for (const warning of configWarnings(settings)) log('Note:', warning);
+const open = openToTheLan(settings);
+if (open.length) log(`Open to anyone on your LAN: ${open.join('; ')}.`);
+else log('Every web page, API, stream and ONVIF camera asks for a login.');
 
 const { ports, cameras, timeZone } = settings;
 const services = [
@@ -43,7 +57,7 @@ process.on('SIGTERM', () => supervisor.shutdown());
 process.on('SIGINT', () => supervisor.shutdown());
 
 log(`${cameras.length} camera(s): ${cameras.map((c) => `${c.name} ${c.width}x${c.height}`).join(', ') || 'none'}`);
-log(`web page :${ports.web}, RTSP :${ports.rtsp}`);
+log(`web page ${settings.web.https ? 'https' : 'http'} :${ports.web}, RTSP :${ports.rtsp}${settings.rtsp.enabled ? '' : ' (inside the container only)'}`);
 for (const service of services) {
   for (const port of service.waitFor ?? []) {
     if (!(await waitForPort(port))) log(`port ${port} still closed, starting ${service.name} anyway`);

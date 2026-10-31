@@ -17,15 +17,20 @@ export function staticFile(path) {
   return match ? FONTS_DIR + match[1] : null;
 }
 
-// Serves a file of the web page; false if `path` isn't one.
-export function serveStatic(res, path) {
+// Serves a file of the web page; false if `path` isn't one. A theme other than 'auto' (from
+// "web.theme" in config.json) is written into the pages, which then show no theme switch.
+export function serveStatic(res, path, { theme = 'auto' } = {}) {
   const file = staticFile(path);
   if (!file || !existsSync(file)) return false;
   const type = TYPES[file.split('.').pop()];
   res.writeHead(200, { 'content-type': type.startsWith('font/') ? type : `${type}; charset=utf-8`, 'cache-control': 'no-cache' });
-  res.end(readFileSync(file));
+  const body = readFileSync(file);
+  res.end(type === 'text/html' ? withTheme(String(body), theme) : body);
   return true;
 }
+
+export const withTheme = (html, theme) => (theme === 'light' || theme === 'dark'
+  ? html.replace('<html lang="en">', `<html lang="en" data-theme="${theme}" data-theme-fixed>`) : html);
 
 export function sendJson(res, code, body) {
   res.writeHead(code, { 'content-type': 'application/json' });

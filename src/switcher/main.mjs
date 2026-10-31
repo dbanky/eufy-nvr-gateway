@@ -11,7 +11,8 @@ import { createCamera } from './create-camera.mjs';
 import { createSnapshots } from './snapshots.mjs';
 import { createTimeFormat } from './time-format.mjs';
 import { loadInitialPicture } from './initial-picture.mjs';
-import { createWebServer } from './web/server.mjs';
+import { webHandler } from './web/server.mjs';
+import { listenWeb } from './web/listen.mjs';
 import { createAuth } from './web/auth.mjs';
 import { createUpdateCheck } from './updates.mjs';
 import { encodeJpeg } from '../video/ffmpeg.mjs';
@@ -35,9 +36,12 @@ updates.start();
 const onvif = startOnvif({ cameras, credentials: config.onvif ?? null, rtspPort, version, snapshot, log });
 
 const webPort = config.webPort ?? 8099;
-const auth = createAuth(config.web ?? null);
-createWebServer({ cameras, bridge, rtspPort, snapshot, auth, onvif, gateway: () => ({ version, update: updates.status() }) })
-  .listen(webPort, () => log(`web page on :${webPort}${auth ? ' (login required)' : ' (no login: set "web" in config.json to require one)'}`));
+const web = config.web ?? {};
+const auth = createAuth(web.login ?? null, { secure: !!web.tls });
+const handler = webHandler({ cameras, bridge, rtspPort, snapshot, auth, onvif, rtsp: config.rtsp, theme: web.theme,
+  gateway: () => ({ version, update: updates.status() }) });
+listenWeb(handler, { port: webPort, tls: web.tls ?? null },
+  () => log(`web page on ${web.tls ? 'https' : 'http'} :${webPort}${auth ? ', login required' : ', no login'}`));
 
 if (!cameras.length) log('No cameras configured yet: log in on the web page, then add cameras from the device list to config.json.');
 for (const camera of cameras) {

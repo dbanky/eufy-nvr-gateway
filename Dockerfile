@@ -1,5 +1,5 @@
 # eufy-nvr-gateway: one image with everything needed to turn battery-powered eufy cameras into
-# always-on RTSP cameras for an NVR, without keeping them awake.
+# always-on RTSP/ONVIF cameras for an NVR (UniFi Protect included), without keeping them awake.
 #
 # Every bundled component is pinned, so a rebuild cannot silently change behaviour.
 
@@ -23,7 +23,7 @@ ARG GO2RTC_VERSION=1.9.15
 ARG BRIDGE_REPO=https://github.com/mega-yfue/ha-eufy-sdk-bridge.git
 ARG BRIDGE_COMMIT=6b3ccbc09293da019e6f91db516856644501dbd2
 
-RUN apk add --no-cache ffmpeg tzdata curl git
+RUN apk add --no-cache ffmpeg tzdata curl git openssl
 
 # go2rtc (MIT): a single static binary
 RUN case "${TARGETARCH:-amd64}" in \
@@ -47,6 +47,6 @@ ENV DATA_DIR=/data
 VOLUME ["/data"]
 EXPOSE 8099 8554
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
-  CMD wget -q -O /dev/null "http://127.0.0.1:${WEB_PORT:-8099}/api/health" || exit 1
+  CMD node /app/src/healthcheck.mjs
 
 CMD ["node", "/app/src/main.mjs"]

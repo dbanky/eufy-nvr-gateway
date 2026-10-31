@@ -7,6 +7,10 @@ const system = matchMedia('(prefers-color-scheme: dark)');
 const isDark = () => (root.dataset.theme ? root.dataset.theme === 'dark' : system.matches);
 
 export function bindThemeToggle(button) {
+  if (root.hasAttribute('data-theme-fixed')) {   // set in config.json
+    button.hidden = true;
+    return;
+  }
   const show = () => {
     const label = isDark() ? 'Switch to the light theme' : 'Switch to the dark theme';
     button.innerHTML = icon(isDark() ? 'sun' : 'moon');

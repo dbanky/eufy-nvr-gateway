@@ -20,7 +20,7 @@ const getJson = async (url, options) => {
   }
   return res.json();
 };
-const where = (status) => ({ host: location.hostname, rtspPort: status.rtspPort });
+const where = (status) => ({ host: location.hostname, rtspPort: status.rtspPort, rtsp: status.rtsp });
 
 let builtFor = '';
 let cameras = [];

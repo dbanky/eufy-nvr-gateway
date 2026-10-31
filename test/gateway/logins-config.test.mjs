@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveSettings, validateCameras } from '../../src/gateway/config.mjs';
+import { resolveSettings, validateCameras, openToTheLan, configWarnings } from '../../src/gateway/config.mjs';
 
 const login = { EUFY_EMAIL: 'you@example.com', EUFY_PASSWORD: 'secret' };
 const camera = { name: 'garden', serial: 'T81XXXXXXXXXXXXX', width: 2880, height: 1616 };
@@ -33,12 +33,65 @@ describe('ONVIF (for NVRs such as UniFi Protect)', () => {
   });
 });
 
-describe('the web page login', () => {
-  test('is optional; when set, both username and password', () => {
-    assert.equal(resolveSettings({}, login).web, null);
-    assert.deepEqual(resolveSettings({ web: { username: 'admin', password: 'secret' } }, login).web, { username: 'admin', password: 'secret' });
+describe('the web page', () => {
+  test('defaults: no login, the theme follows the system, plain HTTP', () => {
+    assert.deepEqual(resolveSettings({}, login).web, { login: null, theme: 'auto', https: false, certFile: null, keyFile: null });
+  });
+
+  test('the login is optional; when set, both username and password', () => {
+    assert.deepEqual(resolveSettings({ web: { username: 'admin', password: 'secret' } }, login).web.login, { username: 'admin', password: 'secret' });
     assert.throws(() => resolveSettings({ web: { username: 'admin' } }, login), /"web.password" is missing/);
     assert.throws(() => resolveSettings({ web: { password: 'secret' } }, login), /"web.username" is missing/);
+  });
+
+  test('the theme can be fixed to light or dark', () => {
+    assert.equal(resolveSettings({ web: { theme: 'light' } }, login).web.theme, 'light');
+    assert.throws(() => resolveSettings({ web: { theme: 'blue' } }, login), /"web.theme" must be "auto", "light", "dark"/);
+  });
+
+  test('HTTPS is optional, with an own certificate or a generated one', () => {
+    assert.equal(resolveSettings({ web: { https: true } }, login).web.https, true);
+    assert.deepEqual(resolveSettings({ web: { https: true, certFile: '/data/c.pem', keyFile: '/data/k.pem' } }, login).web,
+      { login: null, theme: 'auto', https: true, certFile: '/data/c.pem', keyFile: '/data/k.pem' });
+    assert.throws(() => resolveSettings({ web: { https: 'yes' } }, login), /"web.https" must be true or false/);
+    assert.throws(() => resolveSettings({ web: { https: true, certFile: '/data/c.pem' } }, login), /go together/);
+  });
+});
+
+describe('the RTSP streams', () => {
+  test('on the network without a login by default; a login is optional', () => {
+    assert.deepEqual(resolveSettings({}, login).rtsp, { enabled: true, login: null });
+    assert.deepEqual(resolveSettings({ rtsp: { username: 'nvr', password: 'secret' } }, login).rtsp, { enabled: true, login: { username: 'nvr', password: 'secret' } });
+    assert.throws(() => resolveSettings({ rtsp: { username: 'nvr' } }, login), /"rtsp.password" is missing/);
+  });
+
+  test('can be kept off the network, unless ONVIF cameras need them', () => {
+    assert.equal(resolveSettings({ rtsp: { enabled: false } }, login).rtsp.enabled, false);
+    assert.throws(() => resolveSettings({ rtsp: { enabled: false }, cameras: [{ ...camera, onvif: { address: '192.168.1.51' } }] }, login),
+      /"rtsp.enabled" is false, but ONVIF cameras/);
+  });
+});
+
+describe('what is open to the LAN (logged at startup)', () => {
+  const everything = { web: { username: 'a', password: 'b', https: true }, rtsp: { username: 'c', password: 'd' },
+    onvif: { username: 'c', password: 'd' }, cameras: [{ ...camera, onvif: { address: '192.168.1.51' } }] };
+
+  test('nothing, when every part asks for a login and the page is HTTPS', () => {
+    assert.deepEqual(openToTheLan(resolveSettings(everything, login)), []);
+  });
+
+  test('names every open part and the setting that closes it', () => {
+    const open = openToTheLan(resolveSettings({ cameras: [{ ...camera, onvif: { address: '192.168.1.51' } }] }, login));
+    assert.equal(open.length, 3);
+    assert.match(open.join('\n'), /web page and API without login[\s\S]*RTSP streams without login[\s\S]*ONVIF cameras without login/);
+    assert.match(openToTheLan(resolveSettings({ ...everything, web: { username: 'a', password: 'b' } }, login))[0], /plain HTTP/);
+    assert.deepEqual(openToTheLan(resolveSettings({ rtsp: { enabled: false }, web: everything.web }, login)), [], 'RTSP off is closed');
+  });
+
+  test('warns when the RTSP login differs from the ONVIF one (Protect uses the ONVIF login for the stream)', () => {
+    assert.deepEqual(configWarnings(resolveSettings(everything, login)), []);
+    const differs = resolveSettings({ ...everything, rtsp: { username: 'x', password: 'y' } }, login);
+    assert.match(configWarnings(differs)[0], /RTSP login differs from the ONVIF login/);
   });
 });
 

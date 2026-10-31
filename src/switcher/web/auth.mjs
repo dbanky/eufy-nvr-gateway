@@ -13,7 +13,8 @@ const digest = (value) => createHash('sha256').update(String(value)).digest();
 const same = (a, b) => timingSafeEqual(digest(a), digest(b));   // constant time, any length
 
 // credentials: { username, password } or null (no login: returns null).
-export function createAuth(credentials, { now = Date.now } = {}) {
+// secure: the page is served over HTTPS, so the cookie is never sent over plain HTTP.
+export function createAuth(credentials, { now = Date.now, secure = false } = {}) {
   if (!credentials) return null;
   const key = digest(`eufy-nvr-gateway session\0${credentials.username}\0${credentials.password}`);
   const sign = (expires) => createHmac('sha256', key).update(String(expires)).digest('base64url');
@@ -34,7 +35,7 @@ export function createAuth(credentials, { now = Date.now } = {}) {
     // A new session, as a Set-Cookie header value.
     sessionCookie() {
       const expires = now() + MAX_AGE_S * 1000;
-      return `${COOKIE}=${expires}.${sign(expires)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${MAX_AGE_S}`;
+      return `${COOKIE}=${expires}.${sign(expires)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${MAX_AGE_S}${secure ? '; Secure' : ''}`;
     },
     // Is this request signed in (session cookie) or does it carry the login (HTTP Basic)?
     allows(req) {

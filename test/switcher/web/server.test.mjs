@@ -3,6 +3,7 @@ import { get } from 'node:http';
 import assert from 'node:assert/strict';
 import { createWebServer, cameraRoute } from '../../../src/switcher/web/server.mjs';
 import { createAuth } from '../../../src/switcher/web/auth.mjs';
+import { withTheme } from '../../../src/switcher/web/http.mjs';
 
 // Fakes that record what the API asked them to do.
 const calls = [];
@@ -30,7 +31,8 @@ after(() => server.close());
 describe('the API', () => {
   test('status: the eufy login, the RTSP port, the gateway and every camera with its ONVIF side', async () => {
     const body = await (await fetch(`${base}/api/status`)).json();
-    assert.deepEqual(body, { bridge: { connected: true, login: 'ok' }, rtspPort: 8554, gateway: { version: '0.4.0', login: false },
+    assert.deepEqual(body, { bridge: { connected: true, login: 'ok' }, rtspPort: 8554, rtsp: { enabled: true, login: false },
+      gateway: { version: '0.4.0', login: false, theme: 'auto' },
       cameras: [{ name: 'garden', state: 'IDLE', onvif: { address: '192.168.1.51' } }] });
   });
 
@@ -162,4 +164,15 @@ describe('with a login ("web" in config.json)', () => {
     const authorization = 'Basic ' + Buffer.from('admin:secret').toString('base64');
     assert.equal((await fetch(`${url}/api/cameras/garden/snapshot.jpg`, { headers: { authorization } })).status, 200);
   });
+});
+
+test('a theme set in config.json is written into the pages, which then show no switch', () => {
+  const html = '<!doctype html>\n<html lang="en">\n<head>';
+  assert.match(withTheme(html, 'light'), /<html lang="en" data-theme="light" data-theme-fixed>/);
+  assert.equal(withTheme(html, 'auto'), html);
+});
+
+test('with HTTPS, the session cookie is never sent over plain HTTP', () => {
+  assert.match(createAuth({ username: 'a', password: 'b' }, { secure: true }).sessionCookie(), /; Secure$/);
+  assert.doesNotMatch(createAuth({ username: 'a', password: 'b' }).sessionCookie(), /Secure/);
 });

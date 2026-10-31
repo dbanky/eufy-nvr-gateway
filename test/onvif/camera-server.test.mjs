@@ -49,8 +49,11 @@ describe('an ONVIF camera endpoint', () => {
     assert.match(await res.text(), /ter:ActionNotSupported/);
   });
 
-  test('serves the snapshot as a JPEG, like the RTSP stream without a login', async () => {
-    const res = await fetch(`${base}/onvif/snapshot.jpg`);
+  test('serves the snapshot as a JPEG, behind the same login (HTTP Digest or Basic)', async () => {
+    const refused = await fetch(`${base}/onvif/snapshot.jpg`);
+    assert.equal(refused.status, 401);
+    assert.match(refused.headers.get('www-authenticate'), /Digest realm="eufy-nvr-gateway"/);
+    const res = await fetch(`${base}/onvif/snapshot.jpg`, { headers: { authorization: 'Basic ' + Buffer.from('protect:secret').toString('base64') } });
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('content-type'), 'image/jpeg');
     assert.equal(await res.text(), 'jpeg');
