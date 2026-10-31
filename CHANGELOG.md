@@ -7,6 +7,10 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.3.0-beta.2] - 2026-10-31
+
+Pre-release for testing: the camera's own video is now passed through by default.
+
 ### Fixed
 
 - **"Waking up" now appears the moment a camera is triggered.** It is prepared while the camera
@@ -104,7 +108,8 @@ First release: always-on H.264 RTSP streams for battery-powered eufy cameras, wi
 awake. One container with the eufy bridge, go2rtc and the switcher; frozen last frame while idle,
 live video on motion, person detection or a doorbell press; web page for the eufy login and status.
 
-[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.3.0-beta.1...HEAD
+[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.3.0-beta.2...HEAD
+[0.3.0-beta.2]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.3.0-beta.1...v0.3.0-beta.2
 [0.3.0-beta.1]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.2.1...v0.3.0-beta.1
 [0.2.1]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.1.0...v0.2.0
