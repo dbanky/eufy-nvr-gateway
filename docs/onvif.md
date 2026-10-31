@@ -69,8 +69,7 @@ without an `onvif` section are marked *RTSP only*.
 ### One login for ONVIF and the stream
 
 The ONVIF services and the RTSP stream share `rtsp.username` / `rtsp.password`: UniFi Protect opens
-the stream with the login it adopted the camera with, so two different logins could never work. The
-old place, `onvif.username` / `onvif.password` (0.4.0-beta.1), still works; the log asks you to move it.
+the stream with the login it adopted the camera with, so two different logins could never work.
 
 ## 3. Adopt them in the NVR
 

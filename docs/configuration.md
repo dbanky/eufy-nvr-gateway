@@ -51,8 +51,7 @@ Environment variables win over `config.json`.
 
 **One login for RTSP and ONVIF.** An NVR that adopts an ONVIF camera (UniFi Protect) opens its
 RTSP stream with the ONVIF login, so the two can't differ: `rtsp.username` / `rtsp.password` is
-both. Version 0.4.0-beta.1 had it as `onvif.username` / `onvif.password`; that still works (and now
-locks RTSP too), and the log asks you to move it.
+both.
 
 ## What is open to your LAN
 
