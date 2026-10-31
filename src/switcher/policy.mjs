@@ -1,7 +1,7 @@
 // When a camera wakes up and when it goes back to sleep. Pure decisions, no side effects.
 
 export const CAMERA_DEFAULTS = {
-  width: 1920, height: 1080, fps: 15, bitrateKbps: 4000,   // set to the camera's native size: no downscaling
+  width: 1920, height: 1080, fps: 15, bitrateKbps: 4400,   // set to the camera's native size: no downscaling
   triggers: ['motion', 'personDetected', 'vehicleDetected', 'petDetection', 'strangerDetected', 'doorbellPress'],
   holdMs: 30000,              // stay live until this long after the last detection
   ringHoldMs: 120000,         // ...and this long after a doorbell press

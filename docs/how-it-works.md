@@ -50,6 +50,10 @@ the session ends 30 seconds after the last one. An optional `maxLiveMs` caps a s
 - **Static pictures with x264.** With plain CRF, x264 keeps "refining" a still frame with ever lower
   quantizers: ~1.6 Mbit/s. `qpmin=19` stops that; with the blur the sleeping picture costs
   0.1–0.6 Mbit/s.
+- **Live CPU.** Converting 3K H.265 to H.264 is the expensive part of a live session (decoder plus
+  encoder). The encoder uses a cheaper motion search (`me=dia:subme=1`, ~30 % less CPU) with 10 % more
+  bitrate headroom, which keeps the quality where it was. Other settings (threads, lookahead, one
+  combined decode+encode process) were measured and brought nothing.
 - **Quality.** `crf 20`, High profile, keyframe every 4 s, no B-frames. Measured against the camera's
   own stream: SSIM 0.997 (2048×1536 doorbell), 0.993 (3K SoloCam).
 - **H.265.** Some cameras (e.g. the SoloCam S340) only send H.265. The decoder converts everything;

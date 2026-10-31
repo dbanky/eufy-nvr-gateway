@@ -32,7 +32,7 @@ Environment variables win over `config.json`.
 | `serial` | — | Required. Serial number from the web page's device list |
 | `width`, `height` | — | Required. The camera's native live resolution |
 | `fps` | `15` | Output frame rate |
-| `bitrateKbps` | `4000` | Bitrate ceiling for live video. The sleeping picture uses far less |
+| `bitrateKbps` | `4400` | Bitrate ceiling for live video (~`6600` for 3K). The sleeping picture uses far less |
 | `holdMs` | `30000` | Stay live until this long after the last detection (at least this long after the first live frame). Continuing motion keeps the stream live |
 | `ringHoldMs` | `120000` | Same, after a doorbell press |
 | `maxLiveMs` | `0` | Optional cap per session, from the first live frame; repeated detections cannot extend past it. `0` = no cap. Set it (e.g. `600000`) if constant motion would drain the battery |

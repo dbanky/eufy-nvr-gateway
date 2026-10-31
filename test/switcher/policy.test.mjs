@@ -62,6 +62,10 @@ describe('a session ends', () => {
   });
 });
 
+test('the default bitrate limit leaves room for the cheaper motion search: 4400 kbit/s', () => {
+  assert.equal(CAMERA_DEFAULTS.bitrateKbps, 4400);
+});
+
 describe('timing details', () => {
   test('the hold time counts from the first live frame, not from the trigger: waking can take a minute', () => {
     const woke = { ...asleep, deadline: now + 30000 };

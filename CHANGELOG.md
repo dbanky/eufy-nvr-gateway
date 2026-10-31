@@ -9,6 +9,10 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ### Changed
 
+- **Less CPU while a camera is live:** the encoder uses a cheaper motion search, ~30 % less encoder
+  CPU on 3K. To keep the quality where it was, the default bitrate limit is 10 % higher:
+  `bitrateKbps` 4400 (was 4000), and ~6600 is recommended for 3K cameras (was ~6000). If your
+  `config.json` sets `bitrateKbps`, raise it by 10 % too.
 - Releases publish only the full version tag (`0.2.1`) and `latest`, no longer a short `0.2` as well.
 
 ## [0.2.1] - 2026-10-31

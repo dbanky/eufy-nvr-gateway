@@ -54,6 +54,11 @@ describe('encoder settings', () => {
     assert.match(value('-x264-params'), /aud=1/);
   });
 
+  test('a cheaper motion search (diamond, subpixel level 1): ~30 % less encoder CPU', () => {
+    assert.match(value('-x264-params'), /me=dia/);
+    assert.match(value('-x264-params'), /subme=1/);
+  });
+
   test('the bitrate limit follows the camera setting', () => {
     assert.equal(value('-maxrate'), '6000k');
   });

@@ -23,14 +23,14 @@
       "serial": "T81XXXXXXXXXXXXX",
       "width": 2048,
       "height": 1536,
-      "bitrateKbps": 4000
+      "bitrateKbps": 4400
     },
     {
       "name": "garden",
       "serial": "T81XXXXXXXXXXXXX",
       "width": 2880,
       "height": 1616,
-      "bitrateKbps": 6000
+      "bitrateKbps": 6600
     }
   ],
 

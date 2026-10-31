@@ -118,7 +118,7 @@ steps 3–5 above; `config.json` goes into `./data`.
   "timezone": "Europe/London",
   "cameras": [
     { "name": "front-door", "serial": "T81XXXXXXXXXXXXX", "width": 2048, "height": 1536 },
-    { "name": "garden", "serial": "T81XXXXXXXXXXXXX", "width": 2880, "height": 1616, "bitrateKbps": 6000 }
+    { "name": "garden", "serial": "T81XXXXXXXXXXXXX", "width": 2880, "height": 1616, "bitrateKbps": 6600 }
   ]
 }
 ```
@@ -131,7 +131,7 @@ Per camera:
 | `serial` | yes | The camera's serial number (shown on the web page after login) |
 | `width`, `height` | yes | The camera's **native live resolution**. The output always has this size; set it to what the camera really sends so nothing is scaled. See [known resolutions](#known-live-resolutions) |
 | `fps` | | Output frame rate. Default `15` (what eufy cameras send) |
-| `bitrateKbps` | | Upper bitrate limit during live video. Default `4000`; use ~`6000` for 3K |
+| `bitrateKbps` | | Upper bitrate limit during live video. Default `4400`; use ~`6600` for 3K |
 | `holdMs` | | Stay live until this long after the last detection: continuing motion keeps the stream live. Default `30000` (30 s) |
 | `ringHoldMs` | | Same, after a doorbell press. Default `120000` (2 min) |
 | `maxLiveMs` | | Optional cap per session, from the first live frame, to save battery when motion never stops (e.g. a busy street). Default `0` (no cap) |
