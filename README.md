@@ -239,6 +239,10 @@ behaviour:
 | `src/overlay/` | The sleeping-state picture: the design in numbers (`design.mjs`), layout, drawing, encoding it into a loop |
 | `assets/icons/` | State icons (SVG), rasterised when the image is built |
 
+## Changelog
+
+What changed in each version: [CHANGELOG.md](CHANGELOG.md).
+
 ## Credits and licenses
 
 This project is MIT licensed (see [LICENSE](LICENSE)). It builds on, and the Docker image bundles:
