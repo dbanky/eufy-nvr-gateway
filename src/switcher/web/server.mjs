@@ -21,11 +21,11 @@ import { signIn, signOut, refuse } from './signin-routes.mjs';
 
 // cameras: [Camera]   bridge: BridgeClient   snapshot(camera) -> Promise<jpeg Buffer>
 // auth: createAuth(...) or null   gateway() -> { version, update }   onvif(name) -> ONVIF status or null
-// rtsp: { enabled, login } (login: whether one is required)   theme: 'auto' | 'light' | 'dark'
+// rtsp: { login } (whether one is required)   theme: 'auto' | 'light' | 'dark'
 export const createWebServer = (options) => createServer(webHandler(options));
 
 export function webHandler({ cameras, bridge, rtspPort, snapshot, auth = null, gateway = () => ({}), onvif = () => null,
-  rtsp = { enabled: true, login: false }, theme = 'auto' }) {
+  rtsp = { login: false }, theme = 'auto' }) {
   const byName = new Map(cameras.map((c) => [c.name, c]));
   const configured = new Set(cameras.map((c) => c.serial));
   const page = { theme };

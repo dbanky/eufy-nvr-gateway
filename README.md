@@ -72,7 +72,7 @@ flowchart LR
   ONVIF details (address, login, whether an NVR is connected), *Wake up* / *Stop*, and the
   devices on your account. Light or dark, and it tells you when a newer version is out.
 - **Locked down if you want it.** Optional logins for the web page and for the streams (RTSP and
-  ONVIF), HTTPS for the web page, and RTSP off the network entirely. At startup the log names
+  ONVIF), and HTTPS for the web page. At startup the log names
   anything still open to your LAN. See [Security](#security).
 
 ## Requirements
@@ -260,7 +260,7 @@ Top level:
 | `defaults` | Any per-camera key, applied to every camera unless the camera sets it |
 | `eufy` | `{ "email", "password", "country" }` — instead of the environment variables |
 | `web` | The web page: `username` / `password` (a login), `theme` (`"auto"`, `"light"`, `"dark"`), `https` (`true`/`false`), `certFile` / `keyFile` (your own certificate) |
-| `rtsp` | The streams: `username` / `password` (one login for RTSP and the ONVIF cameras), `enabled` (`false`: not on the network) |
+| `rtsp` | The streams: `username` / `password` (one login for RTSP and the ONVIF cameras) |
 | `checkForUpdates` | `false` stops the gateway asking GitHub for new releases. Default `true` |
 | `ports` | `web` (8099), `rtsp` (8554) |
 | `bridge.env` | Extra environment variables for the eufy bridge |
@@ -295,7 +295,7 @@ and the web page can use HTTPS:
 |---|---|---|
 | **Web page and API** (8099) | Anyone on the LAN | `web.username` / `web.password`: browsers get a sign-in page and a 30-day session; scripts send HTTP Basic (`curl -u admin:…`). Changing the password signs everybody out |
 | **HTTPS** for the web page | Plain HTTP | `"web.https": true`: the gateway makes a self-signed certificate once (in `/data/web/`; browsers warn about it the first time), or uses yours (`web.certFile`, `web.keyFile`). Plain `http://` on the same port redirects to `https://` |
-| **RTSP streams** (8554) and **ONVIF cameras** (8000) | Anyone on the LAN can watch and adopt them | `rtsp.username` / `rtsp.password`, one login for both: players and NVRs need `rtsp://user:password@host:8554/<name>`; ONVIF uses WS-UsernameToken, the snapshot HTTP Digest/Basic. Or `"rtsp.enabled": false` keeps the streams inside the container (not possible with ONVIF cameras, which point NVRs at them) |
+| **RTSP streams** (8554) and **ONVIF cameras** (8000) | Anyone on the LAN can watch and adopt them | `rtsp.username` / `rtsp.password`, one login for both: players and NVRs need `rtsp://user:password@host:8554/<name>`; ONVIF uses WS-UsernameToken, the snapshot HTTP Digest/Basic. |
 
 Notes:
 

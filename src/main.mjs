@@ -66,7 +66,7 @@ process.on('SIGTERM', () => supervisor.shutdown());
 process.on('SIGINT', () => supervisor.shutdown());
 
 log(`${cameras.length} camera(s): ${cameras.map((c) => `${c.name} ${c.width}x${c.height}`).join(', ') || 'none'}`);
-log(`web page ${settings.web.https ? 'https' : 'http'} :${ports.web}, RTSP :${ports.rtsp}${settings.rtsp.enabled ? '' : ' (inside the container only)'}`);
+log(`web page ${settings.web.https ? 'https' : 'http'} :${ports.web}, RTSP :${ports.rtsp}`);
 for (const service of services) {
   for (const port of service.waitFor ?? []) {
     if (!(await waitForPort(port))) log(`port ${port} still closed, starting ${service.name} anyway`);

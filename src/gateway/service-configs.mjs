@@ -2,14 +2,13 @@
 
 // go2rtc: one empty stream per camera (the switcher publishes into it), RTSP only.
 // Its web UI/API, WebRTC, SRTP and RTMP are not needed and stay closed.
-// With "rtsp.enabled": false it listens inside the container only (the switcher still publishes to it).
 // Its login applies to the network only: go2rtc lets localhost in, so the switcher needs none.
-export function go2rtcYaml({ ports, cameras, rtsp = { enabled: true, login: null } }) {
+export function go2rtcYaml({ ports, cameras, rtsp = { login: null } }) {
   const q = JSON.stringify;   // JSON strings are valid YAML scalars
   const login = rtsp.login ? `\n  username: ${q(rtsp.login.username)}\n  password: ${q(rtsp.login.password)}` : '';
   return [
     '# Generated at container start. Edit config.json instead.',
-    `rtsp:\n  listen: ${q((rtsp.enabled ? ':' : '127.0.0.1:') + ports.rtsp)}${login}`,
+    `rtsp:\n  listen: ${q(':' + ports.rtsp)}${login}`,
     'api:\n  listen: ""',
     'webrtc:\n  listen: ""',
     'srtp:\n  listen: ""',
@@ -22,7 +21,7 @@ export function go2rtcYaml({ ports, cameras, rtsp = { enabled: true, login: null
 }
 
 // What the switcher process reads (it never sees the user's config.json directly).
-export function switcherConfig({ ports, timeZone, cameras, onvif = null, web = {}, rtsp = { enabled: true, login: null }, checkForUpdates = true }, dataDir) {
+export function switcherConfig({ ports, timeZone, cameras, onvif = null, web = {}, rtsp = { login: null }, checkForUpdates = true }, dataDir) {
   return {
     bridgeWs: `ws://127.0.0.1:${ports.bridge}/ws`,
     bridgeHttp: `http://127.0.0.1:${ports.bridge}`,
@@ -38,7 +37,7 @@ export function switcherConfig({ ports, timeZone, cameras, onvif = null, web = {
       theme: web.theme ?? 'auto',
       tls: web.https ? { cert: web.certFile ?? `${dataDir}/web/cert.pem`, key: web.keyFile ?? `${dataDir}/web/key.pem` } : null,
     },
-    rtsp: { enabled: rtsp.enabled, login: !!rtsp.login },   // for the web page: never the password
+    rtsp: { login: !!rtsp.login },   // for the web page: never the password
     checkForUpdates,
   };
 }

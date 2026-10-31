@@ -15,6 +15,9 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ### Removed
 
+- **`"rtsp": { "enabled": false }`.** The RTSP streams are what NVRs record, so they are always on;
+  `rtsp.username` / `rtsp.password` keep others from watching. A config that still turns them off
+  is refused at startup, with this in the message (`"enabled": true` is ignored).
 - **ONVIF WS-Discovery (UDP 3702).** UniFi Protect didn't find the cameras with it in practice;
   cameras are added by IP (*Advanced Adoption*). Port 3702 is no longer used, and the camera details
   show how the camera appears in NVRs (*Shows as*) instead of a discovery state.

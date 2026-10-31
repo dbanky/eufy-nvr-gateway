@@ -75,15 +75,14 @@ describe('the web page', () => {
 
 describe('the RTSP streams', () => {
   test('on the network without a login by default; a login is optional', () => {
-    assert.deepEqual(resolveSettings({}, login).rtsp, { enabled: true, login: null, oldKeys: false });
+    assert.deepEqual(resolveSettings({}, login).rtsp, { login: null, oldKeys: false });
     assert.deepEqual(resolveSettings({ rtsp: { username: 'nvr', password: 'secret' } }, login).rtsp.login, { username: 'nvr', password: 'secret' });
     assert.throws(() => resolveSettings({ rtsp: { username: 'nvr' } }, login), /"rtsp.password" is missing/);
   });
 
-  test('can be kept off the network, unless ONVIF cameras need them', () => {
-    assert.equal(resolveSettings({ rtsp: { enabled: false } }, login).rtsp.enabled, false);
-    assert.throws(() => resolveSettings({ rtsp: { enabled: false }, cameras: [{ ...camera, onvif: { address: '192.168.1.51' } }] }, login),
-      /"rtsp.enabled" is false, but ONVIF cameras/);
+  test('are always on: an old "rtsp.enabled": false is refused with what to do instead', () => {
+    assert.throws(() => resolveSettings({ rtsp: { enabled: false } }, login), /"rtsp.enabled" is gone: the RTSP streams are always on\. Remove it, and set "rtsp.username"/);
+    assert.deepEqual(resolveSettings({ rtsp: { enabled: true } }, login).rtsp.login, null, '"enabled": true changes nothing');
   });
 });
 
@@ -99,9 +98,8 @@ describe('what is open to the LAN (logged at startup)', () => {
     const open = openToTheLan(resolveSettings({ cameras: [{ ...camera, onvif: { address: '192.168.1.51' } }] }, login));
     assert.equal(open.length, 2);
     assert.match(open.join('\n'), /web page and API without login[\s\S]*RTSP streams and ONVIF cameras without login/);
-    assert.match(openToTheLan(resolveSettings({}, login))[1], /RTSP streams without login.*"rtsp.enabled": false/);
+    assert.match(openToTheLan(resolveSettings({}, login))[1], /RTSP streams without login \(set "rtsp.username" \/ "rtsp.password"\)/);
     assert.match(openToTheLan(resolveSettings({ ...everything, web: { username: 'a', password: 'b' } }, login))[0], /plain HTTP/);
-    assert.deepEqual(openToTheLan(resolveSettings({ rtsp: { enabled: false }, web: everything.web }, login)), [], 'RTSP off is closed');
   });
 });
 

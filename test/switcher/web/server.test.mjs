@@ -31,7 +31,7 @@ after(() => server.close());
 describe('the API', () => {
   test('status: the eufy login, the RTSP port, the gateway and every camera with its ONVIF side', async () => {
     const body = await (await fetch(`${base}/api/status`)).json();
-    assert.deepEqual(body, { bridge: { connected: true, login: 'ok' }, rtspPort: 8554, rtsp: { enabled: true, login: false },
+    assert.deepEqual(body, { bridge: { connected: true, login: 'ok' }, rtspPort: 8554, rtsp: { login: false },
       gateway: { version: '0.4.0', login: false, theme: 'auto' },
       cameras: [{ name: 'garden', state: 'IDLE', onvif: { address: '192.168.1.51' } }] });
   });

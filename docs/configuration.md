@@ -24,7 +24,7 @@ Environment variables win over `config.json`.
 | `defaults` | `{}` | Any camera setting, applied to every camera unless the camera sets it itself |
 | `ports` | see below | Network ports |
 | `web` | see below | The web page: login, theme, HTTPS |
-| `rtsp` | see below | The RTSP streams: login, or off the network |
+| `rtsp` | see below | The login for the RTSP streams and ONVIF cameras |
 | `onvif` | — | The login NVRs use for ONVIF cameras: `{ "username", "password" }` ([onvif.md](onvif.md)) |
 | `checkForUpdates` | `true` | Ask GitHub for new releases every 6 h and show them on the web page. `false`: no request leaves the gateway |
 | `bridge.env` | `{}` | Extra environment variables for the bridge (see the [bridge docs](https://github.com/mega-yfue/ha-eufy-sdk-bridge)) |
@@ -47,7 +47,6 @@ Environment variables win over `config.json`.
 | Key | Default | Meaning |
 |---|---|---|
 | `rtsp.username`, `rtsp.password` | — | The login for the streams (both or neither): RTSP (`rtsp://user:password@host:8554/<name>`) and the ONVIF cameras. The gateway's own publishing inside the container needs none |
-| `rtsp.enabled` | `true` | `false`: the streams stay inside the container, nothing on the network can read them. Not possible together with ONVIF cameras, which point NVRs at their stream |
 
 **One login for RTSP and ONVIF.** An NVR that adopts an ONVIF camera (UniFi Protect) opens its
 RTSP stream with the ONVIF login, so the two can't differ: `rtsp.username` / `rtsp.password` is
@@ -57,7 +56,7 @@ both.
 
 At every start the log says either *Every web page, API, stream and ONVIF camera asks for a login*,
 or names each open part with the setting that closes it, e.g.
-`Open to anyone on your LAN: RTSP streams without login (set "rtsp.username" / "rtsp.password", or "rtsp.enabled": false)`.
+`Open to anyone on your LAN: RTSP streams without login (set "rtsp.username" / "rtsp.password")`.
 
 ## Cameras
 

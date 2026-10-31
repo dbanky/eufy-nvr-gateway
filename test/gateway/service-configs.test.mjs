@@ -18,12 +18,8 @@ describe('go2rtc', () => {
   });
 
   test('with a login, RTSP asks for it (localhost, where the switcher publishes, needs none)', () => {
-    const yaml = go2rtcYaml({ ...settings, rtsp: { enabled: true, login: { username: 'nvr', password: 'p"w' } } });
+    const yaml = go2rtcYaml({ ...settings, rtsp: { login: { username: 'nvr', password: 'p"w' } } });
     assert.match(yaml, /rtsp:\n {2}listen: ":8554"\n {2}username: "nvr"\n {2}password: "p\\"w"/);
-  });
-
-  test('"rtsp.enabled": false keeps RTSP inside the container', () => {
-    assert.match(go2rtcYaml({ ...settings, rtsp: { enabled: false, login: null } }), /listen: "127\.0\.0\.1:8554"/);
   });
 
   test('opens nothing but RTSP: web UI/API, WebRTC, SRTP and RTMP stay closed', () => {
@@ -80,8 +76,8 @@ describe('switcher', () => {
   });
 
   test('knows whether RTSP is on and needs a login, never its password', () => {
-    const config = switcherConfig({ ...settings, rtsp: { enabled: true, login: { username: 'nvr', password: 'secret' } } }, '/data');
-    assert.deepEqual(config.rtsp, { enabled: true, login: true });
+    const config = switcherConfig({ ...settings, rtsp: { login: { username: 'nvr', password: 'secret' } } }, '/data');
+    assert.deepEqual(config.rtsp, { login: true });
   });
 
   test('reaches the bridge and go2rtc on localhost', () => {

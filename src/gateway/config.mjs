@@ -49,9 +49,6 @@ export function resolveSettings(cfg, env) {
     checkForUpdates: cfg.checkForUpdates !== false,
   };
   settings.onvif = settings.rtsp.login;   // one login for the streams: ONVIF uses the RTSP one
-  if (!settings.rtsp.enabled && settings.cameras.some((c) => c.onvif)) {
-    throw new Error('"rtsp.enabled" is false, but ONVIF cameras point NVRs at their RTSP stream: turn RTSP on or remove the cameras\' "onvif" sections');
-  }
   return settings;
 }
 

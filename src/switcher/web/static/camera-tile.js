@@ -73,10 +73,9 @@ export function tileDetailsHtml(camera, where) {
   ${onvifDetailsHtml(camera.onvif, camera.name)}`;
 }
 
-// The address to copy, and whether NVRs need a login for it; or that RTSP is off.
+// The address to copy, and whether NVRs need a login for it.
 function rtspHtml(camera, where) {
-  const rtsp = where.rtsp ?? { enabled: true, login: false };
-  if (!rtsp.enabled) return '<dd>Off: not on the network ("rtsp.enabled": false)</dd>';
+  const rtsp = where.rtsp ?? { login: false };
   const url = streamUrl(camera, where);
   return `<dd><div class="copy-row"><input readonly value="${esc(url)}" aria-label="RTSP address of ${esc(camera.name)}">`
     + `<button type="button" class="icon-button" data-copy="${esc(url)}" aria-label="Copy the RTSP address">${icon('copy')}</button></div>`
