@@ -13,7 +13,7 @@ stream drop, reconnects, and wakes the camera again — all day.
 ## The approach: never switch streams, switch pictures
 
 Each camera has **one publisher that runs forever**: an `ffmpeg -c copy` that sends encoded frames to
-go2rtc at exactly 15 fps: H.264, or the camera's own H.264/H.265 with `transcode: false`. The NVR connects to go2rtc and sees an unbroken stream at a fixed
+go2rtc at exactly 15 fps: the camera's own H.264/H.265, or H.264 with `transcode: true`. The NVR connects to go2rtc and sees an unbroken stream at a fixed
 resolution and frame rate. What the publisher is fed depends on the state:
 
 | State | Picture | Camera |
@@ -42,9 +42,10 @@ the session ends 30 seconds after the last one. An optional `maxLiveMs` caps a s
 
 ## Converting or passing through
 
-By default live video is converted: decoded, then encoded again as H.264 with the same settings as the
-sleeping loops, so the two splice seamlessly. With `transcode: false` a camera's own H.264 or H.265 is
-passed through instead, and its sleeping loops are encoded in the same format. A side output decodes
+By default a camera's own H.264 or H.265 is passed through, and its sleeping loops are encoded in the
+same format. The first live session is converted, to learn which format that is. With
+`transcode: true` live video is always converted: decoded, then encoded again as H.264 with the same
+settings as the sleeping loops, so the two splice seamlessly. A side output decodes
 only the camera's keyframes into JPEGs, for snapshots and for the next sleeping picture. On a 3K H.265
 camera this takes a live session from ~60 % of a core (converting) to ~5 %.
 
@@ -68,8 +69,8 @@ delimiters, adds parameter sets in front of keyframes, then adds one delimiter p
   combined decode+encode process) were measured and brought nothing.
 - **Quality.** `crf 20`, High profile, keyframe every 4 s, no B-frames. Measured against the camera's
   own stream: SSIM 0.997 (2048×1536 doorbell), 0.993 (3K SoloCam).
-- **H.265.** Some cameras (e.g. the SoloCam S340) only send H.265. When converting (the default) the
-  output is always H.264; with `transcode: false` it stays H.265. ffmpeg logs reference errors until the first keyframe of each session —
+- **H.265.** Some cameras (e.g. the SoloCam S340) only send H.265. Passed through (the default) the
+  stream stays H.265; with `transcode: true` it is always H.264. ffmpeg logs reference errors until the first keyframe of each session —
   harmless, those frames are dropped, never shown.
 - **Variable resolution.** Some cameras start a session at 720p and step up to their full
   resolution within seconds. The output size is fixed, so early frames are scaled up.

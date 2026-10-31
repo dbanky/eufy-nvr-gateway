@@ -40,7 +40,7 @@ Environment variables win over `config.json`.
 | `restartGapMs` | `15000` | Minimum pause between two sessions. A doorbell press and *Go live* ignore it |
 | `maxReconnects` | `2` | Reconnect attempts if the live feed drops mid-session |
 | `minBatteryPct` | `15` | Below this, only a doorbell press or *Go live* wakes the camera |
-| `transcode` | `true` | Convert live video to H.264. `false` passes the camera's own H.264 or H.265 through instead (see below) |
+| `transcode` | `false` | Pass the camera's own H.264 or H.265 through. `true` converts live video to H.264 instead (see below) |
 | `triggers` | see below | Bridge events that wake the camera |
 
 Default `triggers`: `motion`, `personDetected`, `vehicleDetected`, `petDetection`,
@@ -55,15 +55,16 @@ rather than `motion`.
 | `ports.web` | `8099` | Web page and API (also `WEB_PORT`; the Docker health check uses `WEB_PORT`) |
 | `ports.rtsp` | `8554` | RTSP output |
 
-## Turning conversion off (`transcode: false`)
+## Passing through or converting (`transcode`)
 
-By default a live camera is decoded and re-encoded as H.264, which every NVR accepts. For a 3K H.265
-camera that is the most expensive thing the gateway does: up to two CPU cores on a small NAS. With
-`"transcode": false` the camera's own video is passed through instead, at a few percent CPU, and in
-the camera's original quality.
+By default a camera's own video is passed through: a few percent CPU while live, and the camera's
+original quality. Converting it instead (`"transcode": true`) decodes and re-encodes it as H.264, which
+every NVR accepts, but for a 3K H.265 camera that is the most expensive thing the gateway does: up to
+two CPU cores on a small NAS.
 
 - **Your NVR must accept the camera's format.** Many eufy cameras send H.265 (e.g. the SoloCam S340);
-  not every NVR records H.265 from third-party cameras.
+  not every NVR records H.265 from third-party cameras. If yours shows no picture for a camera, set
+  `"transcode": true` for that camera.
 - **The first live session after setup is still converted:** it tells the gateway which format the
   camera sends (saved in `/data/switcher/codec-<name>.txt`). From then on the stream, including the
   sleeping picture, uses the camera's format.
@@ -81,5 +82,5 @@ the camera's original quality.
 | `config.json` | Your configuration (cameras etc.) — the only file you edit |
 | `bridge/.eufy-session.json` | eufy login session — delete it to force a fresh login |
 | `switcher/last-<name>.jpg` | Last live frame per camera, shown after a restart |
-| `switcher/codec-<name>.txt` | The format a camera sends (`h264` / `hevc`), learned for `transcode: false` |
+| `switcher/codec-<name>.txt` | The format a camera sends (`h264` / `hevc`), learned in its first live session for passing it through |
 | `go2rtc/go2rtc.yaml`, `switcher/config.json` | Generated at every start from `config.json` — don't edit |

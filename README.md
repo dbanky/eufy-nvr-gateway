@@ -13,8 +13,8 @@ open would drain the battery in days.
 
 This gateway sits in between and runs as **one Docker container**:
 
-- Every camera gets an **RTSP stream that never ends**: H.264 by default, or the camera's own H.264 or
-  H.265 if your NVR accepts it. The NVR always has a picture to show.
+- Every camera gets an **RTSP stream that never ends**, in the camera's own format (H.264 or H.265) by
+  default, or converted to H.264 for NVRs that need it. The NVR always has a picture to show.
 - While nothing happens, the stream shows the **last frame, blurred and dimmed, with a moon** and a
   `Sleeping · since 18:33` label — and the camera **sleeps**.
 - When the camera detects motion or a person, or the doorbell is pressed, the gateway **wakes the
@@ -40,9 +40,9 @@ flowchart LR
   never reachable from the network, so nothing can keep a camera awake by accident.
 - **Full resolution.** Output is the camera's native live resolution (e.g. 2880×1616 for a 3K
   SoloCam). Measured image quality against the camera's own stream: SSIM 0.993–0.997.
-- **H.265 handled.** Cameras that send H.265 (HEVC) are converted to H.264, which every NVR accepts.
-  If your NVR accepts the camera's own format, conversion can be turned off per camera
-  (`"transcode": false`): far less CPU while live.
+- **Light on CPU.** By default the camera's own video is passed through, at a few percent of a CPU
+  core. If your NVR doesn't accept a camera's format (some don't take H.265), set
+  `"transcode": true` for it: its video is then converted to H.264, which every NVR accepts.
 - **Clear states on the stream.** Sleeping, waking up, low battery, didn't wake up, offline: each
   has its own icon and a short label, readable even in a small NVR tile. Live video stays clean.
 - **Almost free while idle.** The sleeping picture is encoded once and replayed: well under 1 % of
@@ -54,8 +54,8 @@ flowchart LR
 ## Requirements
 
 - A Docker host on your LAN, 64-bit x86 or ARM (developed on a Synology DS923+ with Container Manager).
-  Converting a 3K H.265 camera to H.264 needs one to two CPU cores while the camera is live; with
-  `"transcode": false` (if your NVR accepts H.265) it's a few percent.
+  A live camera costs a few percent of a CPU core when passed through (the default); converting a 3K
+  H.265 camera to H.264 (`"transcode": true`) needs one to two cores while it is live.
 - A **separate eufy account** for the gateway. eufy allows one active session per account; if the
   gateway and your phone app share an account, they keep logging each other out. Create a second
   account and share your cameras with it from the eufy app (with admin rights).
@@ -142,7 +142,7 @@ Per camera:
 | `maxLiveMs` | | Optional cap per session, from the first live frame, to save battery when motion never stops (e.g. a busy street). Default `0` (no cap) |
 | `restartGapMs` | | Minimum pause between sessions (a doorbell press ignores it). Default `15000` |
 | `minBatteryPct` | | Below this battery level, only a doorbell press or a manual *Go live* wakes the camera. Default `15` |
-| `transcode` | | `true`: live video is converted to H.264. `false`: the camera's own H.264 or H.265 is passed through — a few % CPU instead of up to two cores, but your NVR must accept that format. Default `true` |
+| `transcode` | | `false`: the camera's own H.264 or H.265 is passed through, a few % CPU; your NVR must accept that format. `true`: converted to H.264, which every NVR accepts, up to two cores while live. Default `false` |
 | `triggers` | | Events that wake the camera. Default: `motion`, `personDetected`, `vehicleDetected`, `petDetection`, `strangerDetected`, `doorbellPress` |
 
 Top level: `timezone` (for the `since 18:33` label), `defaults` (any per-camera key, applied to all
@@ -213,7 +213,8 @@ measurements and the problems solved along the way: [docs/how-it-works.md](docs/
 | Live video takes 10–60 s to appear | Normal for battery cameras: waking takes 3–12 s, deep sleep longer. The stream shows `Waking up` meanwhile. |
 | The first seconds of live video look soft | Some cameras start at a lower resolution and step up (the SoloCam S340 reaches 3K after ~8 s). |
 | Picture is stretched or letterboxed | `width`/`height` don't match the camera's native resolution. |
-| High CPU on the host | Converting a live 3K H.265 camera is expensive (one to two cores). If your NVR accepts H.265, set `"transcode": false` for that camera (a few percent); otherwise lower `width`/`height` to trade detail for CPU. |
+| No picture in the NVR from one camera (often after its first live session) | Your NVR probably doesn't accept that camera's format (usually H.265). Set `"transcode": true` for it and restart: its video is then converted to H.264. |
+| High CPU on the host | A camera with `"transcode": true` is converted while live, which is expensive for 3K H.265 (one to two cores). Leave `transcode` off if your NVR accepts the camera's format; otherwise lower `width`/`height` to trade detail for CPU. |
 | Port already in use | Change it under `"ports"` in `config.json`. |
 
 Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[bridge]`, `[go2rtc]` or

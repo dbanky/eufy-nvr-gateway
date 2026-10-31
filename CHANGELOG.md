@@ -7,6 +7,13 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Changed
+
+- **Passing the camera's own video through is now the default** (`transcode` defaults to `false`):
+  a live 3K H.265 camera needs a few percent of a CPU core instead of up to two. If your NVR shows no
+  picture for a camera (some NVRs don't accept H.265), set `"transcode": true` for it to convert its
+  video to H.264 as before.
+
 ### Added
 
 - The web page shows each camera's video: the stream's codec, and whether it is converted

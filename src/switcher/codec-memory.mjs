@@ -1,5 +1,5 @@
 // Remembers which codec each camera sends ('h264' | 'hevc'), learned during a converted session,
-// so a camera with `transcode: false` can be passed through right after a restart.
+// so a camera can be passed through right after a restart.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

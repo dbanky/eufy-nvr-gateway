@@ -1,6 +1,6 @@
 // Opens a camera's live feed (the bridge's /stream/<serial>, which wakes the camera) and decodes it
 // to raw frames of the camera's configured size, for the live encoder. Closing it lets the camera
-// sleep within ~0.1 s. It also reports which codec the camera sends (for `transcode: false`).
+// sleep within ~0.1 s. It also reports which codec the camera sends, for passing it through next time.
 
 import { spawnFfmpeg, fitFilter, frameSize } from './ffmpeg.mjs';
 

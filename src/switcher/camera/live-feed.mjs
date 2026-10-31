@@ -1,5 +1,5 @@
-// A camera's live video during a session: converted (decoded, then encoded as H.264) or, with
-// `transcode: false`, its own H.264/H.265 passed through. Opening the feed wakes the camera; closing
+// A camera's live video during a session: its own H.264/H.265 passed through (the default), or
+// converted (decoded, then encoded as H.264) with `transcode: true` or while its codec is unknown. Opening the feed wakes the camera; closing
 // it lets the camera sleep.
 
 import { shouldReconnect } from '../policy.mjs';

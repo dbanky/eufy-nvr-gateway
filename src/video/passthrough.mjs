@@ -1,5 +1,5 @@
-// Passes a camera's own video (H.264 or H.265) through instead of decoding and re-encoding it: for
-// cameras with `transcode: false`. Opening the feed wakes the camera, closing it lets it sleep.
+// Passes a camera's own video (H.264 or H.265) through instead of decoding and re-encoding it: the
+// default, unless a camera has `transcode: true`. Opening the feed wakes the camera, closing it lets it sleep.
 //
 // One ffmpeg, two outputs:
 //   pipe:1  the camera's stream, copied, split into frames for the Feed
