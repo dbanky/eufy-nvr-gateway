@@ -1,21 +1,29 @@
 // Small HTTP helpers for the web server: JSON in and out, and the static files of the web page.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const STATIC = {
-  '/': ['index.html', 'text/html; charset=utf-8'],
-  '/style.css': ['style.css', 'text/css; charset=utf-8'],
-  '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
-  '/icons.js': ['icons.js', 'text/javascript; charset=utf-8'],
-  '/views.js': ['views.js', 'text/javascript; charset=utf-8'],
-};
+const STATIC_DIR = fileURLToPath(new URL('./static/', import.meta.url));
+const FONTS_DIR = fileURLToPath(new URL('../../../assets/fonts/', import.meta.url));   // built into the image
+const TYPES = { html: 'text/html', css: 'text/css', js: 'text/javascript', ttf: 'font/ttf' };
+
+// The file a request path names, or null: "/" is the page; otherwise only plain names of the page's
+// own files (and its fonts), so nothing else on disk can be reached.
+export function staticFile(path) {
+  if (path === '/') return STATIC_DIR + 'index.html';
+  let match = /^\/([a-z0-9-]+\.(?:html|css|js))$/.exec(path);
+  if (match) return STATIC_DIR + match[1];
+  match = /^\/fonts\/(Inter-[A-Za-z]+\.ttf)$/.exec(path);
+  return match ? FONTS_DIR + match[1] : null;
+}
 
 // Serves a file of the web page; false if `path` isn't one.
 export function serveStatic(res, path) {
-  if (!STATIC[path]) return false;
-  const [file, type] = STATIC[path];
-  res.writeHead(200, { 'content-type': type });
-  res.end(readFileSync(new URL(`./static/${file}`, import.meta.url)));
+  const file = staticFile(path);
+  if (!file || !existsSync(file)) return false;
+  const type = TYPES[file.split('.').pop()];
+  res.writeHead(200, { 'content-type': type.startsWith('font/') ? type : `${type}; charset=utf-8`, 'cache-control': 'no-cache' });
+  res.end(readFileSync(file));
   return true;
 }
 

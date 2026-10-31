@@ -7,6 +7,15 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Changed
+
+- **Redesigned web page**, in the stream overlay's design language (dark, Inter, one accent colour
+  and icon per state). Camera tiles are mostly picture, in each camera's own shape, with the name on
+  it; underneath, one status line, the battery and the one action that fits (*Wake up* or *Stop*).
+  Stream address (with a copy button), codec and size are behind *Stream details*; the devices on
+  the account are a collapsed list that opens by itself during the first setup. Live pictures
+  refresh every 2 s.
+
 ## [0.3.0-beta.2] - 2026-10-31
 
 Pre-release for testing: the camera's own video is now passed through by default.

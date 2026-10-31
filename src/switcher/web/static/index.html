@@ -3,38 +3,45 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
   <title>Eufy NVR Gateway</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main>
+<header class="top">
   <h1>Eufy NVR Gateway</h1>
-  <div class="muted" id="bridge">Connecting…</div>
+  <div id="connection" aria-live="polite"><span class="pill wait"><span class="dot"></span>Connecting…</span></div>
+</header>
 
-  <section id="login" class="card" hidden>
-    <strong>eufy login needs your attention</strong>
+<main>
+  <section id="login" class="panel login" hidden aria-labelledby="loginTitle">
+    <h2 id="loginTitle">eufy login needs your attention</h2>
     <p class="muted" id="loginText"></p>
     <img id="captcha" alt="captcha" hidden>
     <form id="loginForm" class="row">
       <label class="visually-hidden" for="code">Code</label>
-      <input id="code" autocomplete="one-time-code" placeholder="code" required>
-      <button class="primary">Submit</button>
-      <button type="button" id="retrigger">Send a new code</button>
+      <input id="code" autocomplete="one-time-code" placeholder="Code" required>
+      <button class="action primary">Submit</button>
+      <button type="button" class="action" id="retrigger">Send a new code</button>
     </form>
-    <p id="loginMsg" class="muted"></p>
+    <p id="loginMsg" class="muted" aria-live="polite"></p>
   </section>
 
-  <h2>Cameras</h2>
-  <div id="cams" class="grid"></div>
-  <p id="noCams" class="muted" hidden>No cameras configured yet. Add them to <code>config.json</code> from the device list below, then restart the container.</p>
+  <section aria-labelledby="camerasTitle">
+    <h2 id="camerasTitle" class="visually-hidden">Cameras</h2>
+    <div id="cams" class="grid"></div>
+    <p id="noCams" class="panel muted" hidden>No cameras yet. Log in, then add them to <code>config.json</code> from the devices below and restart the container.</p>
+  </section>
 
-  <h2>Devices on the eufy account</h2>
-  <div class="card scroll">
-    <table>
-      <thead><tr><th>Name</th><th>Serial</th><th>Model</th><th>Battery</th><th>Configured</th></tr></thead>
-      <tbody id="devices"><tr><td colspan="5" class="muted">Available after login.</td></tr></tbody>
-    </table>
-  </div>
+  <details id="devicesPanel" class="panel devices">
+    <summary>Devices on your eufy account <span id="devicesSummary" class="muted"></span></summary>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Device</th><th>Serial</th><th>Battery</th><th>Camera</th></tr></thead>
+        <tbody id="devices"><tr><td colspan="4" class="muted">Available after login.</td></tr></tbody>
+      </table>
+    </div>
+  </details>
 </main>
 <script type="module" src="app.js"></script>
 </body>

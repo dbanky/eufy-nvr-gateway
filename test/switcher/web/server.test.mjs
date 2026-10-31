@@ -1,6 +1,6 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createWebServer, cameraRoute } from '../../src/switcher/web/server.mjs';
+import { createWebServer, cameraRoute } from '../../../src/switcher/web/server.mjs';
 
 // Fakes that record what the API asked them to do.
 const calls = [];
@@ -69,9 +69,16 @@ describe('the API', () => {
 describe('the web page', () => {
   test('is served as static files', async () => {
     assert.match(await (await fetch(`${base}/`)).text(), /<title>Eufy NVR Gateway<\/title>/);
-    for (const file of ['app.js', 'views.js', 'icons.js']) {
-      assert.equal((await fetch(`${base}/${file}`)).headers.get('content-type'), 'text/javascript; charset=utf-8');
+    for (const file of ['app.js', 'camera-tile.js', 'connection.js', 'devices.js', 'icons.js', 'escape.js']) {
+      assert.equal((await fetch(`${base}/${file}`)).headers.get('content-type'), 'text/javascript; charset=utf-8', file);
     }
+    assert.equal((await fetch(`${base}/style.css`)).headers.get('content-type'), 'text/css; charset=utf-8');
+  });
+
+  test('only files of the page: nothing else on disk can be read', async () => {
+    assert.equal((await fetch(`${base}/server.mjs`)).status, 404);
+    assert.equal((await fetch(`${base}/..%2fserver.mjs`)).status, 404);
+    assert.equal((await fetch(`${base}/fonts/..%2f..%2fpackage.json`)).status, 404);
   });
 });
 
