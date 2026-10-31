@@ -16,6 +16,13 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 ### Fixed
 
 - Opening a tile's *Stream details* no longer stretches the other tiles in its row.
+- **ONVIF cameras whose address comes up late** (a second network port, a macvlan address made
+  after the container started) are no longer lost until a restart: the device and discovery try
+  again every 30 s and come on by themselves.
+- **ONVIF network errors in plain words**: `addMembership ENODEV` / `EADDRNOTAVAIL` now read
+  *192.168.1.51 is not an address of this machine (it has …)*, with what to do; a taken port names
+  the port. The web page shows it per camera (*Not on the network yet*), and discovery is reported
+  per camera instead of one combined *Partly on* line. docs/onvif.md has a troubleshooting section.
 
 ## [0.4.0-beta.2] - 2026-10-31
 

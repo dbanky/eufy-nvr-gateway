@@ -56,6 +56,11 @@ details[open] > summary::before { transform: rotate(90deg); }
 .tile-details dd code { font-size: 12px; }
 .details-note { margin: 0; padding: 0 14px 14px; font-size: 13px; color: var(--muted); }
 .warn { color: var(--nowake); display: inline-flex; align-items: center; gap: 6px; }
+.details-problem { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 10px; padding: 10px 12px; border-radius: 10px;
+  font-size: 13px; color: var(--text-2); background: color-mix(in srgb, var(--nowake) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--nowake) 35%, transparent); overflow-wrap: anywhere; }
+.details-problem svg { color: var(--nowake); margin-top: 1px; }
+.details-problem strong { color: var(--nowake); }
 .copy-row { display: flex; gap: 8px; }
 .copy-row input { flex: 1; min-width: 0; color: var(--text-2); }
 

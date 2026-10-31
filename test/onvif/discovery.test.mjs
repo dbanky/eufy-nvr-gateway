@@ -32,3 +32,63 @@ describe('answering a WS-Discovery probe', () => {
     assert.equal(probeMatch('<Envelope><Body><Hello/></Body></Envelope>', device()), null);
   });
 });
+
+describe('finding the cameras on each of their addresses', async () => {
+  const { EventEmitter } = await import('node:events');
+  const { startDiscovery } = await import('../../src/onvif/discovery.mjs');
+
+  // Fake UDP sockets: the machine "has" the addresses in `present`.
+  function fakeNetwork(present) {
+    const sockets = [];
+    const dgram = {
+      createSocket() {
+        const s = Object.assign(new EventEmitter(), {
+          sent: [],
+          bind(port, address, done) {
+            if (typeof port === 'number' && port === 3702) return setImmediate(address);
+            setImmediate(() => (present.has(address) ? done()
+              : s.emit('error', Object.assign(new Error(`bind EADDRNOTAVAIL ${address}`), { code: 'EADDRNOTAVAIL' }))));
+          },
+          addMembership(group, address) {
+            if (!present.has(address)) throw Object.assign(new Error('addMembership ENODEV'), { code: 'ENODEV' });
+          },
+          send(...args) { s.sent.push(args); },
+          close() {},
+        });
+        sockets.push(s);
+        return s;
+      },
+    };
+    return { dgram, sockets };
+  }
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const devices = [device(), { ...device(), name: 'front-door', address: '192.168.1.52' }];
+
+  test('an address the machine doesn\'t have is explained, retried, and found once it appears', async () => {
+    const present = new Set(['192.168.1.51']);
+    const { dgram } = fakeNetwork(present);
+    const logs = [];
+    const { state, stop } = startDiscovery(devices, (m) => logs.push(m), { dgram, retryMs: 10, addresses: () => [...present] });
+    await wait(5);
+    assert.equal(state.listening, true);
+    assert.equal(state.addresses['192.168.1.51'], null);
+    assert.match(state.addresses['192.168.1.52'], /^192\.168\.1\.52 is not an address of this machine \(it has 192\.168\.1\.51\)/);
+    assert.doesNotMatch(logs.join('\n'), /ENODEV/);
+    present.add('192.168.1.52');
+    await wait(30);
+    assert.equal(state.addresses['192.168.1.52'], null);
+    assert.match(logs.at(-1), /ONVIF discovery on 192\.168\.1\.52: on/);
+    stop();
+  });
+
+  test('each camera answers a probe from its own address', async () => {
+    const { dgram, sockets } = fakeNetwork(new Set(['192.168.1.51', '192.168.1.52']));
+    const { stop } = startDiscovery(devices, () => {}, { dgram, retryMs: 1000, addresses: () => [] });
+    await wait(5);
+    const [listener, ...senders] = sockets;
+    listener.emit('message', Buffer.from(probe()), { port: 50000, address: '192.168.1.1' });
+    assert.deepEqual(senders.map((s) => s.sent.length), [1, 1]);
+    assert.match(senders[1].sent[0][0], /192\.168\.1\.52:8000/);
+    stop();
+  });
+});

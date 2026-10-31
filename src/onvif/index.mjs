@@ -8,8 +8,10 @@ import { createCameraServer } from './camera-server.mjs';
 import { MotionEvents } from './events.mjs';
 import { startDiscovery } from './discovery.mjs';
 import { baseUrl } from './device.mjs';
+import { explainNetworkError } from './network.mjs';
 
 export const DEFAULT_PORT = 8000;
+const RETRY_MS = 30_000;
 
 // A stable UUID per camera (from its serial), so an NVR recognises it after a restart.
 export function deviceUuid(serial) {
@@ -34,17 +36,40 @@ export function onvifDevice(camera, { rtspPort, version }) {
 }
 
 // What the web page shows about a published camera: where it is, what NVRs discover, who talks to it.
-export function onvifStatus({ device, events, contact, discovery, credentials, now = Date.now() }) {
+// listening: { on, error } of the camera's ONVIF server; discovery: startDiscovery()'s state.
+export function onvifStatus({ device, events, contact, listening = { on: true, error: null }, discovery, credentials, now = Date.now() }) {
   events.expire();
+  const found = discovery.addresses?.[device.address];   // null: on; text: why not; undefined: not tried yet
   return {
     address: device.address, port: device.port, mac: device.mac,
     deviceService: `${baseUrl(device)}/onvif/device_service`,
+    listening: listening.on, error: listening.error,
     login: !!credentials,
-    discovery: { listening: discovery.listening, error: discovery.error,
+    discovery: { listening: discovery.listening && found === null, error: discovery.error ?? found ?? null,
       uuid: `urn:uuid:${device.uuid}`, name: device.name, hardware: device.model },
     subscriptions: events.subscriptions.size,
     lastContact: contact.at ? { secondsAgo: Math.max(0, Math.round((now - contact.at) / 1000)), from: contact.from, op: contact.op } : null,
   };
+}
+
+// Listens on the camera's own address and port. If that fails (the machine doesn't have the address
+// yet, the port is taken), it says why in plain words and tries again every retryMs.
+// Returns { on, error }, kept up to date for the web page.
+export function keepListening(server, device, log, retryMs = RETRY_MS) {
+  const state = { on: false, error: null };
+  const listen = () => server.listen(device.port, device.address);
+  server.on('listening', () => {
+    Object.assign(state, { on: true, error: null });
+    log(`ONVIF device on ${baseUrl(device)}/onvif/device_service`);
+  });
+  server.on('error', (e) => {
+    const why = explainNetworkError(e, { address: device.address, port: device.port });
+    if (why !== state.error) log(`ONVIF device not on the network: ${why}. Trying again every ${Math.round(retryMs / 1000)} s.`);
+    Object.assign(state, { on: false, error: why });
+    setTimeout(listen, retryMs).unref?.();
+  });
+  listen();
+  return state;
 }
 
 // cameras: [Camera]; only those with an `onvif` section are published. snapshot(camera) -> jpeg.
@@ -58,11 +83,10 @@ export function startOnvif({ cameras, credentials, rtspPort, version, snapshot, 
     const events = new MotionEvents({ baseUrl: baseUrl(device) });
     const contact = {};
     const server = createCameraServer({ device, events, credentials, log, contact, snapshot: () => snapshot(camera) });
-    server.on('error', (e) => log(camera.name, `ONVIF can't listen on ${device.address}:${device.port}: ${e.message}`));
-    server.listen(device.port, device.address, () => log(camera.name, `ONVIF device on ${baseUrl(device)}/onvif/device_service`));
+    const listening = keepListening(server, device, (...m) => log(camera.name, ...m));
     // motion = the camera is waking up or live
     setInterval(() => events.setMotion(camera.state !== 'IDLE'), 500).unref();
-    return { device, events, contact };
+    return { device, events, contact, listening };
   });
   const discovery = startDiscovery(entries.map((e) => e.device), log).state;
   const byName = new Map(entries.map((e) => [e.device.name, e]));

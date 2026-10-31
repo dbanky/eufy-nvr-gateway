@@ -89,5 +89,38 @@ while a camera is awake.
 - **The first seconds of an event are missing** from recordings: the camera needs 3–8 seconds to
   wake (longer from deep sleep), and only then is there live video.
 - **The doorbell is a plain camera** in Protect: no ring event, no chime, no audio.
-- Without an `rtsp` login, anyone on the LAN can watch the RTSP stream; see "A login for the stream
-  too" above, and [Security](../README.md#security).
+- Without an `rtsp` login, anyone on the LAN can watch the RTSP stream; see "One login for ONVIF and the
+  stream" above, and [Security](../README.md#security).
+
+## Troubleshooting
+
+Each camera's *Stream details* on the web page show its ONVIF side; the log says the same at
+startup.
+
+### *Not on the network yet: 192.168.1.51 is not an address of this machine*
+
+The camera's ONVIF device listens on its own address (`onvif.address`), and the machine the
+container runs on doesn't have that address. The message lists the addresses it does have. Linux
+calls this `EADDRNOTAVAIL` (for the device) or `ENODEV` (for discovery); the gateway says it in
+words instead.
+
+| Cause | Fix |
+|---|---|
+| The address comes up **after** the container started: a second network port whose DHCP lease arrives late, or a macvlan address created by a boot script that ran too late | Nothing: the gateway tries again every 30 s, and the camera comes on by itself once the address is there. To have it from the start, give the port a fixed IP (DSM: *Control Panel → Network → Network Interface → Edit → Use manual configuration*) and run `onvif-addresses.sh` before the container starts. |
+| The address belongs to another device, or has a typo | Use an address of this machine (one per camera), or create it (step 1). |
+| *it has none* or only `172.x` addresses | The container isn't on host networking: set *Network* to `host` (Compose: `network_mode: host`). |
+
+To see which addresses the machine has, run `ip -4 addr` on it (Synology: over SSH).
+
+### *Discovery: Off* while the device is on
+
+- *UDP port 3702 is already used by another program*: another ONVIF server or discovery tool runs on
+  the same machine (Scrypted, another ONVIF bridge). Stop it, or add the cameras to the NVR by IP.
+- Discovery needs multicast. If the NVR is in another VLAN or subnet, it can't find the cameras by
+  itself: add them by IP and port (UniFi Protect: *Add device → by IP*, with the ONVIF login).
+
+### *Port 8000 on 192.168.1.51 is already used by another program*
+
+Another program on the machine listens on that address and port. Choose another `onvif.port` for
+the camera.
+

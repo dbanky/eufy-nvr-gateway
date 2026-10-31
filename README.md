@@ -377,6 +377,7 @@ Details, measurements and the problems solved along the way:
 | Picture is stretched or letterboxed | `width`/`height` don't match the camera's native resolution. |
 | No picture in the NVR from one camera (often after its first live session) | Your NVR probably doesn't accept that camera's format (usually H.265). Set `"transcode": true` for it and restart: its video is then converted to H.264. |
 | The NVR or VLC says *401 Unauthorized* | The RTSP streams have a login (`rtsp.username`): use `rtsp://user:password@host:8554/<name>`. In UniFi Protect, enter the same login when adopting. |
+| A camera's ONVIF details say *Not on the network yet: … is not an address of this machine* | The machine doesn't have that camera's `onvif.address` (yet). If the address comes up later (a second network port, a macvlan boot script), the gateway finds it within 30 s by itself; otherwise see [ONVIF troubleshooting](docs/onvif.md#troubleshooting). |
 | The browser warns about the certificate | Expected with `"web.https": true` and the generated self-signed certificate: accept it once, or set your own (`web.certFile`, `web.keyFile`). |
 | High CPU on the host | A camera with `"transcode": true` is converted while live, which is expensive for 3K H.265 (one to two cores). Leave `transcode` off if your NVR accepts the camera's format; otherwise lower `width`/`height` to trade detail for CPU. |
 | Port already in use | Change it under `"ports"` in `config.json`. |

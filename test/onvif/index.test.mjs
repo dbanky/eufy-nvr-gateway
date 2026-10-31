@@ -25,10 +25,11 @@ test("the snapshot is on the camera's ONVIF port, so a login on the web page doe
 test('the status for the web page: where, what NVRs discover, whether one talks to it; never the password', () => {
   const device = onvifDevice({ ...camera, model: 'T8170', onvif: { address: '192.168.1.51', mac: '02:00:00:00:00:01' } }, { rtspPort: 8554, version: '0.3.0' });
   const status = onvifStatus({ device, events: new MotionEvents({ baseUrl: 'http://x' }), contact: { at: 10000, from: '192.168.1.1', op: 'PullMessages' },
-    discovery: { listening: true, error: null }, credentials: { username: 'protect', password: 'secret' }, now: 14000 });
+    discovery: { listening: true, error: null, addresses: { '192.168.1.51': null } }, credentials: { username: 'protect', password: 'secret' }, now: 14000 });
   assert.equal(status.deviceService, 'http://192.168.1.51:8000/onvif/device_service');
   assert.equal(status.mac, '02:00:00:00:00:01');
   assert.equal(status.login, true);
+  assert.equal(status.listening, true);
   assert.deepEqual(status.discovery, { listening: true, error: null, uuid: `urn:uuid:${deviceUuid(camera.serial)}`, name: 'garden', hardware: 'T8170' });
   assert.deepEqual(status.lastContact, { secondsAgo: 4, from: '192.168.1.1', op: 'PullMessages' });
   assert.equal(status.subscriptions, 0);
@@ -48,4 +49,33 @@ test('model and codec are read live: the model arrives from eufy later, the code
   camera.model = 'T8170';
   assert.equal(device.model, 'T8170');
   assert.equal(device.codec(), 'hevc');
+});
+
+test('discovery is reported per camera address: one camera can be found while another can\'t', () => {
+  const device = onvifDevice(camera, { rtspPort: 8554, version: '0.3.0' });
+  const status = (addresses) => onvifStatus({ device, events: new MotionEvents({ baseUrl: 'http://x' }), contact: {},
+    discovery: { listening: true, error: null, addresses }, credentials: null }).discovery;
+  assert.equal(status({ '192.168.1.51': null, '192.168.1.52': 'not here' }).listening, true);
+  assert.deepEqual([status({ '192.168.1.51': 'not here' }).listening, status({ '192.168.1.51': 'not here' }).error], [false, 'not here']);
+  assert.deepEqual([status({}).listening, status({}).error], [false, null], 'not tried yet');
+});
+
+
+test('a device whose address isn\'t there yet says why, keeps trying, and comes on when it appears', async () => {
+  const { EventEmitter } = await import('node:events');
+  const { keepListening } = await import('../../src/onvif/index.mjs');
+  const server = new EventEmitter();
+  let tries = 0;
+  server.listen = () => setImmediate(() => (++tries < 3
+    ? server.emit('error', Object.assign(new Error('listen EADDRNOTAVAIL'), { code: 'EADDRNOTAVAIL' }))
+    : server.emit('listening')));
+  const logs = [];
+  const state = keepListening(server, { address: '192.168.1.51', port: 8000 }, (m) => logs.push(m), 5);
+  await new Promise((r) => setTimeout(r, 15));   // the first try has failed
+  assert.equal(state.on, false);
+  assert.match(state.error, /^192\.168\.1\.51 is not an address of this machine/);
+  await new Promise((r) => setTimeout(r, 60));
+  assert.deepEqual(state, { on: true, error: null });
+  assert.equal(logs.filter((m) => /not on the network/.test(m)).length, 1, 'the same reason is logged once');
+  assert.match(logs.at(-1), /ONVIF device on http:\/\/192\.168\.1\.51:8000/);
 });

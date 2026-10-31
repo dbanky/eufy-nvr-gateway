@@ -25,7 +25,14 @@ describe('a camera\'s ONVIF details', () => {
   });
 
   test('discovery that couldn\'t start says why', () => {
-    assert.match(onvifDetailsHtml(onvif({ discovery: { ...onvif().discovery, listening: false, error: 'bind EADDRINUSE' } })), /Off: bind EADDRINUSE/);
+    assert.match(onvifDetailsHtml(onvif({ discovery: { ...onvif().discovery, listening: false, error: 'UDP port 3702 is already used' } })), /Off: UDP port 3702 is already used/);
+  });
+
+  test('a device that isn\'t on the network yet says why, and that the gateway keeps trying', () => {
+    const html = onvifDetailsHtml(onvif({ listening: false, error: '192.168.1.51 is not an address of this machine (it has 192.168.1.10)' }));
+    assert.match(html, /Not on the network yet\.<\/strong> 192\.168\.1\.51 is not an address of this machine \(it has 192\.168\.1\.10\)\. The gateway tries again every 30 s/);
+    assert.match(html, /Off until the device is on the network/);
+    assert.doesNotMatch(onvifDetailsHtml(onvif({ listening: true, error: null })), /Not on the network/);
   });
 
   test('whether a login is required, never the password itself', () => {
