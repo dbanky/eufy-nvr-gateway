@@ -61,7 +61,11 @@ describe('finding the cameras on each of their addresses', async () => {
     };
     return { dgram, sockets };
   }
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Waits until check() is true (up to 2 s): fixed sleeps are flaky on slow CI machines.
+  const until = async (check) => {
+    for (let t = 0; t < 400 && !check(); t++) await new Promise((r) => setTimeout(r, 5));
+    assert.ok(check(), 'timed out');
+  };
   const devices = [device(), { ...device(), name: 'front-door', address: '192.168.1.52' }];
 
   test('an address the machine doesn\'t have is explained, retried, and found once it appears', async () => {
@@ -69,13 +73,13 @@ describe('finding the cameras on each of their addresses', async () => {
     const { dgram } = fakeNetwork(present);
     const logs = [];
     const { state, stop } = startDiscovery(devices, (m) => logs.push(m), { dgram, retryMs: 10, addresses: () => [...present] });
-    await wait(5);
+    await until(() => state.addresses['192.168.1.51'] === null && state.addresses['192.168.1.52']);
     assert.equal(state.listening, true);
     assert.equal(state.addresses['192.168.1.51'], null);
     assert.match(state.addresses['192.168.1.52'], /^192\.168\.1\.52 is not an address of this machine \(it has 192\.168\.1\.51\)/);
     assert.doesNotMatch(logs.join('\n'), /ENODEV/);
     present.add('192.168.1.52');
-    await wait(30);
+    await until(() => state.addresses['192.168.1.52'] === null);
     assert.equal(state.addresses['192.168.1.52'], null);
     assert.match(logs.at(-1), /ONVIF discovery on 192\.168\.1\.52: on/);
     stop();
@@ -83,8 +87,8 @@ describe('finding the cameras on each of their addresses', async () => {
 
   test('each camera answers a probe from its own address', async () => {
     const { dgram, sockets } = fakeNetwork(new Set(['192.168.1.51', '192.168.1.52']));
-    const { stop } = startDiscovery(devices, () => {}, { dgram, retryMs: 1000, addresses: () => [] });
-    await wait(5);
+    const { state, stop } = startDiscovery(devices, () => {}, { dgram, retryMs: 1000, addresses: () => [] });
+    await until(() => state.addresses['192.168.1.51'] === null && state.addresses['192.168.1.52'] === null);
     const [listener, ...senders] = sockets;
     listener.emit('message', Buffer.from(probe()), { port: 50000, address: '192.168.1.1' });
     assert.deepEqual(senders.map((s) => s.sent.length), [1, 1]);

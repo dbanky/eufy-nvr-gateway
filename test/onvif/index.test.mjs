@@ -70,12 +70,12 @@ test('a device whose address isn\'t there yet says why, keeps trying, and comes 
     ? server.emit('error', Object.assign(new Error('listen EADDRNOTAVAIL'), { code: 'EADDRNOTAVAIL' }))
     : server.emit('listening')));
   const logs = [];
-  const state = keepListening(server, { address: '192.168.1.51', port: 8000 }, (m) => logs.push(m), 5);
-  await new Promise((r) => setTimeout(r, 15));   // the first try has failed
-  assert.equal(state.on, false);
-  assert.match(state.error, /^192\.168\.1\.51 is not an address of this machine/);
-  await new Promise((r) => setTimeout(r, 60));
+  const seen = [];   // every state it went through
+  const state = keepListening(server, { address: '192.168.1.51', port: 8000 }, (m) => { logs.push(m); seen.push({ ...state }); }, 5);
+  for (let t = 0; t < 400 && !state.on; t++) await new Promise((r) => setTimeout(r, 5));   // no fixed sleeps: CI is slow
   assert.deepEqual(state, { on: true, error: null });
+  assert.equal(tries, 3);
   assert.equal(logs.filter((m) => /not on the network/.test(m)).length, 1, 'the same reason is logged once');
+  assert.match(logs[0], /192\.168\.1\.51 is not an address of this machine/);
   assert.match(logs.at(-1), /ONVIF device on http:\/\/192\.168\.1\.51:8000/);
 });
