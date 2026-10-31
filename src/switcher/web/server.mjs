@@ -11,14 +11,7 @@
 // The camera routes also answer without the /api/cameras prefix, and /status without /api (older URLs).
 
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
-
-const STATIC = {
-  '/': ['index.html', 'text/html; charset=utf-8'],
-  '/style.css': ['style.css', 'text/css; charset=utf-8'],
-  '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
-};
-const readStatic = (file) => readFileSync(new URL(`./static/${file}`, import.meta.url));
+import { serveStatic, sendJson, readJson, forward } from './http.mjs';
 
 // cameras: [Camera]   bridge: BridgeClient   snapshot(camera) -> Promise<jpeg Buffer>
 export function createWebServer({ cameras, bridge, rtspPort, snapshot }) {
@@ -27,53 +20,25 @@ export function createWebServer({ cameras, bridge, rtspPort, snapshot }) {
 
   return createServer(async (req, res) => {
     const path = req.url.split('?')[0];
-    const send = (code, body) => {
-      res.writeHead(code, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(body, null, 1));
-    };
     const route = `${req.method} ${path}`;
-
-    if (req.method === 'GET' && STATIC[path]) {
-      const [file, type] = STATIC[path];
-      res.writeHead(200, { 'content-type': type });
-      return res.end(readStatic(file));
-    }
+    if (req.method === 'GET' && serveStatic(res, path)) return;
     if (route === 'GET /api/status' || route === 'GET /status') {
-      return send(200, { bridge: bridge.status(), rtspPort, cameras: cameras.map((c) => c.status()) });
+      return sendJson(res, 200, { bridge: bridge.status(), rtspPort, cameras: cameras.map((c) => c.status()) });
     }
     if (route === 'GET /api/devices') {
-      return send(200, bridge.devices.map((d) => ({ ...d, configured: configured.has(d.serial) })));
+      return sendJson(res, 200, bridge.devices.map((d) => ({ ...d, configured: configured.has(d.serial) })));
     }
     if (route === 'POST /api/login') {
-      const body = await readJson(req);
-      const message = body.captcha ? { cmd: 'auth.submit', captcha: String(body.captcha) }
-        : body.code ? { cmd: 'auth.submit', code: String(body.code) } : null;
-      if (!message) return send(400, { ok: false, error: 'send { "code": "123456" } or { "captcha": "AB3D" }' });
-      return forward(send, () => bridge.submitLogin(message));
+      const message = loginMessage(await readJson(req));
+      if (!message) return sendJson(res, 400, { ok: false, error: 'send { "code": "123456" } or { "captcha": "AB3D" }' });
+      return forward(res, () => bridge.submitLogin(message));
     }
-    if (route === 'POST /api/login/retrigger') return forward(send, () => bridge.submitLogin({ cmd: 'auth.retrigger' }));
+    if (route === 'POST /api/login/retrigger') return forward(res, () => bridge.submitLogin({ cmd: 'auth.retrigger' }));
 
     const [name, action] = cameraRoute(path);
     const camera = byName.get(name);
-    if (!camera) return send(404, { error: 'not found' });
-    if (req.method === 'GET' && action === 'snapshot.jpg') {
-      try {
-        const jpg = await snapshot(camera);
-        res.writeHead(200, { 'content-type': 'image/jpeg', 'content-length': jpg.length, 'cache-control': 'no-store' });
-        return res.end(jpg);
-      } catch (e) {
-        return send(500, { error: e.message });
-      }
-    }
-    if (req.method === 'POST' && action === 'live') {
-      camera.trigger('manual');
-      return send(200, camera.status());
-    }
-    if (req.method === 'POST' && action === 'idle') {
-      camera.stop('manual');
-      return send(200, camera.status());
-    }
-    send(404, { error: 'not found' });
+    if (camera) return cameraAction(req, res, camera, action, snapshot);
+    sendJson(res, 404, { error: 'not found' });
   });
 }
 
@@ -83,25 +48,26 @@ export function cameraRoute(path) {
   return parts[0] === 'api' && parts[1] === 'cameras' ? parts.slice(2) : parts;
 }
 
-// A bridge call answered as JSON: 200 if eufy accepted it, 400 if not, 502 if the bridge failed.
-async function forward(send, call) {
-  try {
-    const answer = await call();
-    send(answer.ok ? 200 : 400, answer);
-  } catch (e) {
-    send(502, { ok: false, error: e.message });
-  }
-}
+const loginMessage = (body) => (body.captcha ? { cmd: 'auth.submit', captcha: String(body.captcha) }
+  : body.code ? { cmd: 'auth.submit', code: String(body.code) } : null);
 
-function readJson(req) {
-  return new Promise((resolve) => {
-    let body = '';
-    req.on('data', (c) => {
-      body += c;
-      if (body.length > 1e5) req.destroy();
-    });
-    req.on('end', () => {
-      try { resolve(JSON.parse(body || '{}')); } catch { resolve({}); }
-    });
-  });
+async function cameraAction(req, res, camera, action, snapshot) {
+  if (req.method === 'GET' && action === 'snapshot.jpg') {
+    try {
+      const jpg = await snapshot(camera);
+      res.writeHead(200, { 'content-type': 'image/jpeg', 'content-length': jpg.length, 'cache-control': 'no-store' });
+      return res.end(jpg);
+    } catch (e) {
+      return sendJson(res, 500, { error: e.message });
+    }
+  }
+  if (req.method === 'POST' && action === 'live') {
+    camera.trigger('manual');
+    return sendJson(res, 200, camera.status());
+  }
+  if (req.method === 'POST' && action === 'idle') {
+    camera.stop('manual');
+    return sendJson(res, 200, camera.status());
+  }
+  sendJson(res, 404, { error: 'not found' });
 }

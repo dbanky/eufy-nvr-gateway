@@ -1,9 +1,10 @@
-// Talks to the bundled eufy bridge over its WebSocket: login state, the device list, and camera
-// events (motion, person, doorbell, battery). Reconnects on its own.
+// What the gateway needs from the eufy bridge: the login state, the device list, and camera events
+// (motion, person, doorbell, battery). The connection itself is socket.mjs.
 //
 // Events:  'device-event' { serial, event, message }   'devices' [device]
 
 import { EventEmitter } from 'node:events';
+import { BridgeSocket } from './socket.mjs';
 
 export const OFFLINE_AFTER_MS = 30000;   // logged out or disconnected this long counts as offline
 
@@ -16,16 +17,25 @@ export function toDevice(d) {
 }
 
 export class BridgeClient extends EventEmitter {
-  constructor({ url, log, WebSocketImpl = globalThis.WebSocket, now = Date.now }) {
+  constructor({ url, log, WebSocketImpl, now = Date.now }) {
     super();
-    Object.assign(this, { url, log, WebSocketImpl, now });
+    Object.assign(this, { log, now });
     this.connected = false;
     this.auth = { state: 'unknown' };
     this.devices = [];
     this.troubleSince = now();   // when it last stopped being connected and logged in
-    this.pending = new Map();    // request id -> resolve
-    this.nextId = 100;
-    this.backoff = 1000;
+    this.socket = new BridgeSocket({ url, log, WebSocketImpl });
+    this.socket.on('open', () => this.setHealth({ connected: true }));
+    this.socket.on('close', () => this.setHealth({ connected: false }));
+    this.socket.on('message', (m) => this.handle(m));
+  }
+
+  connect() {
+    this.socket.connect();
+  }
+
+  request(message, timeoutMs) {
+    return this.socket.request(message, timeoutMs);
   }
 
   // null while all is well; otherwise why eufy events can't arrive: 'login' or 'connection'.
@@ -42,49 +52,6 @@ export class BridgeClient extends EventEmitter {
       connected: this.connected, login: this.auth.state, method: this.auth.method ?? null,
       captcha: this.auth.state === 'require_captcha' ? this.auth.image ?? null : null,
     };
-  }
-
-  connect() {
-    const ws = new this.WebSocketImpl(this.url);
-    this.ws = ws;
-    ws.onopen = () => {
-      this.backoff = 1000;
-      this.setHealth({ connected: true });
-      this.log('bridge connected');
-    };
-    ws.onmessage = (e) => {
-      let message;
-      try { message = JSON.parse(e.data); } catch { return; }
-      this.handle(message);
-    };
-    ws.onclose = () => {
-      this.setHealth({ connected: false });
-      for (const [id, done] of this.pending) {
-        done({ ok: false, error: 'bridge disconnected' });
-        this.pending.delete(id);
-      }
-      this.log(`bridge disconnected, retry in ${this.backoff / 1000} s`);
-      setTimeout(() => this.connect(), this.backoff);
-      this.backoff = Math.min(this.backoff * 2, 30000);
-    };
-    ws.onerror = () => {};
-  }
-
-  // Sends a command and resolves with the bridge's answer (matched by id).
-  request(message, timeoutMs = 15000) {
-    return new Promise((resolve, reject) => {
-      if (!this.ws || this.ws.readyState !== 1 /* OPEN */) return reject(new Error('bridge not connected'));
-      const id = this.nextId++;
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new Error('bridge did not answer'));
-      }, timeoutMs);
-      this.pending.set(id, (answer) => {
-        clearTimeout(timer);
-        resolve(answer);
-      });
-      this.ws.send(JSON.stringify({ ...message, id }));
-    });
   }
 
   // Login step from the web page: a 2FA code or a captcha.
@@ -105,11 +72,9 @@ export class BridgeClient extends EventEmitter {
     }
   }
 
+  // Unsolicited messages from the bridge.
   handle(m) {
-    if (m.id != null && this.pending.has(m.id)) {
-      this.pending.get(m.id)(m);
-      this.pending.delete(m.id);
-    } else if (m.event === 'hello') {
+    if (m.event === 'hello') {
       this.setHealth({ auth: m.auth ?? this.auth });
     } else if (m.event === 'ready') {
       this.refreshDevices();

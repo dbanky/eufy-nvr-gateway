@@ -237,8 +237,11 @@ behaviour:
 | Folder | What |
 |---|---|
 | `src/main.mjs`, `src/gateway/` | Container entrypoint: reads `config.json`, writes the configs for the bundled services, runs and restarts them |
-| `src/switcher/` | One process for all cameras: the state of each camera (`camera.mjs`), when to wake and sleep (`policy.mjs`), what the stream says (`labels.mjs`), the eufy bridge connection, the web page and API |
-| `src/video/` | The never-ending stream: the publisher, what it plays next (`feed.mjs`), the live encoder and decoder, H.264 helpers |
+| `src/switcher/` | One process for all cameras: when to wake and sleep (`policy.mjs`), what the stream says (`labels.mjs`), wiring (`main.mjs`, `create-camera.mjs`) |
+| `src/switcher/camera/` | One camera's states (`camera.mjs`), its live video (`live-feed.mjs`: converting or passing through) and its picture when not live (`sleeping-picture.mjs`) |
+| `src/switcher/bridge/` | The eufy bridge: the WebSocket (`socket.mjs`) and what it says (`client.mjs`: login, devices, events) |
+| `src/switcher/web/` | The web page (`static/`) and the JSON API |
+| `src/video/` | The never-ending stream: the publisher, what it plays next (`feed.mjs`), live encoder, decoder and pass-through, H.264/H.265 helpers |
 | `src/overlay/` | The sleeping-state picture: the design in numbers (`design.mjs`), layout, drawing, encoding it into a loop |
 | `assets/icons/` | State icons (SVG), rasterised when the image is built |
 

@@ -69,7 +69,9 @@ describe('the API', () => {
 describe('the web page', () => {
   test('is served as static files', async () => {
     assert.match(await (await fetch(`${base}/`)).text(), /<title>Eufy NVR Gateway<\/title>/);
-    assert.equal((await fetch(`${base}/app.js`)).headers.get('content-type'), 'text/javascript; charset=utf-8');
+    for (const file of ['app.js', 'views.js', 'icons.js']) {
+      assert.equal((await fetch(`${base}/${file}`)).headers.get('content-type'), 'text/javascript; charset=utf-8');
+    }
   });
 });
 
