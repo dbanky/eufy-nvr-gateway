@@ -1,6 +1,6 @@
 # Builds the image for amd64 + arm64 and publishes it to Docker Hub and the GitHub Container Registry
 # when a GitHub release is published (tag v1.2.3):
-#   <user>/eufy-nvr-gateway:1.2.3, :1.2, :latest
+#   <user>/eufy-nvr-gateway:1.2.3, :latest
 #   ghcr.io/<owner>/eufy-nvr-gateway:...        (same tags)
 # Pre-releases get only their version tag, not :latest.
 # Pull requests and manual runs are built but not published.
@@ -68,7 +68,6 @@ jobs:
           flavor: latest=false
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ env.STABLE }}
 
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc   # v7.4.0

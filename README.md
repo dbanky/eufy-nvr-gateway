@@ -69,7 +69,7 @@ Ready-made images for 64-bit x86 (`amd64`) and ARM (`arm64`) are published for e
 | Tag | Meaning |
 |---|---|
 | `latest` | The newest stable release |
-| `0.1`, `0.1.0`, … | A specific release line / version — pin one of these to update only when you choose to |
+| `0.2.1`, … | One exact version — pin it to update only when you choose to |
 | `0.1.1-rc.1`, … | Pre-releases for testing; never become `latest` |
 
 The container needs one folder, mounted at `/data`. It holds your `config.json` (the camera list),
