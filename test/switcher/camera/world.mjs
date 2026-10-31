@@ -11,6 +11,7 @@ export function setup(settings = {}) {
     now: Date.parse('2026-10-30T18:00:00Z'),
     offline: null,
     renders: [],        // every view the stream was asked to show
+    prepared: [],       // "Waking up" pictures rendered in advance, in the background
     liveFeeds: [],      // every time the camera was woken
     savedFrames: [],
     encoder: { running: false, start() { this.running = true; }, stop() { this.running = false; } },
@@ -26,8 +27,11 @@ export function setup(settings = {}) {
     offline: () => world.offline,
     feed: world.feed,
     renderLoop: async ({ view, codec }) => {
-      world.renders.push(view);
-      world.loopCodecs.push(codec);
+      if (view.detail === 'Connecting to the camera') world.prepared.push(view);
+      else {
+        world.renders.push(view);
+        world.loopCodecs.push(codec);
+      }
       return { still: Buffer.from(`still:${view.kind}`), frames: [codec === 'hevc' ? hevcKeyframe() : keyframe()] };
     },
     openLiveFeed: ({ onFrame, onCodec, onClose }) => {

@@ -7,6 +7,12 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **"Waking up" now appears the moment a camera is triggered.** It is prepared while the camera
+  sleeps; rendering it only on the trigger was too slow for H.265 on a NAS, so the stream kept
+  showing "Sleeping" until the camera went live.
+
 ### Changed
 
 - **Passing the camera's own video through is now the default** (`transcode` defaults to `false`):
