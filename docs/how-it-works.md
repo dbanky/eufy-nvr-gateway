@@ -13,41 +13,45 @@ stream drop, reconnects, and wakes the camera again — all day.
 ## The approach: never switch streams, switch pictures
 
 Each camera has **one publisher that runs forever**: an `ffmpeg -c copy` that sends encoded frames to
-go2rtc at exactly 15 fps: the camera's own H.264/H.265, or H.264 with `transcode: true`. The NVR connects to go2rtc and sees an unbroken stream at a fixed
-resolution and frame rate. What the publisher is fed depends on the state:
+go2rtc at exactly 15 fps — the camera's own H.264/H.265, or H.264 with `transcode: true`. The NVR
+connects to go2rtc and sees one unbroken stream at a constant frame rate. What the publisher is fed
+depends on the state:
 
 | State | Picture | Camera |
 |---|---|---|
 | `IDLE` | The last frame, blurred and dimmed, with a moon and `Sleeping · since 18:33` | Asleep |
 | `WAKING` | The same picture with a spinning ring and `Waking up · Person detected` | Waking up (3–60 s) |
-| `LIVE` | Live video, scaled to the fixed output size, no overlay | Streaming over P2P |
+| `LIVE` | The camera's own video, passed through (or converted to H.264), no overlay | Streaming over P2P |
 
 While asleep the label can also read *low battery*, *didn't wake up* or *offline*, and a fresh
 install shows *no picture yet* instead of a black frame.
 
 **Sleeping costs (almost) nothing.** Each state's picture is drawn once and encoded once into an 8 s
-loop (two keyframe intervals); the publisher replays those encoded frames without touching x264.
-Only during a live session does an encoder run. Live and loop use identical x264 settings, so their
-parameter sets match and the publisher can switch between them at any keyframe.
+loop (two keyframe intervals), in the stream's format; the publisher replays those encoded frames
+without encoding anything. The switch to live video and back happens at a keyframe, so the stream
+never breaks.
 
 Events (`motion`, `personDetected`, `doorbellPress`, …) come from the bundled
 [ha-eufy-sdk-bridge](https://github.com/mega-yfue/ha-eufy-sdk-bridge) over its WebSocket. On an
-event the switcher opens the bridge's `/stream/<serial>`, decodes it to raw frames and hands them to
-the encoder. When the hold time ends it closes the stream — the bridge then ends the P2P session at
-once (measured: ~0.1 s) and the camera sleeps.
+event the switcher opens the bridge's `/stream/<serial>` and either passes the camera's video through
+or converts it (see below). When the session ends it closes the stream — the bridge then ends the P2P
+session at once (measured: ~0.1 s) and the camera sleeps.
 
 There is no "motion ended" event, so "no more motion" means "no new detection for `holdMs`" (30
 seconds by default; 2 minutes after a doorbell press). Every detection while live pushes the end back;
-the session ends 30 seconds after the last one. An optional `maxLiveMs` caps a session for places where motion never stops.
+the session ends 30 seconds after the last one. An optional `maxLiveMs` caps a session for places
+where motion never stops.
 
 ## Converting or passing through
 
-By default a camera's own H.264 or H.265 is passed through, and its sleeping loops are encoded in the
-same format. The first live session is converted, to learn which format that is. With
-`transcode: true` live video is always converted: decoded, then encoded again as H.264 with the same
-settings as the sleeping loops, so the two splice seamlessly. A side output decodes
-only the camera's keyframes into JPEGs, for snapshots and for the next sleeping picture. On a 3K H.265
-camera this takes a live session from ~60 % of a core (converting) to ~5 %.
+**Passing through (the default).** The camera's own H.264 or H.265 goes to the NVR as it is, and its
+sleeping loops are encoded in the same format. A side output decodes only the camera's keyframes into
+JPEGs, for snapshots and for the next sleeping picture. On a 3K H.265 camera a live session costs ~5 %
+of a core this way. The first live session of a camera is converted, to learn which format it sends.
+
+**Converting (`transcode: true`).** Live video is decoded, then encoded again as H.264 with the same
+settings as the sleeping loops, so the two splice seamlessly. Every NVR accepts it, but for a 3K H.265
+camera it costs ~60 % of a fast core, up to two cores on a small NAS.
 
 Splicing someone else's stream needs care: every frame must start with exactly one access unit
 delimiter, and every keyframe must carry its parameter sets. The pass-through removes the stream's own
@@ -63,22 +67,25 @@ delimiters, adds parameter sets in front of keyframes, then adds one delimiter p
 - **Static pictures with x264.** With plain CRF, x264 keeps "refining" a still frame with ever lower
   quantizers: ~1.6 Mbit/s. `qpmin=19` stops that; with the blur the sleeping picture costs
   0.1–0.6 Mbit/s.
-- **Live CPU.** Converting 3K H.265 to H.264 is the expensive part of a live session (decoder plus
-  encoder). The encoder uses a cheaper motion search (`me=dia:subme=1`, ~30 % less CPU) with 10 % more
-  bitrate headroom, which keeps the quality where it was. Other settings (threads, lookahead, one
-  combined decode+encode process) were measured and brought nothing.
-- **Quality.** `crf 20`, High profile, keyframe every 4 s, no B-frames. Measured against the camera's
-  own stream: SSIM 0.997 (2048×1536 doorbell), 0.993 (3K SoloCam).
+- **Live CPU when converting.** Converting 3K H.265 to H.264 is the expensive part of a converted
+  session (decoder plus encoder). The encoder uses a cheaper motion search (`me=dia:subme=1`, ~30 %
+  less CPU) with 10 % more bitrate headroom, which keeps the quality where it was. Other settings
+  (threads, lookahead, one combined decode+encode process) were measured and brought nothing.
+- **Quality.** Passed through, it is the camera's own picture. Converted: `crf 20`, High profile,
+  keyframe every 4 s, no B-frames; measured against the camera's own stream: SSIM 0.997 (2048×1536
+  doorbell), 0.993 (3K SoloCam).
 - **H.265.** Some cameras (e.g. the SoloCam S340) only send H.265. Passed through (the default) the
-  stream stays H.265; with `transcode: true` it is always H.264. ffmpeg logs reference errors until the first keyframe of each session —
-  harmless, those frames are dropped, never shown.
-- **Variable resolution.** Some cameras start a session at 720p and step up to their full
-  resolution within seconds. The output size is fixed, so early frames are scaled up.
+  stream stays H.265; with `transcode: true` it is always H.264. ffmpeg logs reference errors until the
+  first keyframe of each session — harmless, those frames are dropped, never shown.
+- **Variable resolution.** Some cameras start a session at 720p and step up to their full resolution
+  within seconds (the SoloCam S340 within ~8 s). Passed through, the NVR receives those size changes;
+  converted, the output size is fixed and early frames are scaled up.
 - **The bridge's battery budget.** The SDK stops battery streams after 45 s (+10 s grace) unless told
   otherwise. The gateway sets `STREAM_BATTERY_BUDGET_MS` to 24 h, because it ends every session
   itself. Note: `0` or values above 2147483647 silently fall back to 45 s.
 - **No accidental wake-ups.** Only the web page and the RTSP streams are reachable from the network.
   The raw camera streams are not, so nothing but the switcher can wake a camera.
 - **Snapshots.** The switcher serves `/api/cameras/<name>/snapshot.jpg` itself, from the picture
-  currently being streamed — no extra decoding, and it never wakes a camera.
+  currently on the stream (while passing through: the camera's newest keyframe), and it never wakes a
+  camera.
 

@@ -2,7 +2,8 @@
 
 The gateway reads `config.json` from the data folder (`/data/config.json` in the container) at start.
 Change it, then restart the container. A file mounted at `/config/config.json` takes precedence (older
-setups); `CONFIG_FILE` overrides the path entirely. A complete example: [`examples/config.full.example.json`](../examples/config.full.example.json).
+setups); `CONFIG_FILE` overrides the path entirely. A complete example:
+[`examples/config.full.example.json`](../examples/config.full.example.json).
 
 ## eufy account
 
@@ -30,9 +31,9 @@ Environment variables win over `config.json`.
 |---|---|---|
 | `name` | — | Required. Letters, digits, `-`, `_`. RTSP path and display name |
 | `serial` | — | Required. Serial number from the web page's device list |
-| `width`, `height` | — | Required. The camera's native live resolution |
-| `fps` | `15` | Output frame rate |
-| `bitrateKbps` | `4400` | Bitrate ceiling for live video (~`6600` for 3K). The sleeping picture uses far less |
+| `width`, `height` | — | Required. The camera's native live resolution: the size of the sleeping picture, and of live video when converting |
+| `fps` | `15` | Output frame rate. When passing through it must match the camera's real frame rate (eufy cameras: 15) |
+| `bitrateKbps` | `4400` | Bitrate ceiling for what the gateway encodes: the sleeping picture (which uses far less) and live video when converting (~`6600` for 3K) |
 | `holdMs` | `30000` | Stay live until this long after the last detection (at least this long after the first live frame). Continuing motion keeps the stream live |
 | `ringHoldMs` | `120000` | Same, after a doorbell press |
 | `maxLiveMs` | `0` | Optional cap per session, from the first live frame; repeated detections cannot extend past it. `0` = no cap. Set it (e.g. `600000`) if constant motion would drain the battery |
@@ -72,8 +73,10 @@ two CPU cores on a small NAS.
   first session. Otherwise it never drops.
 - **`fps` should match the camera's real frame rate** (eufy cameras: 15), because the stream is
   played out at that rate.
-- The resolution is whatever the camera sends: `width` and `height` should be its native size, or the
-  picture size changes between the sleeping picture and live video.
+- **The resolution is whatever the camera sends.** `width` and `height` should be its native size, or
+  the picture size changes between the sleeping picture and live video. A camera that starts a
+  session at a lower resolution (the SoloCam S340: 720p for the first ~8 s) sends that too; if your
+  NVR doesn't cope with the size change, use `"transcode": true` for that camera.
 
 ## Files in `/data`
 

@@ -38,8 +38,9 @@ flowchart LR
   small supervisor that restarts anything that crashes.
 - **Battery-friendly by design.** A camera only streams during an event; the raw camera stream is
   never reachable from the network, so nothing can keep a camera awake by accident.
-- **Full resolution.** Output is the camera's native live resolution (e.g. 2880×1616 for a 3K
-  SoloCam). Measured image quality against the camera's own stream: SSIM 0.993–0.997.
+- **Full resolution and quality.** By default the camera's own video reaches the NVR unchanged (e.g.
+  2880×1616 for a 3K SoloCam). Converted video keeps that size, at SSIM 0.993–0.997 against the
+  camera's own stream.
 - **Light on CPU.** By default the camera's own video is passed through, at a few percent of a CPU
   core. If your NVR doesn't accept a camera's format (some don't take H.265), set
   `"transcode": true` for it: its video is then converted to H.264, which every NVR accepts.
@@ -75,7 +76,7 @@ Ready-made images for 64-bit x86 (`amd64`) and ARM (`arm64`) are published for e
 |---|---|
 | `latest` | The newest stable release |
 | `0.2.1`, … | One exact version — pin it to update only when you choose to |
-| `0.1.1-rc.1`, … | Pre-releases for testing; never become `latest` |
+| `0.3.0-beta.1`, … | Pre-releases for testing; never become `latest` |
 
 The container needs one folder, mounted at `/data`. It holds your `config.json` (the camera list),
 the eufy login session and the last frame of every camera, so all of it survives updates.
@@ -134,9 +135,9 @@ Per camera:
 |---|---|---|
 | `name` | yes | Letters, digits, `-`, `_`. Becomes the RTSP path: `rtsp://<host>:8554/<name>` |
 | `serial` | yes | The camera's serial number (shown on the web page after login) |
-| `width`, `height` | yes | The camera's **native live resolution**. Converted video is scaled to this size, and the sleeping picture always has it; set it to what the camera really sends so nothing is scaled (with `"transcode": false` the camera's own size is streamed, so it must match). See [known resolutions](#known-live-resolutions) |
-| `fps` | | Output frame rate. Default `15` (what eufy cameras send) |
-| `bitrateKbps` | | Upper bitrate limit during live video. Default `4400`; use ~`6600` for 3K |
+| `width`, `height` | yes | The camera's **native live resolution**. The sleeping picture has this size; passed-through video has the camera's own size, so they must match (converted video is scaled to it). See [known resolutions](#known-live-resolutions) |
+| `fps` | | Output frame rate. Default `15` (what eufy cameras send); when passing through it must match the camera |
+| `bitrateKbps` | | Upper bitrate limit for what the gateway encodes: the sleeping picture, and live video when converting. Default `4400`; use ~`6600` for 3K |
 | `holdMs` | | Stay live until this long after the last detection: continuing motion keeps the stream live. Default `30000` (30 s) |
 | `ringHoldMs` | | Same, after a doorbell press. Default `120000` (2 min) |
 | `maxLiveMs` | | Optional cap per session, from the first live frame, to save battery when motion never stops (e.g. a busy street). Default `0` (no cap) |
@@ -186,9 +187,10 @@ Change them under `"ports"` in `config.json` if something else on the host alrea
 ## How it works
 
 The short version: per camera, one never-ending stream feeds go2rtc. While the camera sleeps it
-replays a picture that was encoded once; during an event a live encoder takes over, spliced in at a
-keyframe, so the NVR sees one unbroken stream. Details,
-measurements and the problems solved along the way: [docs/how-it-works.md](docs/how-it-works.md).
+replays a picture that was encoded once; during an event the camera's own video takes over (or, with
+`"transcode": true`, a live encoder), spliced in at a keyframe, so the NVR sees one unbroken stream.
+Details, measurements and the problems solved along the way:
+[docs/how-it-works.md](docs/how-it-works.md).
 
 ## Roadmap
 
@@ -211,7 +213,7 @@ measurements and the problems solved along the way: [docs/how-it-works.md](docs/
 | The gateway gets logged out now and then | Another login on the same account (phone app, Home Assistant, another bridge) took over the session. Use a dedicated account. |
 | A camera never goes live on motion | It is disarmed, or detection is off in the eufy app. A disarmed camera sends no events. Test with the *Go live* button. |
 | Live video takes 10–60 s to appear | Normal for battery cameras: waking takes 3–12 s, deep sleep longer. The stream shows `Waking up` meanwhile. |
-| The first seconds of live video look soft | Some cameras start at a lower resolution and step up (the SoloCam S340 reaches 3K after ~8 s). |
+| The first seconds of live video look soft, or the size changes | Some cameras start at a lower resolution and step up (the SoloCam S340 reaches 3K after ~8 s). Passed through, the NVR gets that size change too; if it can't cope, set `"transcode": true` for the camera. |
 | Picture is stretched or letterboxed | `width`/`height` don't match the camera's native resolution. |
 | No picture in the NVR from one camera (often after its first live session) | Your NVR probably doesn't accept that camera's format (usually H.265). Set `"transcode": true` for it and restart: its video is then converted to H.264. |
 | High CPU on the host | A camera with `"transcode": true` is converted while live, which is expensive for 3K H.265 (one to two cores). Leave `transcode` off if your NVR accepts the camera's format; otherwise lower `width`/`height` to trade detail for CPU. |
@@ -260,6 +262,7 @@ This project is MIT licensed (see [LICENSE](LICENSE)). It builds on, and the Doc
 - [ha-eufy-sdk-bridge](https://github.com/mega-yfue/ha-eufy-sdk-bridge) and
   [eufy-sdk](https://github.com/mega-yfue/eufy-sdk) by mega-yfue — Apache-2.0
 - [go2rtc](https://github.com/AlexxIT/go2rtc) by AlexxIT — MIT
-- [FFmpeg](https://ffmpeg.org) with x264 (Alpine packages) — LGPL/GPL
+- [FFmpeg](https://ffmpeg.org) with x264 and x265 (Alpine packages) — LGPL/GPL
+- [Inter](https://github.com/rsms/inter) typeface by Rasmus Andersson — SIL Open Font License 1.1
 
 See [NOTICE.md](NOTICE.md). Not affiliated with Anker, eufy or any NVR vendor.

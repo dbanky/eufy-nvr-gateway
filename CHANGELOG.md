@@ -13,6 +13,9 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
   a live 3K H.265 camera needs a few percent of a CPU core instead of up to two. If your NVR shows no
   picture for a camera (some NVRs don't accept H.265), set `"transcode": true` for it to convert its
   video to H.264 as before.
+- Docs follow the new default throughout: what passing through and converting each mean for
+  resolution, frame rate, bitrate and quality, and what to do if an NVR can't handle a camera's
+  format or its size changes. NOTICE lists x265.
 
 ### Added
 
