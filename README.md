@@ -298,7 +298,6 @@ and the web page can use HTTPS:
 Notes:
 
 - **One login for the streams**, because UniFi Protect opens the RTSP stream with the ONVIF login.
-  The old `onvif.username` / `onvif.password` (0.4.0-beta.1) still work; the log asks you to move them.
 - At startup the log either confirms *Every web page, API, stream and ONVIF camera asks for a login*
   or names what is still open, with the setting that closes it.
 - Always closed: the eufy bridge listens inside the container only (its raw camera streams would keep
