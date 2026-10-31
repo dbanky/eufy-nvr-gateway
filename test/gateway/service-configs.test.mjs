@@ -55,6 +55,13 @@ describe('switcher', () => {
       { username: 'protect', password: 'secret' });
   });
 
+  test('gets the web page login and the update check setting', () => {
+    const config = switcherConfig({ ...settings, web: { username: 'admin', password: 'secret' }, checkForUpdates: false }, '/data');
+    assert.deepEqual(config.web, { username: 'admin', password: 'secret' });
+    assert.equal(config.checkForUpdates, false);
+    assert.equal(switcherConfig(settings, '/data').checkForUpdates, true);
+  });
+
   test('reaches the bridge and go2rtc on localhost', () => {
     const config = switcherConfig(settings, '/data');
     assert.equal(config.bridgeWs, 'ws://127.0.0.1:3000/ws');

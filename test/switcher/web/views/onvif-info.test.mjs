@@ -1,0 +1,50 @@
+import { test, describe } from 'node:test';
+import assert from 'node:assert/strict';
+import { onvifDetailsHtml, ago } from '../../../../src/switcher/web/static/onvif-info.js';
+
+const onvif = (over = {}) => ({
+  address: '192.168.1.51', port: 8000, mac: '02:00:00:00:00:01',
+  deviceService: 'http://192.168.1.51:8000/onvif/device_service', login: true,
+  discovery: { listening: true, error: null, uuid: 'urn:uuid:5f0c2a2e-0000-4000-8000-000000000001', name: 'garden', hardware: 'T8170' },
+  subscriptions: 1, lastContact: { secondsAgo: 4, from: '192.168.1.1', op: 'PullMessages' },
+  ...over,
+});
+
+describe('a camera\'s ONVIF details', () => {
+  test('where NVRs reach it: the device address to copy, IP, port and MAC', () => {
+    const html = onvifDetailsHtml(onvif(), 'garden');
+    assert.match(html, /value="http:\/\/192\.168\.1\.51:8000\/onvif\/device_service"/);
+    assert.match(html, /data-copy="http:\/\/192\.168\.1\.51:8000\/onvif\/device_service"/);
+    assert.match(html, /192\.168\.1\.51 · port 8000 · MAC 02:00:00:00:00:01/);
+  });
+
+  test('what discovery tells NVRs: name, model and UUID', () => {
+    const html = onvifDetailsHtml(onvif(), 'garden');
+    assert.match(html, /On · NVRs find it by themselves/);
+    assert.match(html, /as “garden” · T8170 · <code>urn:uuid:5f0c2a2e-0000-4000-8000-000000000001<\/code>/);
+  });
+
+  test('discovery that couldn\'t start says why', () => {
+    assert.match(onvifDetailsHtml(onvif({ discovery: { ...onvif().discovery, listening: false, error: 'bind EADDRINUSE' } })), /Off: bind EADDRINUSE/);
+  });
+
+  test('whether a login is required, never the password itself', () => {
+    assert.match(onvifDetailsHtml(onvif()), /Required/);
+    assert.match(onvifDetailsHtml(onvif({ login: false })), /None: anyone on the LAN can adopt it/);
+  });
+
+  test('whether an NVR talks to it', () => {
+    assert.match(onvifDetailsHtml(onvif()), /Last request 4 s ago from 192\.168\.1\.1 \(PullMessages\) · 1 motion event subscription</);
+    assert.match(onvifDetailsHtml(onvif({ lastContact: null, subscriptions: 0 })), /No NVR has connected yet/);
+  });
+
+  test('a camera that isn\'t published says so, and how to publish it', () => {
+    const html = onvifDetailsHtml(null, 'garden');
+    assert.match(html, /Not published as an ONVIF device/);
+    assert.match(html, /docs\/onvif\.md/);
+  });
+});
+
+test('times ago, in the largest whole unit', () => {
+  assert.deepEqual([ago(4), ago(300), ago(7300), ago(200000)], ['4 s ago', '5 min ago', '2 h ago', '2 d ago']);
+});

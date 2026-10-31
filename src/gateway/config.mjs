@@ -43,16 +43,18 @@ export function resolveSettings(cfg, env) {
     timeZone: env.TZ || cfg.timezone || 'UTC',
     cameras: validateCameras(cfg),
     bridgeEnv: cfg.bridge?.env ?? {},
-    onvif: onvifLogin(cfg.onvif),
+    onvif: login(cfg.onvif, 'onvif', 'the login your NVR uses for the ONVIF cameras'),
+    web: login(cfg.web, 'web', 'the login for the web page'),
+    checkForUpdates: cfg.checkForUpdates !== false,
   };
 }
 
-// The login NVRs use for the ONVIF cameras: both or neither.
-function onvifLogin(onvif) {
-  if (!onvif?.username && !onvif?.password) return null;
-  if (!onvif.username) throw new Error('"onvif.username" is missing (the login your NVR uses for the ONVIF cameras)');
-  if (!onvif.password) throw new Error('"onvif.password" is missing (the login your NVR uses for the ONVIF cameras)');
-  return { username: String(onvif.username), password: String(onvif.password) };
+// A { username, password } section: both or neither (null).
+function login(section, key, what) {
+  if (!section?.username && !section?.password) return null;
+  if (!section.username) throw new Error(`"${key}.username" is missing (${what})`);
+  if (!section.password) throw new Error(`"${key}.password" is missing (${what})`);
+  return { username: String(section.username), password: String(section.password) };
 }
 
 // A camera's ONVIF section: its own IPv4 address on the LAN (one per camera), an optional port and MAC.

@@ -9,7 +9,7 @@ so the NVR can record only while the camera is awake.
 |---|---|
 | Device | Manufacturer `eufy`, the camera's model and serial, one stream profile |
 | Stream | The gateway's RTSP stream of that camera — H.264, or the camera's own H.265 when passed through |
-| Snapshot | The web page's snapshot of what the stream shows |
+| Snapshot | What the stream shows, as a JPEG on the camera's ONVIF port (`/onvif/snapshot.jpg`) — reachable even when the web page has a login |
 | Motion | `true` while the camera is waking up or live, `false` when it sleeps (ONVIF PullPoint events, topics `RuleEngine/CellMotionDetector/Motion` and `VideoSource/MotionAlarm`) |
 | Discovery | WS-Discovery (UDP 3702), so the NVR can find the cameras by itself |
 
@@ -61,6 +61,11 @@ In `config.json`, the login your NVR will use, and an `onvif` section for every 
 Restart the container. The log shows `ONVIF device on http://192.168.1.51:8000/onvif/device_service`
 for every published camera.
 
+The web page shows it too, under each camera's *Stream details*: the device address (to copy), IP,
+port and MAC, whether a login is required, what discovery tells NVRs (name, model, UUID) and whether
+an NVR is talking to the camera (its address, last request and motion-event subscriptions). Cameras
+without an `onvif` section are marked *RTSP only*.
+
 ## 3. Adopt them in the NVR
 
 UniFi Protect: *Settings → System → Discover Third-Party Cameras*, then adopt each camera with the
@@ -78,4 +83,4 @@ while a camera is awake.
 - **The first seconds of an event are missing** from recordings: the camera needs 3–8 seconds to
   wake (longer from deep sleep), and only then is there live video.
 - **The doorbell is a plain camera** in Protect: no ring event, no chime, no audio.
-- The RTSP stream itself has no login; keep the gateway on your LAN.
+- The RTSP stream and the snapshot have no login (like most cameras); keep the gateway on your LAN.

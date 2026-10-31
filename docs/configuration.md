@@ -23,7 +23,9 @@ Environment variables win over `config.json`.
 | `cameras` | `[]` | The cameras to publish (below) |
 | `defaults` | `{}` | Any camera setting, applied to every camera unless the camera sets it itself |
 | `ports` | see below | Network ports |
+| `web` | — | A login for the web page and API: `{ "username", "password" }`. Browsers get a sign-in page, scripts send HTTP Basic. Without it, anyone on the LAN can use the page |
 | `onvif` | — | The login NVRs use for ONVIF cameras: `{ "username", "password" }` ([onvif.md](onvif.md)) |
+| `checkForUpdates` | `true` | Ask GitHub for new releases every 6 h and show them on the web page. `false`: no request leaves the gateway |
 | `bridge.env` | `{}` | Extra environment variables for the bridge (see the [bridge docs](https://github.com/mega-yfue/ha-eufy-sdk-bridge)) |
 
 ## Cameras

@@ -29,7 +29,9 @@ export function probeMatch(message, device) {
 }
 
 // Listens for probes and answers for every device, each from its own address.
+// Returns { state, stop }: state.listening / state.error say whether NVRs can find the devices.
 export function startDiscovery(devices, log) {
+  const state = { listening: false, error: null };
   const listener = dgram.createSocket({ type: 'udp4', reuseAddr: true });
   const senders = new Map();   // device -> socket bound to its address
   for (const device of devices) {
@@ -44,18 +46,25 @@ export function startDiscovery(devices, log) {
       if (answer) sender.send(answer, from.port, from.address);
     }
   });
-  listener.on('error', (e) => log(`ONVIF discovery: ${e.message}`));
+  listener.on('error', (e) => {
+    Object.assign(state, { listening: false, error: e.message });
+    log(`ONVIF discovery: ${e.message}`);
+  });
   listener.bind(PORT, () => {
+    const problems = [];
     for (const address of new Set(devices.map((d) => d.address))) {
       try {
         listener.addMembership(GROUP, address);
       } catch (e) {
+        problems.push(`${address}: ${e.message}`);
         log(`ONVIF discovery: can't listen on ${address}: ${e.message}`);
       }
     }
+    Object.assign(state, { listening: true, error: problems.join('; ') || null });
   });
-  return () => {
+  const stop = () => {
     listener.close();
     for (const sender of senders.values()) sender.close();
   };
+  return { state, stop };
 }

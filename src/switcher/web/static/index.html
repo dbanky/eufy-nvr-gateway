@@ -3,17 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
   <title>Eufy NVR Gateway</title>
+  <script src="theme.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top">
-  <h1>Eufy NVR Gateway</h1>
-  <div id="connection" aria-live="polite"><span class="pill wait"><span class="dot"></span>Connecting…</span></div>
+  <div class="brand"><span class="brand-mark" id="brandMark"></span><h1>Eufy NVR Gateway</h1></div>
+  <div class="top-actions">
+    <span id="updatePill"></span>
+    <div id="connection" aria-live="polite"><span class="pill wait"><span class="dot"></span>Connecting…</span></div>
+    <button type="button" class="icon-button" id="theme"></button>
+    <button type="button" class="icon-button" id="signout" hidden aria-label="Sign out" title="Sign out"></button>
+  </div>
 </header>
 
 <main>
+  <div id="updateBanner"></div>
   <section id="login" class="panel login" hidden aria-labelledby="loginTitle">
     <h2 id="loginTitle">eufy login needs your attention</h2>
     <p class="muted" id="loginText"></p>
@@ -43,6 +50,7 @@
     </div>
   </details>
 </main>
+<footer class="foot" id="footer"></footer>
 <script type="module" src="app.js"></script>
 </body>
 </html>

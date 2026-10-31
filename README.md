@@ -52,8 +52,9 @@ flowchart LR
   published as an ONVIF device with motion events, pointing at the same stream (nothing is encoded
   twice). See [docs/onvif.md](docs/onvif.md).
 - **Web page** for the eufy login (2FA code / captcha), live status, stream URLs, each stream's codec
-  and whether it is converted, manual *Go live* / *Stop*, and the list of devices on your account (to
-  copy serial numbers from).
+  and whether it is converted, each camera's ONVIF side (address, discovery, whether an NVR is
+  connected), manual *Wake up* / *Stop*, and the list of devices on your account (to copy serial
+  numbers from). Light and dark theme, an optional login, and a notice when a newer version is out.
 
 ## Requirements
 
@@ -105,8 +106,12 @@ The image is on Docker Hub, Container Manager's built-in registry — nothing ne
    Station), then restart the container (*Container → Action → Restart*).
 5. **Watch**: `rtsp://<nas>:8554/<camera-name>` in VLC, or add that URL to your NVR.
 
-**Updating**: download the tag again in *Registry* (it fetches the newest image), then stop the
-container and use *Action → Reset* to recreate it from the new image. The folder is kept.
+### Updating
+
+The web page tells you when a newer version is out. On a Synology, download the tag again in
+*Registry* (it fetches the newest image), then stop the container and use *Action → Reset* to
+recreate it from the new image. Elsewhere: `docker pull dbanky/eufy-nvr-gateway:latest` and recreate
+the container (`docker compose up -d`). The folder is kept: config, eufy login and pictures.
 
 ### Other Docker hosts
 
@@ -152,7 +157,8 @@ Per camera:
 | `triggers` | | Events that wake the camera. Default: `motion`, `personDetected`, `vehicleDetected`, `petDetection`, `strangerDetected`, `doorbellPress` |
 
 Top level: `timezone` (for the `since 18:33` label), `defaults` (any per-camera key, applied to all
-cameras), `ports`, `bridge`. Everything is described in
+cameras), `web` (a login for the web page), `onvif` (the login NVRs use for ONVIF), `checkForUpdates`,
+`ports`, `bridge`. Everything is described in
 [docs/configuration.md](docs/configuration.md), with a complete example in
 [`examples/config.full.example.json`](examples/config.full.example.json).
 
@@ -191,12 +197,16 @@ one (and map the new numbers instead); the ONVIF port is set per camera (`onvif.
 
 | Request | What |
 |---|---|
-| `GET /api/status` | Login state and every camera's state (`IDLE` / `WAKING` / `LIVE`), battery, last seen, and its video: codec and whether it is converted or passed through |
+| `GET /api/status` | Login state, the gateway's version and whether a newer one is out, and every camera's state (`IDLE` / `WAKING` / `LIVE`), battery, last seen, its video (codec, converted or passed through) and its ONVIF side |
+| `GET /api/health` | `{ "ok": true }`; always open (Docker's health check) |
 | `GET /api/devices` | Devices on the eufy account, with serial numbers |
 | `GET /api/cameras/<name>/snapshot.jpg` | What the stream shows right now |
 | `POST /api/cameras/<name>/live` | Wake the camera and go live (e.g. from a Home Assistant button) |
 | `POST /api/cameras/<name>/idle` | End the live session now |
 | `POST /api/login` | `{ "code": "123456" }` or `{ "captcha": "AB3D" }` |
+
+With a [`web` login](#security), send it as HTTP Basic, e.g.
+`curl -u admin:password http://<host>:8099/api/cameras/garden/live -X POST`.
 
 ## How it works
 
@@ -210,8 +220,8 @@ Details, measurements and the problems solved along the way:
 
 - **ONVIF with a real UniFi Protect console:** tested with the ONVIF client library Protect uses,
   not yet with Protect itself.
-- Ideas: show each camera's detected source resolution on the web page; optional password for the
-  web page; Home Assistant MQTT discovery for the *Go live* buttons.
+- Ideas: show each camera's detected source resolution on the web page; Home Assistant MQTT
+  discovery for the *Wake up* buttons.
 
 ## Troubleshooting
 
@@ -233,9 +243,21 @@ Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[bridge]`, `[
 
 ## Security
 
-- The web page and API have **no authentication**. Keep port 8099 on your LAN; never forward it to
-  the internet. Same for the RTSP port 8554.
+- **Web page login.** Without one, anyone on your LAN can use the web page and API. To require one:
+
+  ```json
+  "web": { "username": "admin", "password": "choose-a-password" }
+  ```
+
+  Browsers get a sign-in page (the session lasts 30 days, and changing the password signs everyone
+  out); scripts send the login as HTTP Basic. The page is served over plain HTTP, so keep port 8099
+  on your LAN and never forward it to the internet — a reverse proxy with HTTPS if you need it
+  from outside.
+- The RTSP streams (port 8554) and ONVIF snapshots have no login, as with most cameras: keep them on
+  your LAN.
 - ONVIF cameras are protected by the `onvif.username` / `onvif.password` login (if set).
+- The update check asks GitHub for the project's releases every 6 hours; nothing about your setup is
+  sent. `"checkForUpdates": false` turns it off.
 - The eufy password is passed as an environment variable and used only by the bundled bridge to log
   in to eufy. The login session is stored in `data/bridge/`.
 

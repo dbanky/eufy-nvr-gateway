@@ -32,3 +32,17 @@ describe('ONVIF (for NVRs such as UniFi Protect)', () => {
     assert.throws(() => resolveSettings({ onvif: { username: 'protect' } }, login), /"onvif.password"/);
   });
 });
+
+describe('the web page login', () => {
+  test('is optional; when set, both username and password', () => {
+    assert.equal(resolveSettings({}, login).web, null);
+    assert.deepEqual(resolveSettings({ web: { username: 'admin', password: 'secret' } }, login).web, { username: 'admin', password: 'secret' });
+    assert.throws(() => resolveSettings({ web: { username: 'admin' } }, login), /"web.password" is missing/);
+    assert.throws(() => resolveSettings({ web: { password: 'secret' } }, login), /"web.username" is missing/);
+  });
+});
+
+test('the update check is on unless "checkForUpdates" is false', () => {
+  assert.equal(resolveSettings({}, login).checkForUpdates, true);
+  assert.equal(resolveSettings({ checkForUpdates: false }, login).checkForUpdates, false);
+});

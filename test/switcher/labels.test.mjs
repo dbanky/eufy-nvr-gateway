@@ -29,8 +29,8 @@ describe('what the stream says about a camera', () => {
     assert.equal(label({ state: 'WAKING', wakeReason: 'doorbellPress', wakeAt: at('19:40') }).detail, 'Doorbell pressed · 19:40');
   });
 
-  test('live: no overlay is drawn, the web page shows until when', () => {
-    assert.deepEqual(label({ state: 'LIVE', deadline: at('19:42') }), { kind: 'live', title: 'Live', detail: 'until 19:42' });
+  test('live: no overlay is drawn, the web page shows until when, to the second', () => {
+    assert.deepEqual(label({ state: 'LIVE', deadline: at('19:42') + 35000 }), { kind: 'live', title: 'Live', detail: 'until 19:42:35' });
   });
 
   test('no picture yet on a fresh install', () => {

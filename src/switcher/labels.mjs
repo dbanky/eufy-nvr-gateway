@@ -18,7 +18,8 @@ const isDoorbell = (model) => /^T82/.test(model ?? '');
 // offline: null, or 'login' / 'connection' when eufy events can't arrive
 // The checks run in order of importance: the first that applies wins.
 export function viewFor(cam, { offline, now, time }) {
-  if (cam.state === 'LIVE') return { kind: 'live', title: 'Live', detail: `until ${time.hm(cam.deadline)}` };
+  // The live hold is counted in seconds (30 s after the last detection), so its end shows them too.
+  if (cam.state === 'LIVE') return { kind: 'live', title: 'Live', detail: `until ${time.hms(cam.deadline)}` };
   if (cam.state === 'WAKING') {
     return { kind: 'waking', title: 'Waking up', detail: `${WAKE_REASONS[cam.wakeReason] ?? 'Waking'} · ${time.hm(cam.wakeAt)}` };
   }

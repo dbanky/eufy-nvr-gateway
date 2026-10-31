@@ -23,8 +23,8 @@ describe('the media service', () => {
     assert.match(answer('GetStreamUri'), /<tt:Uri>rtsp:\/\/192\.168\.1\.51:8554\/garden<\/tt:Uri>/);
   });
 
-  test('the snapshot is the web page\'s snapshot', () => {
-    assert.match(answer('GetSnapshotUri'), /<tt:Uri>http:\/\/192\.168\.1\.51:8099\/api\/cameras\/garden\/snapshot\.jpg<\/tt:Uri>/);
+  test('the snapshot is served on the camera\'s ONVIF port', () => {
+    assert.match(answer('GetSnapshotUri'), /<tt:Uri>http:\/\/192\.168\.1\.51:8000\/onvif\/snapshot\.jpg<\/tt:Uri>/);
   });
 
   test('the encoding says what the stream really is: H.264, or H.265 when the camera\'s own is passed through', () => {

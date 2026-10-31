@@ -7,8 +7,27 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Added
+
+- **Login for the web page** (optional): `"web": { "username", "password" }` in `config.json`.
+  Browsers get a sign-in page and a 30-day session; scripts send HTTP Basic. `/api/health` stays
+  open for Docker's health check.
+- **Light and dark theme**: follows the system until you pick one with the header's switch (the
+  choice is remembered in that browser).
+- **Version and updates**: the footer shows the version and links the GitHub project; when a newer
+  release is out (or a newer beta, for someone on a beta), a banner and a header reminder say so,
+  with what's new and how to update. `"checkForUpdates": false` turns the check off.
+- **ONVIF on the web page**: each camera's details say whether it is published as an ONVIF device
+  (*ONVIF* / *RTSP only*), its device address, IP, port and MAC, whether a login is required (never
+  the password), what discovery tells NVRs (name, model, UUID), and whether an NVR is talking to it.
+
 ### Changed
 
+- **All camera tiles are the same size.** The picture area is 16:9 for every camera; a camera of
+  another shape (a 4:3 doorbell) is shown whole over a blurred copy of itself.
+- *Live until* shows seconds (`until 19:42:35`): the live hold is counted in seconds.
+- The ONVIF snapshot is served on the camera's ONVIF port (`/onvif/snapshot.jpg`), so it stays
+  reachable for NVRs when the web page has a login.
 - README: which ports to map when the container uses a `bridge` network instead of `host`
   (`8099` and `8554` TCP), and that ONVIF (`8000` TCP, `3702` UDP) needs host networking.
 

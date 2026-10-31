@@ -19,7 +19,7 @@ export function go2rtcYaml({ ports, cameras }) {
 }
 
 // What the switcher process reads (it never sees the user's config.json directly).
-export function switcherConfig({ ports, timeZone, cameras, onvif = null }, dataDir) {
+export function switcherConfig({ ports, timeZone, cameras, onvif = null, web = null, checkForUpdates = true }, dataDir) {
   return {
     bridgeWs: `ws://127.0.0.1:${ports.bridge}/ws`,
     bridgeHttp: `http://127.0.0.1:${ports.bridge}`,
@@ -30,6 +30,8 @@ export function switcherConfig({ ports, timeZone, cameras, onvif = null }, dataD
     timeZone,
     cameras,
     onvif,   // the ONVIF login, if any; cameras carry their own onvif address
+    web,     // the web page's login, if any
+    checkForUpdates,
   };
 }
 

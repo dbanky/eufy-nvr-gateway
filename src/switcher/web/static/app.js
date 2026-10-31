@@ -6,9 +6,20 @@ import { tileHtml, tileStatusHtml, tileDetailsHtml } from './camera-tile.js';
 import { connectionHtml } from './connection.js';
 import { devicesSummary, devicesRowsHtml } from './devices.js';
 import { showLogin, bindLogin } from './login.js';
+import { showGateway } from './update.js';
+import { bindThemeToggle } from './theme-toggle.js';
+import { icon } from './icons.js';
 
 const $ = (id) => document.getElementById(id);
-const getJson = async (url, options) => (await fetch(url, options)).json();
+// A 401 means the session ended (or the login changed): back to the sign-in page.
+const getJson = async (url, options) => {
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    location.replace('signin.html');
+    throw new Error('signed out');
+  }
+  return res.json();
+};
 const where = (status) => ({ host: location.hostname, rtspPort: status.rtspPort });
 
 let builtFor = '';
@@ -25,6 +36,8 @@ async function refresh() {
   cameras = status.cameras;
   $('connection').innerHTML = connectionHtml(status.bridge);
   showLogin(status.bridge);
+  showGateway(status.gateway ?? {});
+  $('signout').hidden = !status.gateway?.login;
   showCameras(status);
   if (status.bridge.connected && status.bridge.login === 'ok') showDevices(await getJson('api/devices'), status);
 }
@@ -45,7 +58,6 @@ function showCameras(status) {
   }
 }
 
-
 function showDevices(devices, status) {
   $('devicesSummary').textContent = devicesSummary(devices);
   $('devices').innerHTML = devicesRowsHtml(devices);
@@ -59,8 +71,8 @@ function refreshSnapshots() {
   for (const c of cameras) {
     const live = c.state === 'LIVE' || c.state === 'WAKING';
     if (!live && tick % 5) continue;
-    const img = $('cam-' + c.name)?.querySelector('img');
-    if (img) img.src = img.src.replace(/t=\d+/, 't=' + Date.now());
+    const t = 't=' + Date.now();
+    for (const img of $('cam-' + c.name)?.querySelectorAll('img') ?? []) img.src = img.src.replace(/t=\d+/, t);
   }
 }
 
@@ -90,6 +102,13 @@ async function copy(button) {
 
 $('devicesPanel').addEventListener('toggle', () => { $('devicesPanel').dataset.touched = '1'; });
 
+$('signout').innerHTML = icon('signout');
+$('signout').addEventListener('click', async () => {
+  await fetch('api/signout', { method: 'POST' });
+  location.replace('signin.html');
+});
+$('brandMark').innerHTML = icon('asleep');
+bindThemeToggle($('theme'));
 bindLogin(refresh);
 refresh();
 setInterval(refresh, 3000);

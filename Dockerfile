@@ -47,6 +47,6 @@ ENV DATA_DIR=/data
 VOLUME ["/data"]
 EXPOSE 8099 8554
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
-  CMD wget -q -O /dev/null "http://127.0.0.1:${WEB_PORT:-8099}/api/status" || exit 1
+  CMD wget -q -O /dev/null "http://127.0.0.1:${WEB_PORT:-8099}/api/health" || exit 1
 
 CMD ["node", "/app/src/main.mjs"]

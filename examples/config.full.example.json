@@ -3,7 +3,11 @@
 
   "eufy": { "country": "GB" },
 
-  "onvif": { "username": "protect", "password": "choose-a-password" },
+  "web": { "username": "admin", "password": "choose-a-password" },
+
+  "onvif": { "username": "protect", "password": "choose-another-password" },
+
+  "checkForUpdates": true,
 
   "ports": {
     "web": 8099,

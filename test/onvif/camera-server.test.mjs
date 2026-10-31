@@ -7,8 +7,10 @@ import { device } from './fixtures.mjs';
 
 const credentials = { username: 'protect', password: 'secret' };
 let server, base;
+const contact = {};
 before(async () => {
-  server = createCameraServer({ device: device(), events: new MotionEvents({ baseUrl: 'http://x' }), credentials, log: () => {} });
+  server = createCameraServer({ device: device(), events: new MotionEvents({ baseUrl: 'http://x' }), credentials, log: () => {}, contact,
+    snapshot: async () => Buffer.from('jpeg') });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
 });
@@ -45,6 +47,20 @@ describe('an ONVIF camera endpoint', () => {
   test('unknown operations get a SOAP fault, not plain text', async () => {
     const res = await soap('/onvif/device_service', '<SystemReboot/>', security());
     assert.match(await res.text(), /ter:ActionNotSupported/);
+  });
+
+  test('serves the snapshot as a JPEG, like the RTSP stream without a login', async () => {
+    const res = await fetch(`${base}/onvif/snapshot.jpg`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('content-type'), 'image/jpeg');
+    assert.equal(await res.text(), 'jpeg');
+  });
+
+  test('remembers the last request (when, from where, what), so the web page can show an NVR talks to it', async () => {
+    await soap('/onvif/device_service', '<GetSystemDateAndTime/>');
+    assert.equal(contact.from, '127.0.0.1');
+    assert.equal(contact.op, 'GetSystemDateAndTime');
+    assert.ok(Date.now() - contact.at < 5000);
   });
 
   test('event subscriptions are served at their own address', async () => {

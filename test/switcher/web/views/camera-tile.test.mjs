@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { tileHtml, tileStatusHtml, tileDetailsHtml, aspectRatio } from '../../../../src/switcher/web/static/camera-tile.js';
+import { tileHtml, tileStatusHtml, tileDetailsHtml } from '../../../../src/switcher/web/static/camera-tile.js';
 
 const camera = (over = {}) => ({
   name: 'garden', state: 'IDLE', battery: 86, resolution: '2880x1616',
@@ -11,9 +11,23 @@ const camera = (over = {}) => ({
 const where = { host: '192.168.1.10', rtspPort: 8554 };
 
 describe('a camera tile', () => {
-  test('is mostly picture, in the camera\'s own shape (no letterboxing)', () => {
-    assert.equal(aspectRatio('2880x1616'), '2880 / 1616');
-    assert.match(tileHtml(camera(), where), /aspect-ratio: 2880 \/ 1616/);
+  test('every tile has the same picture area, whatever the camera\'s shape (rows line up)', () => {
+    const a = tileHtml(camera(), where), b = tileHtml(camera({ resolution: '2048x1536' }), where);
+    assert.doesNotMatch(a, /aspect-ratio/, 'the size comes from the stylesheet, not the camera');
+    assert.equal(a.match(/<div class="tile-media">/g).length, 1);
+    assert.equal(b.match(/<div class="tile-media">/g).length, 1);
+  });
+
+  test('shows the whole picture over a blurred copy of itself, downloaded once', () => {
+    const html = tileHtml(camera(), where);
+    const [backdrop, picture] = [/class="backdrop"[^>]*src="([^"]+)"/, /class="picture"[^>]*src="([^"]+)"/].map((r) => r.exec(html)[1]);
+    assert.equal(backdrop, picture);
+    assert.match(html, /class="backdrop" alt="" aria-hidden="true"/);
+  });
+
+  test('says on the details line whether the camera is published as ONVIF', () => {
+    assert.match(tileHtml(camera({ onvif: { address: '192.168.1.51' } }), where), /<summary>Stream details <span class="tag onvif">ONVIF<\/span>/);
+    assert.match(tileHtml(camera({ onvif: null }), where), /<span class="tag">RTSP only<\/span>/);
   });
 
   test('puts the camera name on the picture', () => {
@@ -45,7 +59,7 @@ describe('the status line under the picture', () => {
   });
 
   test('…or stop a live one', () => {
-    const html = tileStatusHtml(camera({ state: 'LIVE', display: { kind: 'live', title: 'Live', detail: 'until 12:31' } }));
+    const html = tileStatusHtml(camera({ state: 'LIVE', display: { kind: 'live', title: 'Live', detail: 'until 12:31:05' } }));
     assert.match(html, /data-act="idle"[^>]*>Stop</);
     assert.doesNotMatch(html, /data-act="live"/);
   });
