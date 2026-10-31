@@ -1,4 +1,4 @@
-# Eufy NVR Gateway
+# <img src="https://raw.githubusercontent.com/dbanky/eufy-nvr-gateway/main/docs/logo.png" alt="" width="48" height="48" align="absmiddle"> Eufy NVR Gateway
 
 [![Docker Hub](https://img.shields.io/docker/v/dbanky/eufy-nvr-gateway?sort=semver&label=Docker%20Hub)](https://hub.docker.com/r/dbanky/eufy-nvr-gateway)
 [![Image size](https://img.shields.io/docker/image-size/dbanky/eufy-nvr-gateway?sort=semver)](https://hub.docker.com/r/dbanky/eufy-nvr-gateway/tags)

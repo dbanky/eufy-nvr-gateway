@@ -7,6 +7,11 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Changed
+
+- The README shows the logo next to the title (`docs/logo.png`, rendered from the web page's
+  `logo.svg`, so Docker Hub shows it too).
+
 ## [0.4.0-beta.4] - 2026-10-31
 
 Pre-release for testing: a loud warning when ONVIF can't work because the container isn't on host
