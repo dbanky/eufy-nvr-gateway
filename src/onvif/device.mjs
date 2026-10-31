@@ -46,7 +46,7 @@ export function deviceResponse(op, device, now = Date.now()) {
         + '</tds:Capabilities></tds:GetCapabilitiesResponse>';
     case 'GetServiceCapabilities':
       return '<tds:GetServiceCapabilitiesResponse><tds:Capabilities><tds:Network IPFilter="false" ZeroConfiguration="false" IPVersion6="false" DynDNS="false"/>'
-        + '<tds:Security UsernameToken="true" HttpDigest="false"/><tds:System DiscoveryResolve="true" DiscoveryBye="false" RemoteDiscovery="false" SystemBackup="false" SystemLogging="false" FirmwareUpgrade="false"/>'
+        + '<tds:Security UsernameToken="true" HttpDigest="false"/><tds:System DiscoveryResolve="false" DiscoveryBye="false" RemoteDiscovery="false" SystemBackup="false" SystemLogging="false" FirmwareUpgrade="false"/>'
         + '</tds:Capabilities></tds:GetServiceCapabilitiesResponse>';
     case 'GetDeviceInformation':
       return `<tds:GetDeviceInformationResponse><tds:Manufacturer>${x(device.manufacturer)}</tds:Manufacturer><tds:Model>${x(device.model)}</tds:Model>`
@@ -67,7 +67,7 @@ export function deviceResponse(op, device, now = Date.now()) {
     case 'GetDNS': return '<tds:GetDNSResponse><tds:DNSInformation><tt:FromDHCP>false</tt:FromDHCP></tds:DNSInformation></tds:GetDNSResponse>';
     case 'GetNTP': return '<tds:GetNTPResponse><tds:NTPInformation><tt:FromDHCP>false</tt:FromDHCP></tds:NTPInformation></tds:GetNTPResponse>';
     case 'GetNetworkDefaultGateway': return '<tds:GetNetworkDefaultGatewayResponse><tds:NetworkGateway/></tds:GetNetworkDefaultGatewayResponse>';
-    case 'GetDiscoveryMode': return '<tds:GetDiscoveryModeResponse><tds:DiscoveryMode>Discoverable</tds:DiscoveryMode></tds:GetDiscoveryModeResponse>';
+    case 'GetDiscoveryMode': return '<tds:GetDiscoveryModeResponse><tds:DiscoveryMode>NonDiscoverable</tds:DiscoveryMode></tds:GetDiscoveryModeResponse>';
     case 'GetRelayOutputs': return '<tds:GetRelayOutputsResponse/>';
     case 'GetUsers': return '<tds:GetUsersResponse/>';
     default: return null;

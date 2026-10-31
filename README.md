@@ -34,7 +34,7 @@ flowchart LR
     web["web page + API"]
   end
   go2rtc -- "RTSP :8554" --> nvr["NVR · VLC · Home Assistant"]
-  onvif -- "ONVIF :8000<br>discovery · motion events" --> protect["UniFi Protect"]
+  onvif -- "ONVIF :8000<br>motion events" --> protect["UniFi Protect"]
   protect -- "RTSP :8554" --> go2rtc
   browser["your browser"] -- "HTTP(S) :8099" --> web
 ```
@@ -45,7 +45,7 @@ flowchart LR
 - [Setup in five steps](#setup-in-five-steps) · [Updating](#updating)
 - [The eufy account and its two-factor login](#the-eufy-account-and-its-two-factor-login)
 - [Configuration](#configuration) · [Security](#security) · [Ports](#ports) · [API](#api)
-- [UniFi Protect and ONVIF](docs/onvif.md) · [How it works](docs/how-it-works.md) ·
+- [UniFi Protect](docs/unifi-protect.md) · [ONVIF](docs/onvif.md) · [How it works](docs/how-it-works.md) ·
   [Troubleshooting](#troubleshooting)
 
 ## Features
@@ -55,8 +55,9 @@ flowchart LR
 - **Battery-friendly by design.** A camera only streams during an event; the raw camera stream is
   never reachable from the network, so nothing can keep a camera awake by accident.
 - **RTSP and ONVIF.** Any NVR reads the RTSP streams; NVRs that only adopt ONVIF cameras (UniFi
-  Protect) get one ONVIF device per camera, with WS-Discovery and motion events, pointing at the same
-  stream — nothing is encoded twice. See [docs/onvif.md](docs/onvif.md).
+  Protect) get one ONVIF device per camera, with motion events, pointing at the same stream —
+  nothing is encoded twice. See [the UniFi Protect guide](docs/unifi-protect.md) and
+  [docs/onvif.md](docs/onvif.md).
 - **Full resolution and quality.** By default the camera's own video reaches the NVR unchanged (e.g.
   2880×1616 for a 3K SoloCam). Converted video keeps that size, at SSIM 0.993–0.997 against the
   camera's own stream.
@@ -68,7 +69,7 @@ flowchart LR
 - **Clear states on the stream.** Sleeping, waking up, low battery, didn't wake up, offline: each
   has its own icon and a short label, readable even in a small NVR tile. Live video stays clean.
 - **Web page** for the eufy login (2FA code / captcha), each camera's state, battery, stream and
-  ONVIF details (address, discovery, whether an NVR is connected), *Wake up* / *Stop*, and the
+  ONVIF details (address, login, whether an NVR is connected), *Wake up* / *Stop*, and the
   devices on your account. Light or dark, and it tells you when a newer version is out.
 - **Locked down if you want it.** Optional logins for the web page and for the streams (RTSP and
   ONVIF), HTTPS for the web page, and RTSP off the network entirely. At startup the log names
@@ -167,8 +168,9 @@ number. Create `config.json` in the folder from step 2 (e.g. with File Station o
 
 - **Any NVR or player:** `rtsp://<host>:8554/<camera-name>`, e.g. `rtsp://192.168.1.10:8554/garden`.
   Each tile's *Stream details* has the address to copy.
-- **UniFi Protect:** publish the cameras as ONVIF devices and adopt them — follow
-  [docs/onvif.md](docs/onvif.md).
+- **UniFi Protect:** publish the cameras as ONVIF devices and add them with *Advanced Adoption*
+  (Protect doesn't discover them by itself). For H.265 cameras, set *Stream Compatibility Mode* to
+  *Improved*. Step by step: [docs/unifi-protect.md](docs/unifi-protect.md).
 
 Then, optionally, [lock it down](#security): a login for the page, one for the streams (RTSP and ONVIF), and HTTPS.
 
@@ -301,8 +303,7 @@ Notes:
 - At startup the log either confirms *Every web page, API, stream and ONVIF camera asks for a login*
   or names what is still open, with the setting that closes it.
 - Always closed: the eufy bridge listens inside the container only (its raw camera streams would keep
-  cameras awake), and go2rtc's web UI, API, WebRTC and RTMP are off. ONVIF discovery (UDP 3702)
-  answers with names and addresses only.
+  cameras awake), and go2rtc's web UI, API, WebRTC and RTMP are off.
 - `/api/health` stays open (it says `{ "ok": true }` and nothing else) for Docker's health check.
 - Keep the gateway on your LAN; never forward its ports to the internet. To reach it from outside,
   use a VPN.
@@ -322,11 +323,10 @@ mapped. With a `bridge` network, map these from the host to the same port in the
 | `8099` | TCP | Web page and API (HTTP, or HTTPS with `"web.https": true`) | yes |
 | `8554` | TCP | RTSP streams — `rtsp://<host>:8554/<name>` | yes |
 | `8000` | TCP | ONVIF, only on the addresses of cameras published as ONVIF devices ([docs/onvif.md](docs/onvif.md)); one port per camera (`onvif.port`) | — ONVIF needs host networking |
-| `3702` | UDP | ONVIF discovery, only when cameras are published as ONVIF devices | — ONVIF needs host networking |
 
 ONVIF works only with host networking: each camera's ONVIF device listens on its own LAN address
-(`onvif.address`), which a container on a `bridge` network doesn't have, and discovery is multicast,
-which a bridge doesn't pass on. Mapping `8000` or `3702` on a bridge network therefore doesn't help,
+(`onvif.address`), which a container on a `bridge` network doesn't have. Mapping `8000` on a bridge
+network therefore doesn't help,
 so the image doesn't offer them in the NAS's port wizard. If ONVIF cameras are configured on a bridge
 network, the log says so in a `WARNING` framed with `!!!`, and the web page shows a red banner
 until the container is switched to host networking.
@@ -360,8 +360,6 @@ Details, measurements and the problems solved along the way:
 
 ## Roadmap
 
-- **ONVIF with a real UniFi Protect console:** tested with the ONVIF client library Protect uses,
-  not yet with Protect itself.
 - Ideas: show each camera's detected source resolution on the web page; Home Assistant MQTT
   discovery for the *Wake up* buttons.
 
@@ -384,7 +382,8 @@ Details, measurements and the problems solved along the way:
 | High CPU on the host | A camera with `"transcode": true` is converted while live, which is expensive for 3K H.265 (one to two cores). Leave `transcode` off if your NVR accepts the camera's format; otherwise lower `width`/`height` to trade detail for CPU. |
 | Port already in use | Change it under `"ports"` in `config.json`. |
 | Red banner *ONVIF can't work: switch the container to host networking* | The container is on a bridge network. Synology Container Manager: stop the container → *Edit* → *Network*: `host`; Compose: `network_mode: host`. Port mappings aren't needed then. |
-| ONVIF cameras aren't found by the NVR | See [docs/onvif.md](docs/onvif.md#things-to-know): host networking, one address per camera, and the host can't reach its own macvlan addresses. |
+| UniFi Protect doesn't find the cameras | Expected: add each with *Advanced Adoption* (IP address and the `rtsp` login). See [docs/unifi-protect.md](docs/unifi-protect.md). |
+| H.265 camera flickers or is black in Protect's live view | Set the camera's *Stream Compatibility Mode* to *Improved* in Protect, or `"transcode": true` for it. |
 
 Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[start]`, `[bridge]`, `[go2rtc]`
 or `[switcher]`).
@@ -407,7 +406,7 @@ behaviour:
 | `src/switcher/camera/` | One camera's states (`camera.mjs`), its live video (`live-feed.mjs`: converting or passing through) and its picture when not live (`sleeping-picture.mjs`) |
 | `src/switcher/bridge/` | The eufy bridge: the WebSocket (`socket.mjs`) and what it says (`client.mjs`: login, devices, events) |
 | `src/switcher/web/` | The JSON API (`server.mjs`), sign-in (`auth.mjs`, `signin-routes.mjs`), HTTP/HTTPS (`listen.mjs`) and the page (`static/`: pure views with node tests, plus the browser glue) |
-| `src/onvif/` | ONVIF devices: device and media services, motion events (PullPoint), WS-Discovery, logins |
+| `src/onvif/` | ONVIF devices: device and media services, motion events (PullPoint), logins |
 | `src/video/` | The never-ending stream: the publisher, what it plays next (`feed.mjs`), live encoder, decoder and pass-through, H.264/H.265 helpers |
 | `src/overlay/` | The sleeping-state picture: the design in numbers (`design.mjs`), layout, drawing, encoding it into a loop |
 | `assets/icons/` | State icons (SVG), rasterised when the image is built |

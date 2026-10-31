@@ -1,12 +1,12 @@
 // ONVIF for the gateway's cameras, so NVRs that only take ONVIF cameras (UniFi Protect) can adopt
 // them. Each camera with an `onvif` section gets its own ONVIF device on its own address: device
 // and media services pointing at the gateway's existing RTSP stream (nothing extra is encoded),
-// motion events while the camera is waking up or live, and WS-Discovery.
+// motion events while the camera is waking up or live. NVRs add the cameras by IP (UniFi Protect:
+// advanced adoption); there is no WS-Discovery, which didn't work with Protect in practice.
 
 import { createHash } from 'node:crypto';
 import { createCameraServer } from './camera-server.mjs';
 import { MotionEvents } from './events.mjs';
-import { startDiscovery } from './discovery.mjs';
 import { baseUrl } from './device.mjs';
 import { explainNetworkError } from './network.mjs';
 
@@ -35,18 +35,16 @@ export function onvifDevice(camera, { rtspPort, version }) {
   return device;
 }
 
-// What the web page shows about a published camera: where it is, what NVRs discover, who talks to it.
-// listening: { on, error } of the camera's ONVIF server; discovery: startDiscovery()'s state.
-export function onvifStatus({ device, events, contact, listening = { on: true, error: null }, discovery, credentials, now = Date.now() }) {
+// What the web page shows about a published camera: where it is, how it introduces itself to NVRs,
+// who talks to it. listening: { on, error } of the camera's ONVIF server.
+export function onvifStatus({ device, events, contact, listening = { on: true, error: null }, credentials, now = Date.now() }) {
   events.expire();
-  const found = discovery.addresses?.[device.address];   // null: on; text: why not; undefined: not tried yet
   return {
     address: device.address, port: device.port, mac: device.mac,
     deviceService: `${baseUrl(device)}/onvif/device_service`,
     listening: listening.on, error: listening.error,
     login: !!credentials,
-    discovery: { listening: discovery.listening && found === null, error: discovery.error ?? found ?? null,
-      uuid: `urn:uuid:${device.uuid}`, name: device.name, hardware: device.model },
+    identity: { uuid: `urn:uuid:${device.uuid}`, name: device.name, hardware: device.model },
     subscriptions: events.subscriptions.size,
     lastContact: contact.at ? { secondsAgo: Math.max(0, Math.round((now - contact.at) / 1000)), from: contact.from, op: contact.op } : null,
   };
@@ -88,10 +86,9 @@ export function startOnvif({ cameras, credentials, rtspPort, version, snapshot, 
     setInterval(() => events.setMotion(camera.state !== 'IDLE'), 500).unref();
     return { device, events, contact, listening };
   });
-  const discovery = startDiscovery(entries.map((e) => e.device), log).state;
   const byName = new Map(entries.map((e) => [e.device.name, e]));
   return (name) => {
     const entry = byName.get(name);
-    return entry ? onvifStatus({ ...entry, discovery, credentials }) : null;
+    return entry ? onvifStatus({ ...entry, credentials }) : null;
   };
 }

@@ -30,7 +30,6 @@ describe('network errors in plain words', () => {
 
   test('a port another program already uses', () => {
     assert.equal(explainNetworkError(error('EADDRINUSE'), where), 'port 8000 on 192.168.1.51 is already used by another program: choose another "onvif.port"');
-    assert.match(explainNetworkError(error('EADDRINUSE'), { ...where, port: 3702, udp: true }), /UDP port 3702 is already used by another program/);
   });
 
   test('anything else keeps its own message', () => {

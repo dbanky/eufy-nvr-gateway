@@ -1,4 +1,4 @@
-// A camera's ONVIF side, for the tile's details: is it published, where, what NVRs discover, and is
+// A camera's ONVIF side, for the tile's details: is it published, where, how it shows in NVRs, and is
 // an NVR talking to it. onvif (from /api/status): null, or see onvifStatus() in src/onvif/index.mjs.
 // Never shows the password, only whether there is one. Pure.
 
@@ -20,12 +20,6 @@ export const onvifTagHtml = (onvif) => (onvif ? '<span class="tag onvif">ONVIF</
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-function discoveryText(onvif, d) {
-  if (onvif.listening === false) return 'Off until the device is on the network';
-  if (d.listening && !d.error) return 'On · NVRs find it by themselves (WS-Discovery, UDP 3702)';
-  return d.error ? `Off: ${d.error}` : 'Starting…';
-}
-
 // The device couldn't listen on its address: the reason in plain words, and that it keeps trying.
 const problemHtml = (onvif) => (onvif.listening === false && onvif.error
   ? `<p class="details-problem">${icon('nowake')}<span><strong>Not on the network yet.</strong> ${esc(onvif.error)}. `
@@ -44,7 +38,7 @@ export function onvifDetailsHtml(onvif, cameraName) {
     return `<p class="details-note">Not published as an ONVIF device. NVRs that adopt only ONVIF cameras (UniFi Protect)
       need an <code>onvif</code> section for this camera in <code>config.json</code> — <a href="${DOCS}" target="_blank" rel="noopener">how</a>.</p>`;
   }
-  const d = onvif.discovery ?? {};
+  const d = onvif.identity ?? {};
   return `${problemHtml(onvif)}<dl>
     <dt>Device</dt>
     <dd class="copy-row"><input readonly value="${esc(onvif.deviceService)}" aria-label="ONVIF address of ${esc(cameraName)}">`
@@ -52,7 +46,7 @@ export function onvifDetailsHtml(onvif, cameraName) {
     <dt>Address</dt><dd>${esc(onvif.address)} · port ${esc(onvif.port)}${onvif.mac ? ` · MAC ${esc(onvif.mac)}` : ''}</dd>
     <dt>Login</dt><dd>${onvif.login ? 'Required: the RTSP login (rtsp.username / rtsp.password)'
       : `<span class="warn">${icon('nowake')}None: anyone on the LAN can adopt it</span>`}</dd>
-    <dt>Discovery</dt><dd>${esc(discoveryText(onvif, d))}<span class="sub">as “${esc(d.name)}” · ${esc(d.hardware)} · <code>${esc(d.uuid)}</code></span></dd>
+    <dt>Shows as</dt><dd>“${esc(d.name)}” · ${esc(d.hardware)}<span class="sub"><code>${esc(d.uuid)}</code></span></dd>
     <dt>NVR</dt><dd>${esc(nvrText(onvif))}</dd>
   </dl>`;
 }

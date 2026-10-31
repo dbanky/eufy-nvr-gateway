@@ -1,8 +1,7 @@
 // The machine's own addresses, and network errors in plain words for the log and the web page.
 //
-// Every ONVIF camera listens on its own address (device service, discovery). If the machine doesn't
-// have that address, Linux answers with codes that mean nothing to a user: EADDRNOTAVAIL for a
-// server, ENODEV for joining the discovery multicast group on it.
+// Every ONVIF camera listens on its own address. If the machine doesn't have that address, Linux
+// answers with a code that means nothing to a user (EADDRNOTAVAIL).
 
 import { networkInterfaces } from 'node:os';
 
@@ -21,7 +20,7 @@ const inDockerBridgeRange = (address) => {
 };
 
 // Why ONVIF can't work at all, or null. It needs host networking: each camera listens on its own
-// LAN address, and multicast discovery doesn't cross Docker's bridge (mapping UDP 3702 doesn't help).
+// LAN address, which a container on Docker's bridge doesn't have (mapping ports doesn't help).
 // Says so only when it's clear: none of the cameras' addresses are here, and the container has
 // nothing but bridge addresses. Otherwise each camera explains its own address.
 export function onvifNetworkProblem(cameraAddresses, addresses = hostAddresses()) {
@@ -29,13 +28,13 @@ export function onvifNetworkProblem(cameraAddresses, addresses = hostAddresses()
   if (!addresses.every(inDockerBridgeRange)) return null;
   return `ONVIF needs host networking, and this container is on a Docker bridge network`
     + ` (${addresses.length ? `its address: ${addresses.join(', ')}` : 'no LAN address'}): it can't listen on the cameras' own`
-    + ' addresses, and discovery probes never reach it. Switch the container\'s network to "host"'
+    + ' addresses. Switch the container\'s network to "host"'
     + ' (Synology Container Manager: stop the container, Edit, Network: host; Docker Compose: network_mode: host).'
     + ' Port mappings aren\'t needed then: every port is on the NAS directly';
 }
 
-// error: from listen/bind/addMembership. where: { address, port, udp?, addresses (the machine's) }.
-export function explainNetworkError(error, { address, port, udp = false, addresses = hostAddresses() }) {
+// error: from listen. where: { address, port, addresses (the machine's) }.
+export function explainNetworkError(error, { address, port, addresses = hostAddresses() }) {
   if (error.code === 'ENODEV' || error.code === 'EADDRNOTAVAIL') {
     if (addresses.length && addresses.every(inDockerBridgeRange)) {
       return `${address} is not an address of this container: it is on a Docker bridge network (it has ${addresses.join(', ')}). `
@@ -46,9 +45,7 @@ export function explainNetworkError(error, { address, port, udp = false, address
       + 'Give the machine this address (a second network port, or a macvlan address) and run the container with host networking';
   }
   if (error.code === 'EADDRINUSE') {
-    return udp
-      ? `UDP port ${port} is already used by another program (another ONVIF server or discovery tool on this machine)`
-      : `port ${port} on ${address} is already used by another program: choose another "onvif.port"`;
+    return `port ${port} on ${address} is already used by another program: choose another "onvif.port"`;
   }
   return error.message;
 }

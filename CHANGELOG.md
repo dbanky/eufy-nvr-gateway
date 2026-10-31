@@ -7,6 +7,18 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Added
+
+- **[UniFi Protect guide](docs/unifi-protect.md)**, from a real Protect setup: one IP per camera,
+  adding each camera with *Advanced Adoption*, and *Stream Compatibility Mode: Improved* for H.265
+  cameras that flicker or turn black in Protect's live view.
+
+### Removed
+
+- **ONVIF WS-Discovery (UDP 3702).** UniFi Protect didn't find the cameras with it in practice;
+  cameras are added by IP (*Advanced Adoption*). Port 3702 is no longer used, and the camera details
+  show how the camera appears in NVRs (*Shows as*) instead of a discovery state.
+
 ### Fixed
 
 - **No broken image while a tile's first picture is being made**: the tile shows a placeholder in
