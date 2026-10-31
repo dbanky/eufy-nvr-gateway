@@ -5,6 +5,7 @@
 import { tileHtml, tileStatusHtml, tileDetailsHtml } from './camera-tile.js';
 import { connectionHtml } from './connection.js';
 import { devicesSummary, devicesRowsHtml } from './devices.js';
+import { showLogin, bindLogin } from './login.js';
 
 const $ = (id) => document.getElementById(id);
 const getJson = async (url, options) => (await fetch(url, options)).json();
@@ -44,17 +45,6 @@ function showCameras(status) {
   }
 }
 
-function showLogin(bridge) {
-  const needsInput = bridge.login === 'require_2fa' || bridge.login === 'require_captcha';
-  $('login').hidden = !needsInput;
-  if (!needsInput) return;
-  const captcha = bridge.login === 'require_captcha';
-  $('loginText').textContent = captcha ? 'Type the characters shown in the picture.'
-    : 'eufy sent a verification code (usually by e-mail' + (bridge.method ? ': ' + bridge.method : '') + '). Enter it here.';
-  $('captcha').hidden = !bridge.captcha;
-  if (bridge.captcha) $('captcha').src = bridge.captcha;
-  $('code').dataset.kind = captcha ? 'captcha' : 'code';
-}
 
 function showDevices(devices, status) {
   $('devicesSummary').textContent = devicesSummary(devices);
@@ -100,22 +90,7 @@ async function copy(button) {
 
 $('devicesPanel').addEventListener('toggle', () => { $('devicesPanel').dataset.touched = '1'; });
 
-$('loginForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const body = { [$('code').dataset.kind || 'code']: $('code').value.trim() };
-  $('loginMsg').textContent = 'Checking…';
-  const answer = await getJson('api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  $('loginMsg').textContent = answer.ok ? 'Accepted.' : (answer.error || 'Not accepted, try again.');
-  $('code').value = '';
-  refresh();
-};
-$('retrigger').onclick = async () => {
-  $('loginMsg').textContent = 'Requesting a new code…';
-  const answer = await getJson('api/login/retrigger', { method: 'POST' });
-  $('loginMsg').textContent = answer.ok ? 'Requested.' : (answer.error || 'Failed.');
-  refresh();
-};
-
+bindLogin(refresh);
 refresh();
 setInterval(refresh, 3000);
 setInterval(refreshSnapshots, 2000);

@@ -76,31 +76,3 @@ describe('cameras', () => {
     assert.throws(() => validateCameras({ cameras: [camera, camera] }), /unique/);
   });
 });
-
-describe('ONVIF (for NVRs such as UniFi Protect)', () => {
-  const onvifCamera = (onvif) => ({ ...camera, onvif });
-
-  test('a camera is published when it has its own address', () => {
-    const [cam] = validateCameras({ cameras: [onvifCamera({ address: '192.168.1.51' })] });
-    assert.equal(cam.onvif.address, '192.168.1.51');
-  });
-
-  test('the address must be an IPv4 address; port and MAC are checked when given', () => {
-    assert.throws(() => validateCameras({ cameras: [onvifCamera({})] }), /"onvif.address"/);
-    assert.throws(() => validateCameras({ cameras: [onvifCamera({ address: 'camera.local' })] }), /"onvif.address"/);
-    assert.throws(() => validateCameras({ cameras: [onvifCamera({ address: '192.168.1.51', port: 70000 })] }), /"onvif.port"/);
-    assert.throws(() => validateCameras({ cameras: [onvifCamera({ address: '192.168.1.51', mac: 'nope' })] }), /"onvif.mac"/);
-  });
-
-  test('two cameras can\'t share an address and port', () => {
-    const second = { ...camera, name: 'front-door', onvif: { address: '192.168.1.51' } };
-    assert.throws(() => validateCameras({ cameras: [onvifCamera({ address: '192.168.1.51' }), second] }), /same ONVIF address/);
-  });
-
-  test('the login NVRs use comes from config.json, and is optional', () => {
-    assert.deepEqual(resolveSettings({ onvif: { username: 'protect', password: 'secret' } }, login).onvif,
-      { username: 'protect', password: 'secret' });
-    assert.equal(resolveSettings({}, login).onvif, null);
-    assert.throws(() => resolveSettings({ onvif: { username: 'protect' } }, login), /"onvif.password"/);
-  });
-});

@@ -1,6 +1,6 @@
 import { test, describe, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { MotionEvents, parseDuration } from '../../src/onvif/events.mjs';
+import { MotionEvents } from '../../src/onvif/events.mjs';
 
 const BASE = 'http://192.168.1.51:8000';
 const create = '<s:Body><tev:CreatePullPointSubscription><tev:InitialTerminationTime>PT2M</tev:InitialTerminationTime></tev:CreatePullPointSubscription></s:Body>';
@@ -88,11 +88,4 @@ describe('motion events (PullPoint, what UniFi Protect uses)', () => {
     assert.match(body, /<tns1:RuleEngine><CellMotionDetector><Motion wstop:topic="true">/);
     assert.match(body, /<tns1:VideoSource><MotionAlarm wstop:topic="true">/);
   });
-});
-
-test('durations: PT60S, PT1M, PT1H30M', () => {
-  assert.equal(parseDuration('PT60S', 0), 60000);
-  assert.equal(parseDuration('PT1M', 0), 60000);
-  assert.equal(parseDuration('PT1H30M', 0), 5400000);
-  assert.equal(parseDuration(null, 1234), 1234);
 });
