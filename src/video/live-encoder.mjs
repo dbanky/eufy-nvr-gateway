@@ -2,8 +2,8 @@
 // newest picture) and hands encoded frames to onFrame.
 
 import { spawnFfmpeg, rawInput } from './ffmpeg.mjs';
-import { x264Args } from './x264.mjs';
-import { FrameSplitter } from './h264.mjs';
+import { encoderArgs } from './encoder-settings.mjs';
+import { FrameSplitter } from './annexb.mjs';
 
 // Raw 3K frames are 7 MB: only write one when the picture changed, plus one per second so the
 // encoder keeps producing frames. ffmpeg repeats the last frame to a constant frame rate.
@@ -25,7 +25,7 @@ export class LiveEncoder {
     if (this.child) return;
     const { cam } = this;
     const child = spawnFfmpeg(['-use_wallclock_as_timestamps', '1', ...rawInput(cam), '-i', 'pipe:0',
-      '-fps_mode', 'cfr', '-r', String(cam.fps), ...x264Args(cam), 'pipe:1']);
+      '-fps_mode', 'cfr', '-r', String(cam.fps), ...encoderArgs(cam), 'pipe:1']);
     this.child = child;
     const splitter = new FrameSplitter((f) => this.child === child && this.onFrame(f));
     child.stdout.on('data', (c) => splitter.push(c));

@@ -7,6 +7,14 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Added
+
+- **`transcode: false` per camera:** pass the camera's own H.264 or H.265 through instead of
+  converting it. A live 3K H.265 camera then needs ~5 % of a CPU core instead of ~60 % (up to two
+  cores on a small NAS), in the camera's original quality. The NVR must accept the camera's format.
+  The first live session is still converted, to learn the format; the sleeping picture then uses it
+  too. Default: `true` (convert, as before).
+
 ### Changed
 
 - **Less CPU while a camera is live:** the encoder uses a cheaper motion search, ~30 % less encoder

@@ -40,6 +40,18 @@ There is no "motion ended" event, so "no more motion" means "no new detection fo
 seconds by default; 2 minutes after a doorbell press). Every detection while live pushes the end back;
 the session ends 30 seconds after the last one. An optional `maxLiveMs` caps a session for places where motion never stops.
 
+## Converting or passing through
+
+By default live video is converted: decoded, then encoded again as H.264 with the same settings as the
+sleeping loops, so the two splice seamlessly. With `transcode: false` a camera's own H.264 or H.265 is
+passed through instead, and its sleeping loops are encoded in the same format. A side output decodes
+only the camera's keyframes into JPEGs, for snapshots and for the next sleeping picture. On a 3K H.265
+camera this takes a live session from ~60 % of a core (converting) to ~5 %.
+
+Splicing someone else's stream needs care: every frame must start with exactly one access unit
+delimiter, and every keyframe must carry its parameter sets. The pass-through removes the stream's own
+delimiters, adds parameter sets in front of keyframes, then adds one delimiter per frame.
+
 ## Details that matter
 
 - **Idle CPU.** Re-encoding an unchanging 3K picture 15 times a second cost ~15 % of a fast core per

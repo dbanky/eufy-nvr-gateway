@@ -22,13 +22,14 @@ export function pictureFilter({ height }) {
   return `gblur=sigma=${sigma},lutyuv=y=val*${PICTURE.brightness}:u=128+(val-128)*${s}:v=128+(val-128)*${s},vignette=${PICTURE.vignette}`;
 }
 
-// base:       { raw: Buffer } | { file: path } | null (no picture yet)
+// base:       { raw: Buffer } | { jpeg: Buffer } | { file: path } | null (no picture yet)
 // shapesFile: the rasterised shapes, raw RGBA at the frame size
 // textFile(index, text): stores label text, returns its path (drawtext reads files: no escaping)
 // Returns { args, input } for ffmpeg.
 export function stillCommand({ cam, base, layout, shapesFile, textFile }) {
   const { width, height } = cam;
   const inputs = base?.raw ? [...rawInput(cam), '-i', 'pipe:0']
+    : base?.jpeg ? ['-f', 'image2pipe', '-i', 'pipe:0']
     : base?.file ? ['-i', base.file]
     : ['-f', 'lavfi', '-i', `color=c=${PICTURE.noPictureBackground}:s=${width}x${height}:d=1`];
   inputs.push('-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${width}x${height}`, '-i', shapesFile);
@@ -49,7 +50,7 @@ export function stillCommand({ cam, base, layout, shapesFile, textFile }) {
 
   return {
     args: [...inputs, '-filter_complex', graph.join(';'), '-map', '[out]', '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'yuv420p', 'pipe:1'],
-    input: base?.raw,
+    input: base?.raw ?? base?.jpeg,
   };
 }
 

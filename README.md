@@ -40,6 +40,8 @@ flowchart LR
 - **Full resolution.** Output is the camera's native live resolution (e.g. 2880×1616 for a 3K
   SoloCam). Measured image quality against the camera's own stream: SSIM 0.993–0.997.
 - **H.265 handled.** Cameras that send H.265 (HEVC) are converted to H.264, which every NVR accepts.
+  If your NVR accepts the camera's own format, conversion can be turned off per camera
+  (`"transcode": false`): far less CPU while live.
 - **Clear states on the stream.** Sleeping, waking up, low battery, didn't wake up, offline: each
   has its own icon and a short label, readable even in a small NVR tile. Live video stays clean.
 - **Almost free while idle.** The sleeping picture is encoded once and replayed: well under 1 % of
@@ -137,6 +139,7 @@ Per camera:
 | `maxLiveMs` | | Optional cap per session, from the first live frame, to save battery when motion never stops (e.g. a busy street). Default `0` (no cap) |
 | `restartGapMs` | | Minimum pause between sessions (a doorbell press ignores it). Default `15000` |
 | `minBatteryPct` | | Below this battery level, only a doorbell press or a manual *Go live* wakes the camera. Default `15` |
+| `transcode` | | `true`: live video is converted to H.264. `false`: the camera's own H.264 or H.265 is passed through — a few % CPU instead of up to two cores, but your NVR must accept that format. Default `true` |
 | `triggers` | | Events that wake the camera. Default: `motion`, `personDetected`, `vehicleDetected`, `petDetection`, `strangerDetected`, `doorbellPress` |
 
 Top level: `timezone` (for the `since 18:33` label), `defaults` (any per-camera key, applied to all

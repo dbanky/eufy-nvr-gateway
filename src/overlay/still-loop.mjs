@@ -4,8 +4,8 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runFfmpeg, rawInput, tint } from '../video/ffmpeg.mjs';
-import { x264Args } from '../video/x264.mjs';
-import { FrameSplitter } from '../video/h264.mjs';
+import { encoderArgs } from '../video/encoder-settings.mjs';
+import { FrameSplitter } from '../video/annexb.mjs';
 import { iconFile } from './assets.mjs';
 import { SPINNER_TURN_SECONDS } from './design.mjs';
 
@@ -14,7 +14,8 @@ import { SPINNER_TURN_SECONDS } from './design.mjs';
 export const LOOP_SECONDS = 8;
 
 // spinner (waking): { name, size, cx, cy, rgb } — an arc drawn on top, one turn per second.
-export function loopCommand({ cam, stillFile, spinner }) {
+// codec: the stream's codec ('h264', or 'hevc' for a camera passed through as H.265).
+export function loopCommand({ cam, stillFile, spinner, codec = 'h264' }) {
   const args = [...rawInput(cam), '-framerate', String(cam.fps), '-stream_loop', '-1', '-i', stillFile];
   if (spinner) {
     const size = Math.round(spinner.size / 2) * 2;
@@ -23,17 +24,17 @@ export function loopCommand({ cam, stillFile, spinner }) {
       `[1:v]scale=${size}:${size},format=rgba,${tint(spinner.rgb)},rotate=a=2*PI*t/${SPINNER_TURN_SECONDS}:c=none:ow=iw:oh=ih[arc];` +
       `[0:v][arc]overlay=${x}:${y}:format=auto,format=yuv420p[v]`, '-map', '[v]');
   }
-  args.push('-frames:v', String(cam.fps * LOOP_SECONDS), ...x264Args(cam), 'pipe:1');
+  args.push('-frames:v', String(cam.fps * LOOP_SECONDS), ...encoderArgs(cam, codec), 'pipe:1');
   return args;
 }
 
 // Returns the loop's encoded frames, the first one a keyframe.
-export async function encodeStillLoop({ cam, still, spinner, tmpDir }) {
+export async function encodeStillLoop({ cam, still, spinner, codec = 'h264', tmpDir }) {
   const stillFile = join(tmpDir, `${cam.name}-still.yuv`);
   writeFileSync(stillFile, still);
   const frames = [];
-  const splitter = new FrameSplitter((f) => frames.push(f));
-  splitter.push(await runFfmpeg(loopCommand({ cam, stillFile, spinner })));
+  const splitter = new FrameSplitter((f) => frames.push(f), codec);
+  splitter.push(await runFfmpeg(loopCommand({ cam, stillFile, spinner, codec })));
   splitter.flush();
   return frames;
 }

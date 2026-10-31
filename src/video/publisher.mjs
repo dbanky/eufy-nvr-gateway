@@ -9,16 +9,25 @@ export const framesDue = (elapsedMs, fps) => Math.floor(elapsedMs * fps / 1000) 
 // After a stall (busy CPU), don't burst out everything that was missed: just carry on.
 export const MAX_CATCH_UP_SECONDS = 2;
 
+// Raw H.264/H.265 has no timestamps: the frames are numbered at the fixed rate instead.
+export function publisherArgs({ fps, codec, output }) {
+  const format = output.startsWith('rtsp://') ? ['-f', 'rtsp', '-rtsp_transport', 'tcp'] : ['-f', 'mpegts'];
+  return ['-f', codec, '-framerate', String(fps), '-i', 'pipe:0', '-c', 'copy', '-bsf:v', `setts=ts=N/(${fps}*TB)`, ...format, output];
+}
+
 export class Publisher {
   constructor({ name, fps, output, feed, log }) {
     Object.assign(this, { name, fps, output, feed, log });
+    // A new codec (the camera's own H.265 passed through) needs a new ffmpeg: restart.
+    feed.on('codec', (codec) => {
+      this.log(this.name, `stream codec now ${codec}, restarting the stream`);
+      this.child?.kill('SIGTERM');
+    });
   }
 
   start() {
-    const fmt = this.output.startsWith('rtsp://') ? ['-f', 'rtsp', '-rtsp_transport', 'tcp'] : ['-f', 'mpegts'];
-    // Raw H.264 has no timestamps: number the frames at the fixed rate instead.
-    const child = spawnFfmpeg(['-f', 'h264', '-framerate', String(this.fps), '-i', 'pipe:0',
-      '-c', 'copy', '-bsf:v', `setts=ts=N/(${this.fps}*TB)`, ...fmt, this.output]);
+    const child = spawnFfmpeg(publisherArgs({ fps: this.fps, codec: this.feed.codec, output: this.output }));
+    this.child = child;
     child.stderr.on('data', (c) => this.log(this.name, 'publisher:', String(c).trim()));
     child.on('error', (e) => this.log(this.name, 'publisher error:', e.message));
 
@@ -42,6 +51,6 @@ export class Publisher {
       this.log(this.name, `publisher exited (${code}), restarting in 2 s`);
       setTimeout(() => this.start(), 2000);
     });
-    this.log(this.name, `stream → ${this.output} (@ ${this.fps} fps)`);
+    this.log(this.name, `stream → ${this.output} (${this.feed.codec} @ ${this.fps} fps)`);
   }
 }

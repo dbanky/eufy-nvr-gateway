@@ -10,6 +10,7 @@ export const CAMERA_DEFAULTS = {
   restartGapMs: 15000,        // minimum pause between sessions
   maxReconnects: 2,           // re-open the feed if it drops mid-session
   minBatteryPct: 15,          // below this only a doorbell press or a manual request wakes it
+  transcode: true,            // false: pass the camera's own H.264/H.265 through (less CPU; the NVR must accept it)
 };
 
 // A doorbell press and a request from the web page always wake the camera.

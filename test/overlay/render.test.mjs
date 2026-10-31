@@ -43,6 +43,13 @@ describe('the ffmpeg command for a still', () => {
     assert.ok(args.includes('pipe:0'));
   });
 
+  test('a JPEG (from a camera passed through) is piped in as an image', () => {
+    const jpeg = Buffer.from([0xff, 0xd8]);
+    const { args, input } = command({ jpeg });
+    assert.equal(input, jpeg);
+    assert.equal(args[args.indexOf('pipe:0') - 2], 'image2pipe');
+  });
+
   test('with no picture: a plain dark background, nothing to blur', () => {
     const { args } = command(null);
     assert.ok(args.some((a) => a.startsWith('color=c=0x15171C')));
@@ -56,6 +63,11 @@ describe('the loop', () => {
 
   test(`is ${LOOP_SECONDS} s long: two keyframe intervals`, () => {
     assert.equal(value(loopCommand({ cam, stillFile: '/tmp/x.yuv' }), '-frames:v'), String(15 * LOOP_SECONDS));
+  });
+
+  test('is H.264, or H.265 when the camera\'s own H.265 is passed through', () => {
+    assert.ok(loopCommand({ cam, stillFile: '/tmp/x.yuv' }).includes('libx264'));
+    assert.ok(loopCommand({ cam, stillFile: '/tmp/x.yuv', codec: 'hevc' }).includes('libx265'));
   });
 
   test('while waking, a spinner turns on top of the still', () => {
