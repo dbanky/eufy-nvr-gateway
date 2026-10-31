@@ -76,6 +76,6 @@ test('a device whose address isn\'t there yet says why, keeps trying, and comes 
   assert.deepEqual(state, { on: true, error: null });
   assert.equal(tries, 3);
   assert.equal(logs.filter((m) => /not on the network/.test(m)).length, 1, 'the same reason is logged once');
-  assert.match(logs[0], /192\.168\.1\.51 is not an address of this machine/);
+  assert.match(logs[0], /192\.168\.1\.51 is not an address of this (machine|container)/);   // wording depends on the machine running the test
   assert.match(logs.at(-1), /ONVIF device on http:\/\/192\.168\.1\.51:8000/);
 });

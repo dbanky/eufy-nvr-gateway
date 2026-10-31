@@ -17,6 +17,7 @@ import { createAuth } from './web/auth.mjs';
 import { createUpdateCheck } from './updates.mjs';
 import { encodeJpeg } from '../video/ffmpeg.mjs';
 import { startOnvif } from '../onvif/index.mjs';
+import { onvifNetworkProblem } from '../onvif/network.mjs';
 
 const config = JSON.parse(readFileSync(process.argv[2] ?? '/data/switcher/config.json', 'utf8'));
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -33,13 +34,14 @@ const updates = createUpdateCheck({ current: version, enabled: config.checkForUp
 updates.start();
 
 // ONVIF devices for cameras with an `onvif` section (NVRs such as UniFi Protect adopt only ONVIF).
+const onvifProblem = onvifNetworkProblem(cameras.filter((c) => c.onvif?.address).map((c) => c.onvif.address));   // bridge network
 const onvif = startOnvif({ cameras, credentials: config.onvif ?? null, rtspPort, version, snapshot, log });
 
 const webPort = config.webPort ?? 8099;
 const web = config.web ?? {};
 const auth = createAuth(web.login ?? null, { secure: !!web.tls });
 const handler = webHandler({ cameras, bridge, rtspPort, snapshot, auth, onvif, rtsp: config.rtsp, theme: web.theme,
-  gateway: () => ({ version, update: updates.status() }) });
+  gateway: () => ({ version, update: updates.status(), onvifProblem }) });
 listenWeb(handler, { port: webPort, tls: web.tls ?? null },
   () => log(`web page on ${web.tls ? 'https' : 'http'} :${webPort}${auth ? ', login required' : ', no login'}`));
 

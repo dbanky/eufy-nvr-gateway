@@ -108,7 +108,7 @@ words instead.
 |---|---|
 | The address comes up **after** the container started: a second network port whose DHCP lease arrives late, or a macvlan address created by a boot script that ran too late | Nothing: the gateway tries again every 30 s, and the camera comes on by itself once the address is there. To have it from the start, give the port a fixed IP (DSM: *Control Panel → Network → Network Interface → Edit → Use manual configuration*) and run `onvif-addresses.sh` before the container starts. |
 | The address belongs to another device, or has a typo | Use an address of this machine (one per camera), or create it (step 1). |
-| *it has none* or only `172.x` addresses | The container isn't on host networking: set *Network* to `host` (Compose: `network_mode: host`). |
+| *it has none*, or *this container is on a Docker bridge network* | The container isn't on host networking: set *Network* to `host` (Compose: `network_mode: host`). With no camera address present and only bridge addresses, the gateway says so loudly at startup and in a red banner on the web page. Mapping ports `8000` / `3702` doesn't help on a bridge. |
 
 To see which addresses the machine has, run `ip -4 addr` on it (Synology: over SSH).
 

@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { hostAddresses, explainNetworkError } from '../../src/onvif/network.mjs';
+import { hostAddresses, explainNetworkError, onvifNetworkProblem } from '../../src/onvif/network.mjs';
 
 const interfaces = {
   lo: [{ family: 'IPv4', address: '127.0.0.1', internal: true }],
@@ -35,5 +35,25 @@ describe('network errors in plain words', () => {
 
   test('anything else keeps its own message', () => {
     assert.equal(explainNetworkError(error('EPERM', 'bind EPERM'), where), 'bind EPERM');
+  });
+});
+
+describe('ONVIF on a Docker bridge network', () => {
+  test('is called out loudly, with how to switch to host networking', () => {
+    const text = onvifNetworkProblem(['192.168.1.51', '192.168.1.52'], ['172.18.0.2']);
+    assert.match(text, /^ONVIF needs host networking, and this container is on a Docker bridge network \(its address: 172\.18\.0\.2\)/);
+    assert.match(text, /Network: host; Docker Compose: network_mode: host/);
+    assert.match(onvifNetworkProblem(['192.168.1.51'], []), /no LAN address/);
+  });
+
+  test('says nothing on host networking, without ONVIF cameras, or when one camera address is here', () => {
+    assert.equal(onvifNetworkProblem(['192.168.1.51'], ['192.168.1.10', '172.17.0.1']), null, 'host networking: the LAN address is there');
+    assert.equal(onvifNetworkProblem([], ['172.18.0.2']), null, 'no ONVIF cameras');
+    assert.equal(onvifNetworkProblem(['172.20.0.5'], ['172.20.0.5']), null);
+  });
+
+  test('a camera address on a bridge network names the cause', () => {
+    const text = explainNetworkError(Object.assign(new Error('x'), { code: 'EADDRNOTAVAIL' }), { address: '192.168.1.51', port: 8000, addresses: ['172.18.0.2'] });
+    assert.match(text, /not an address of this container: it is on a Docker bridge network \(it has 172\.18\.0\.2\)\. ONVIF needs host networking/);
   });
 });

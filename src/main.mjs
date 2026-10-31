@@ -8,6 +8,7 @@ import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { configPath, readConfigFile, resolveSettings } from './gateway/config.mjs';
 import { openToTheLan, configWarnings } from './gateway/access.mjs';
 import { ensureCertificate } from './gateway/certificate.mjs';
+import { onvifNetworkProblem } from './onvif/network.mjs';
 import { go2rtcYaml, switcherConfig, bridgeEnv } from './gateway/service-configs.mjs';
 import { Supervisor } from './gateway/supervisor.mjs';
 import { waitForPort } from './gateway/wait-for-port.mjs';
@@ -41,6 +42,13 @@ if (generated.web.tls && !settings.web.certFile) {
   }
 }
 for (const warning of configWarnings(settings)) log('Note:', warning);
+const onvifProblem = onvifNetworkProblem(settings.cameras.filter((c) => c.onvif).map((c) => c.onvif.address));
+if (onvifProblem) {   // loud: ONVIF silently not working is the most common setup mistake
+  const rule = '!'.repeat(72);
+  log(rule);
+  log(`WARNING: ${onvifProblem}.`);
+  log(rule);
+}
 const open = openToTheLan(settings);
 if (open.length) log(`Open to anyone on your LAN: ${open.join('; ')}.`);
 else log('Every web page, API, stream and ONVIF camera asks for a login.');

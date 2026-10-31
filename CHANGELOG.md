@@ -7,6 +7,13 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Added
+
+- **A loud warning when ONVIF can't work because of the network**: ONVIF cameras are configured, but
+  the container is on a Docker bridge network instead of host networking. The log shows a `WARNING`
+  framed with `!!!`, and the web page a red banner with how to switch (Synology Container Manager,
+  Docker Compose). A camera's own message also names the bridge network.
+
 ## [0.4.0-beta.3] - 2026-10-31
 
 Pre-release for testing: a logo, equal tile heights when details open, and ONVIF cameras whose

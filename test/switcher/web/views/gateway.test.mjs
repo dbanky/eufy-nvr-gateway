@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { updateState, updatePillHtml, updateBannerHtml, footerHtml } from '../../../../src/switcher/web/static/gateway.js';
+import { updateState, updatePillHtml, updateBannerHtml, onvifBannerHtml, footerHtml } from '../../../../src/switcher/web/static/gateway.js';
 
 const project = 'https://github.com/dbanky/eufy-nvr-gateway';
 const gateway = (update) => ({ version: '0.4.0-beta.1', update: { project, enabled: true, checked: true, newer: null, error: null, ...update } });
@@ -40,5 +40,20 @@ describe('the gateway\'s version on the page', () => {
   test('up to date: no banner, no reminder', () => {
     assert.equal(updateBannerHtml(gateway()), '');
     assert.equal(updatePillHtml(gateway()), '');
+  });
+});
+
+describe('ONVIF on a bridge network', () => {
+  test('a banner that can\'t be put away says why and links the setup', () => {
+    const html = onvifBannerHtml({ ...gateway(), onvifProblem: 'ONVIF needs host networking, and this container is on a Docker bridge network' });
+    assert.match(html, /role="alert"/);
+    assert.match(html, /switch the container to host networking/);
+    assert.match(html, /ONVIF needs host networking, and this container is on a Docker bridge network\./);
+    assert.match(html, /docs\/onvif\.md#1-give-each-camera-its-own-address/);
+    assert.doesNotMatch(html, /data-dismiss/);
+  });
+
+  test('nothing when ONVIF can work', () => {
+    assert.equal(onvifBannerHtml(gateway()), '');
   });
 });

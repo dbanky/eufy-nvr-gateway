@@ -327,7 +327,10 @@ mapped. With a `bridge` network, map these from the host to the same port in the
 
 ONVIF works only with host networking: each camera's ONVIF device listens on its own LAN address
 (`onvif.address`), which a container on a `bridge` network doesn't have, and discovery is multicast,
-which a bridge doesn't pass on.
+which a bridge doesn't pass on. Mapping `8000` or `3702` on a bridge network therefore doesn't help,
+so the image doesn't offer them in the NAS's port wizard. If ONVIF cameras are configured on a bridge
+network, the log says so in a `WARNING` framed with `!!!`, and the web page shows a red banner
+until the container is switched to host networking.
 
 Change the first two under `"ports"` in `config.json` if something else on the host already uses
 one (and map the new numbers instead); the ONVIF port is set per camera (`onvif.port`).
@@ -381,6 +384,7 @@ Details, measurements and the problems solved along the way:
 | The browser warns about the certificate | Expected with `"web.https": true` and the generated self-signed certificate: accept it once, or set your own (`web.certFile`, `web.keyFile`). |
 | High CPU on the host | A camera with `"transcode": true` is converted while live, which is expensive for 3K H.265 (one to two cores). Leave `transcode` off if your NVR accepts the camera's format; otherwise lower `width`/`height` to trade detail for CPU. |
 | Port already in use | Change it under `"ports"` in `config.json`. |
+| Red banner *ONVIF can't work: switch the container to host networking* | The container is on a bridge network. Synology Container Manager: stop the container → *Edit* → *Network*: `host`; Compose: `network_mode: host`. Port mappings aren't needed then. |
 | ONVIF cameras aren't found by the NVR | See [docs/onvif.md](docs/onvif.md#things-to-know): host networking, one address per camera, and the host can't reach its own macvlan addresses. |
 
 Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[start]`, `[bridge]`, `[go2rtc]`

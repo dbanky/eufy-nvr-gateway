@@ -5,6 +5,7 @@ import { esc } from './escape.js';
 import { icon } from './icons.js';
 
 const PROJECT = 'https://github.com/dbanky/eufy-nvr-gateway';
+const ONVIF_DOCS = `${PROJECT}/blob/main/docs/onvif.md`;
 const project = (gateway) => gateway.update?.project ?? PROJECT;
 export const howToUpdate = (gateway) => `${project(gateway)}#updating`;
 
@@ -25,6 +26,22 @@ export function updatePillHtml(gateway) {
 }
 
 // The banner above the cameras when a newer version is out.
+// ONVIF cameras configured, but the container is on a bridge network: nothing ONVIF can work.
+// Not dismissible: it stays until the container is on host networking.
+export function onvifBannerHtml(gateway) {
+  if (!gateway.onvifProblem) return '';
+  return `<section class="panel banner problem" role="alert" aria-labelledby="onvifProblemTitle">
+  <span class="chip">${icon('nowake')}</span>
+  <div class="banner-text">
+    <h2 id="onvifProblemTitle">ONVIF can’t work: switch the container to host networking</h2>
+    <p>${esc(gateway.onvifProblem)}.</p>
+  </div>
+  <div class="row">
+    <a class="action primary" href="${esc(ONVIF_DOCS)}#1-give-each-camera-its-own-address" target="_blank" rel="noopener">How to set it up</a>
+  </div>
+</section>`;
+}
+
 export function updateBannerHtml(gateway) {
   if (updateState(gateway) !== 'newer') return '';
   const { version, url, prerelease } = gateway.update.newer;
