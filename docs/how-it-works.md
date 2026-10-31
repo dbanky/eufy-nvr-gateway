@@ -12,8 +12,8 @@ stream drop, reconnects, and wakes the camera again — all day.
 
 ## The approach: never switch streams, switch pictures
 
-Each camera has **one publisher that runs forever**: an `ffmpeg -c copy` that sends H.264 frames to
-go2rtc at exactly 15 fps. The NVR connects to go2rtc and sees an unbroken stream at a fixed
+Each camera has **one publisher that runs forever**: an `ffmpeg -c copy` that sends encoded frames to
+go2rtc at exactly 15 fps: H.264, or the camera's own H.264/H.265 with `transcode: false`. The NVR connects to go2rtc and sees an unbroken stream at a fixed
 resolution and frame rate. What the publisher is fed depends on the state:
 
 | State | Picture | Camera |
@@ -68,8 +68,8 @@ delimiters, adds parameter sets in front of keyframes, then adds one delimiter p
   combined decode+encode process) were measured and brought nothing.
 - **Quality.** `crf 20`, High profile, keyframe every 4 s, no B-frames. Measured against the camera's
   own stream: SSIM 0.997 (2048×1536 doorbell), 0.993 (3K SoloCam).
-- **H.265.** Some cameras (e.g. the SoloCam S340) only send H.265. The decoder converts everything;
-  the output is always H.264. ffmpeg logs reference errors until the first keyframe of each session —
+- **H.265.** Some cameras (e.g. the SoloCam S340) only send H.265. When converting (the default) the
+  output is always H.264; with `transcode: false` it stays H.265. ffmpeg logs reference errors until the first keyframe of each session —
   harmless, those frames are dropped, never shown.
 - **Variable resolution.** Some cameras start a session at 720p and step up to their full
   resolution within seconds. The output size is fixed, so early frames are scaled up.

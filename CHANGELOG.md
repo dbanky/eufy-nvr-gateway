@@ -17,6 +17,8 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ### Changed
 
+- README and docs: the stream is H.264 by default, or the camera's own format with
+  `transcode: false` (no longer described as "always H.264").
 - **Less CPU while a camera is live:** the encoder uses a cheaper motion search, ~30 % less encoder
   CPU on 3K. To keep the quality where it was, the default bitrate limit is 10 % higher:
   `bitrateKbps` 4400 (was 4000), and ~6600 is recommended for 3K cameras (was ~6000). If your

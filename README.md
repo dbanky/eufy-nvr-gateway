@@ -13,7 +13,8 @@ open would drain the battery in days.
 
 This gateway sits in between and runs as **one Docker container**:
 
-- Every camera gets a **constant H.264 RTSP stream** that never drops, so the NVR is always happy.
+- Every camera gets an **RTSP stream that never ends**: H.264 by default, or the camera's own H.264 or
+  H.265 if your NVR accepts it. The NVR always has a picture to show.
 - While nothing happens, the stream shows the **last frame, blurred and dimmed, with a moon** and a
   `Sleeping · since 18:33` label — and the camera **sleeps**.
 - When the camera detects motion or a person, or the doorbell is pressed, the gateway **wakes the
@@ -26,7 +27,7 @@ flowchart LR
   cloud["eufy cloud<br>(push events)"] -- "motion · person · ring" --> bridge
   subgraph container ["eufy-nvr-gateway (one container)"]
     bridge["eufy bridge"] -- "events + live video" --> switcher["switcher<br>sleeping picture ⇄ live"]
-    switcher -- "constant H.264" --> go2rtc
+    switcher -- "one unbroken stream" --> go2rtc
   end
   go2rtc -- "RTSP :8554" --> nvr["NVR / VLC / Home Assistant"]
 ```
@@ -52,7 +53,8 @@ flowchart LR
 ## Requirements
 
 - A Docker host on your LAN, 64-bit x86 or ARM (developed on a Synology DS923+ with Container Manager).
-  Converting a 3K H.265 camera to H.264 needs about one CPU core while a camera is live.
+  Converting a 3K H.265 camera to H.264 needs one to two CPU cores while the camera is live; with
+  `"transcode": false` (if your NVR accepts H.265) it's a few percent.
 - A **separate eufy account** for the gateway. eufy allows one active session per account; if the
   gateway and your phone app share an account, they keep logging each other out. Create a second
   account and share your cameras with it from the eufy app (with admin rights).
@@ -131,7 +133,7 @@ Per camera:
 |---|---|---|
 | `name` | yes | Letters, digits, `-`, `_`. Becomes the RTSP path: `rtsp://<host>:8554/<name>` |
 | `serial` | yes | The camera's serial number (shown on the web page after login) |
-| `width`, `height` | yes | The camera's **native live resolution**. The output always has this size; set it to what the camera really sends so nothing is scaled. See [known resolutions](#known-live-resolutions) |
+| `width`, `height` | yes | The camera's **native live resolution**. Converted video is scaled to this size, and the sleeping picture always has it; set it to what the camera really sends so nothing is scaled (with `"transcode": false` the camera's own size is streamed, so it must match). See [known resolutions](#known-live-resolutions) |
 | `fps` | | Output frame rate. Default `15` (what eufy cameras send) |
 | `bitrateKbps` | | Upper bitrate limit during live video. Default `4400`; use ~`6600` for 3K |
 | `holdMs` | | Stay live until this long after the last detection: continuing motion keeps the stream live. Default `30000` (30 s) |
@@ -210,7 +212,7 @@ measurements and the problems solved along the way: [docs/how-it-works.md](docs/
 | Live video takes 10–60 s to appear | Normal for battery cameras: waking takes 3–12 s, deep sleep longer. The stream shows `Waking up` meanwhile. |
 | The first seconds of live video look soft | Some cameras start at a lower resolution and step up (the SoloCam S340 reaches 3K after ~8 s). |
 | Picture is stretched or letterboxed | `width`/`height` don't match the camera's native resolution. |
-| High CPU on the host | Live sessions of H.265 3K cameras are expensive (~1 core). Lower `width`/`height` to trade detail for CPU. |
+| High CPU on the host | Converting a live 3K H.265 camera is expensive (one to two cores). If your NVR accepts H.265, set `"transcode": false` for that camera (a few percent); otherwise lower `width`/`height` to trade detail for CPU. |
 | Port already in use | Change it under `"ports"` in `config.json`. |
 
 Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[bridge]`, `[go2rtc]` or

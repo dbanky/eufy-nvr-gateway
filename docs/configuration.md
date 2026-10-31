@@ -67,6 +67,8 @@ the camera's original quality.
 - **The first live session after setup is still converted:** it tells the gateway which format the
   camera sends (saved in `/data/switcher/codec-<name>.txt`). From then on the stream, including the
   sleeping picture, uses the camera's format.
+- **The stream restarts once (~2 s)** when it first switches to the camera's format, after that
+  first session. Otherwise it never drops.
 - **`fps` should match the camera's real frame rate** (eufy cameras: 15), because the stream is
   played out at that rate.
 - The resolution is whatever the camera sends: `width` and `height` should be its native size, or the
