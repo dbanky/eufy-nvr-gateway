@@ -44,6 +44,8 @@ export function showCameras(cameras, rtspPort, onAction) {
     badge.className = 'badge ' + c.display.kind;
     card.querySelector('.info').textContent = [c.display.detail, c.resolution, c.battery != null ? c.battery + '% battery' : null]
       .filter(Boolean).join(' · ');
+    // e.g. "H.264 · converted from H.265" or "H.265 · passed through, no conversion"
+    card.querySelector('.video').textContent = c.video ? 'Video: ' + c.video.text : '';
   }
 }
 
@@ -52,6 +54,7 @@ function cameraCard(c, rtspPort) {
     + '<img alt="' + esc(c.name) + '" src="api/cameras/' + encodeURIComponent(c.name) + '/snapshot.jpg?t=' + Date.now() + '">'
     + '<div class="row"><strong>' + esc(c.name) + '</strong><span class="badge"></span><span class="muted info"></span></div>'
     + '<div class="row"><code>rtsp://' + esc(location.hostname) + ':' + rtspPort + '/' + esc(c.name) + '</code></div>'
+    + '<div class="row muted video"></div>'
     + '<div class="row"><button data-act="live">Go live</button><button data-act="idle">Stop</button></div></div>';
 }
 

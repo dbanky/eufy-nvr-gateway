@@ -86,3 +86,18 @@ describe('with conversion turned off (transcode: false)', () => {
     assert.equal(world.liveFeeds[0].mode, 'transcode');
   });
 });
+
+describe('the status says what happens to the video', () => {
+  test('converting by default', () => {
+    const { cam } = setup();
+    assert.equal(cam.status().video.text, 'H.264 · converted');
+  });
+
+  test('passed through once the stream runs in the camera\'s format', async () => {
+    const { cam } = setup({ transcode: false });
+    cam.codec = 'hevc';
+    assert.equal(cam.status().video.converted, true, 'not yet: the H.265 loop is not on air');
+    await cam.refresh();
+    assert.equal(cam.status().video.text, 'H.265 · passed through, no conversion');
+  });
+});

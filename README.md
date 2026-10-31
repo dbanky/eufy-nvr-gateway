@@ -47,8 +47,9 @@ flowchart LR
   has its own icon and a short label, readable even in a small NVR tile. Live video stays clean.
 - **Almost free while idle.** The sleeping picture is encoded once and replayed: well under 1 % of
   a CPU core and ~0.1–0.6 Mbit/s per camera.
-- **Web page** for the eufy login (2FA code / captcha), live status, stream URLs, manual
-  *Go live* / *Stop*, and the list of devices on your account (to copy serial numbers from).
+- **Web page** for the eufy login (2FA code / captcha), live status, stream URLs, each stream's codec
+  and whether it is converted, manual *Go live* / *Stop*, and the list of devices on your account (to
+  copy serial numbers from).
 
 ## Requirements
 
@@ -175,7 +176,7 @@ Change them under `"ports"` in `config.json` if something else on the host alrea
 
 | Request | What |
 |---|---|
-| `GET /api/status` | Login state and every camera's state (`IDLE` / `WAKING` / `LIVE`), battery, last seen |
+| `GET /api/status` | Login state and every camera's state (`IDLE` / `WAKING` / `LIVE`), battery, last seen, and its video: codec and whether it is converted or passed through |
 | `GET /api/devices` | Devices on the eufy account, with serial numbers |
 | `GET /api/cameras/<name>/snapshot.jpg` | What the stream shows right now |
 | `POST /api/cameras/<name>/live` | Wake the camera and go live (e.g. from a Home Assistant button) |

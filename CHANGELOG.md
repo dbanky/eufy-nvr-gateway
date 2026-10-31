@@ -7,6 +7,12 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Added
+
+- The web page shows each camera's video: the stream's codec, and whether it is converted
+  (e.g. `H.264 · converted from H.265`) or passed through (`H.265 · passed through, no conversion`).
+  `/api/status` has it as `video`.
+
 ## [0.3.0-beta.1] - 2026-10-31
 
 Pre-release for testing: conversion can be turned off per camera.

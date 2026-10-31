@@ -19,6 +19,7 @@
 
 import { CAMERA_DEFAULTS, decideTrigger, stopReason, deadlineWhenLive } from '../policy.mjs';
 import { viewFor } from '../labels.mjs';
+import { videoInfo } from '../video-info.mjs';
 import { chooseLiveMode, openLiveFeed, endLiveFeed } from './live-feed.mjs';
 import { showCurrentState, cancelRendering } from './sleeping-picture.mjs';
 
@@ -112,6 +113,7 @@ export class Camera {
       name: this.name, serial: this.serial, state: this.state, battery: this.battery,
       resolution: `${this.width}x${this.height}`, rtsp: `/${this.name}`,
       display: { kind, title, detail },
+      video: videoInfo({ transcode: this.transcode, codec: this.codec, streamCodec: this.deps.feed.codec }),
       liveUntil: this.state === 'IDLE' ? null : this.deps.time.hms(this.deadline),
       lastSeen: this.lastLiveAt ? this.deps.time.hms(this.lastLiveAt) : null,
     };
