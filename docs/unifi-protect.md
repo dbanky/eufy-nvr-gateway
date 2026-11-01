@@ -31,12 +31,24 @@ stream, so it is one login for both. Then give every camera an `onvif` section w
   "rtsp": { "username": "protect", "password": "choose-a-password" },
   "cameras": [
     { "name": "front-door", "serial": "T81XXXXXXXXXXXXX", "width": 1600, "height": 1200, "udpPort": 40000,
-      "onvif": { "address": "192.168.1.51", "port": 8000 } },
+      "transcode": true, "onvif": { "address": "192.168.1.51", "port": 8000 } },
     { "name": "garden", "serial": "T81XXXXXXXXXXXXX", "width": 2880, "height": 1616, "udpPort": 40004,
-      "onvif": { "address": "192.168.1.52", "port": 8001 } }
+      "transcode": true, "onvif": { "address": "192.168.1.52", "port": 8001 } }
   ]
 }
 ```
+
+**Use `"transcode": true` for every camera that Protect records.** Without it, the gateway passes
+the camera's own video through, and the stream's video settings (the H.264/H.265 parameter sets)
+change during every event: the sleeping picture is made by the gateway, the live video by the
+camera, and some cameras (the SoloCam S340) also change resolution in the first seconds. Protect
+keeps only the settings it saw first and removes all later ones from what it records, so it decodes
+the camera's live video with the wrong settings: recordings come out broken (smeared or frozen
+blocks, wrong size), and the live view can stall. With `"transcode": true`, the gateway makes the
+whole stream itself, sleeping picture and live video, with one set of H.264 settings: recordings
+decode cleanly. It costs CPU on the gateway while a camera is live (a 3K camera: up to two cores
+on a small NAS); asleep, still almost nothing. Other viewers (VLC, Home Assistant, most NVRs) handle
+the passed-through stream, so leave it off for cameras Protect doesn't record.
 
 `udpPort` can be left out: the first camera gets `40000`, the second `40004` anyway. Writing it
 down makes the firewall rule in the next step easy to read off.
@@ -92,13 +104,13 @@ strangely** — especially in a web browser — change the camera's **Stream Com
 **Improved** in its settings in Protect. This is a general option for any camera, H.264 or H.265,
 and the first thing to try with playback issues.
 
-It matters most for cameras that send H.265, like the SoloCam S340 (3K): the gateway passes their
-H.265 through by default to save CPU, and browsers handle H.265 poorly. *Improved* fixed this
-completely in our setup.
+It matters most for cameras that send H.265, like the SoloCam S340 (3K), when they are passed
+through: browsers handle H.265 poorly. With `"transcode": true` (step 1) the stream is H.264 anyway.
 
-If your Protect version doesn't have that setting, or it doesn't help with an H.265 camera, let the
-gateway convert that camera to H.264 instead: `"transcode": true` for the camera in `config.json`.
-That costs CPU on the gateway while the camera is live.
+If the live view still spins now and then while the stream itself is fine, look at the Protect
+console's load: a small console (e.g. a Cloud Key Gen2+) recording several 4K UniFi cameras and
+running face or licence-plate recognition can fall behind, and its intake of a third-party camera
+can get stuck until the console restarts.
 
 ## Sound
 
@@ -133,7 +145,9 @@ deep sleep), and only then is there live video.
 | Protect doesn't discover the cameras | Expected: use **Advanced Adoption** (step 2). |
 | Adoption fails with a login error | Use `rtsp.username` / `rtsp.password`, one login for ONVIF and the stream. |
 | Adoption can't reach the camera | Check the camera's ONVIF details on the web page: it must not say *Not on the network yet*. The Protect console must be able to reach that IP and port. Note: the machine running the gateway can't reach its own macvlan addresses, so test from another device. |
-| Live view or playback flickers, is black, stutters or acts strangely (any camera, especially in a browser) | *Stream Compatibility Mode*: **Improved** (step 3); for an H.265 camera also `"transcode": true`. |
+| Recordings of a camera are broken (smeared or frozen blocks, wrong size), or its live view stalls during events | `"transcode": true` for that camera (step 1): Protect can't follow the video settings changing in a passed-through stream. |
+| Live view or playback flickers, is black, stutters or acts strangely (any camera, especially in a browser) | `"transcode": true` (step 1), and *Stream Compatibility Mode*: **Improved** (step 3). |
+| Live view spins, but only one camera shows nothing at all, even after the gateway restarts | Protect's intake of that camera is stuck: restart the Protect console. A heavily loaded console makes this more likely. |
 | Picture only, no live video in Protect when something happens | The camera has to wake up first: check on the gateway's web page that it goes *Live*. Disarmed eufy cameras send no events. |
 | Recordings are all sleeping pictures | Record on motion instead of continuously (step 4). |
 

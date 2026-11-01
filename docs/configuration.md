@@ -76,7 +76,7 @@ or names each open part with the setting that closes it, e.g.
 | `restartGapMs` | `15000` | Minimum pause between two sessions. A doorbell press and *Wake up* on the web page ignore it |
 | `maxReconnects` | `2` | Reconnect attempts if the live feed drops mid-session |
 | `minBatteryPct` | `15` | Below this, only a doorbell press or *Wake up* on the web page wakes the camera |
-| `transcode` | `false` | Pass the camera's own H.264 or H.265 through. `true` converts live video to H.264 instead (see below) |
+| `transcode` | `false` | Pass the camera's own H.264 or H.265 through. `true` converts live video to H.264 instead (see below); use `true` for UniFi Protect |
 | `audio` | `false` | `true`: an AAC track in the stream (see below) |
 | `triggers` | see below | Bridge events that wake the camera |
 | `onvif` | — | Publish the camera as an ONVIF device: `{ "address", "port", "mac" }`, its own IP on the LAN ([onvif.md](onvif.md)) |
@@ -122,6 +122,11 @@ original quality. Converting it instead (`"transcode": true`) decodes and re-enc
 every NVR accepts, but for a 3K H.265 camera that is the most expensive thing the gateway does: up to
 two CPU cores on a small NAS.
 
+- **UniFi Protect: use `"transcode": true`.** Protect keeps only the video settings (parameter
+  sets) it sees first and removes later ones from its recordings, but a passed-through stream changes
+  them during every event (the sleeping picture is the gateway's, the live video the camera's).
+  Recordings come out broken. Converted, the whole stream has one set of settings.
+  [unifi-protect.md, step 1](unifi-protect.md#1-publish-the-cameras-as-onvif-devices).
 - **Your NVR must accept the camera's format.** Many eufy cameras send H.265 (e.g. the SoloCam S340);
   not every NVR records H.265 from third-party cameras. If yours shows no picture for a camera, set
   `"transcode": true` for that camera.
