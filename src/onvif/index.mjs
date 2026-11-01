@@ -8,6 +8,8 @@ import { createHash } from 'node:crypto';
 import { createCameraServer } from './camera-server.mjs';
 import { MotionEvents } from './events.mjs';
 import { baseUrl } from './device.mjs';
+import { DeviceSettings } from './device-settings.mjs';
+import { MediaModel } from './media-model.mjs';
 import { explainNetworkError } from './network.mjs';
 
 export const DEFAULT_PORT = 8000;
@@ -25,7 +27,7 @@ export function onvifDevice(camera, { rtspPort, version }) {
   const device = {
     name: camera.name, serial: camera.serial, manufacturer: 'eufy', firmware: version,
     get model() { return camera.model ?? 'eufy camera'; },
-    uuid: deviceUuid(camera.serial), mac, address, port,
+    uuid: deviceUuid(camera.serial), mac, address, port, rtspPort,
     rtspUrl: `rtsp://${address}:${rtspPort}/${camera.name}`,
     width: camera.width, height: camera.height, fps: camera.fps, bitrateKbps: camera.bitrateKbps,
     codec: () => camera.deps.feed.codec,
@@ -79,9 +81,10 @@ export function startOnvif({ cameras, credentials, rtspPort, version, snapshot, 
   if (!credentials) log('ONVIF: no "rtsp.username"/"rtsp.password" in config.json: anyone on the LAN can use the ONVIF cameras');
   const entries = published.map((camera) => {
     const device = onvifDevice(camera, { rtspPort, version });
-    const events = new MotionEvents({ baseUrl: baseUrl(device) });
+    const events = new MotionEvents({ baseUrl: baseUrl(device), log: (...m) => log(camera.name, ...m) });
     const contact = {};
-    const server = createCameraServer({ device, events, credentials, log, contact, snapshot: () => snapshot(camera) });
+    const onvifCamera = { device, events, settings: new DeviceSettings(device), model: new MediaModel(device) };
+    const server = createCameraServer({ camera: onvifCamera, credentials, log, contact, snapshot: () => snapshot(camera) });
     const listening = keepListening(server, device, (...m) => log(camera.name, ...m));
     // motion = the camera is waking up or live
     setInterval(() => events.setMotion(camera.state !== 'IDLE'), 500).unref();

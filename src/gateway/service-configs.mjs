@@ -1,21 +1,38 @@
 // The configuration each bundled service gets, derived from the settings. Pure functions.
 
-// go2rtc: one empty stream per camera (the switcher publishes into it), RTSP only.
+import { jpegSize } from '../onvif/media-model.mjs';
+
+// The MJPEG variant: RFC 2435 (JPEG over RTP) needs ffmpeg's standard Huffman tables and both
+// quantisation tables, which ffmpeg's encoder leaves out by default.
+const MJPEG = '-huffman default -force_duplicated_matrix 1 -q:v 5';
+
+// The variants of one camera's stream that ONVIF clients may choose (media-model.mjs): MJPEG and,
+// with sound, G711. Each runs an ffmpeg only while someone watches it.
+export function streamVariants(cam) {
+  const { width, height } = jpegSize(cam);
+  const mjpeg = `#video=mjpeg#width=${width}#height=${height}#raw=${MJPEG}`;
+  return cam.audio
+    ? { [`${cam.name}~mjpeg`]: `ffmpeg:${cam.name}${mjpeg}#audio=copy`, [`${cam.name}~g711`]: `ffmpeg:${cam.name}#video=copy#audio=pcmu`,
+      [`${cam.name}~mjpeg~g711`]: `ffmpeg:${cam.name}${mjpeg}#audio=pcmu` }
+    : { [`${cam.name}~mjpeg`]: `ffmpeg:${cam.name}${mjpeg}` };
+}
+
+// go2rtc: one empty stream per camera (the switcher publishes into it) and its variants, RTSP on
+// 127.0.0.1 only: NVRs connect to the gateway's RTSP front (src/rtsp/), which checks the login.
 // Its web UI/API, WebRTC, SRTP and RTMP are not needed and stay closed.
-// Its login applies to the network only: go2rtc lets localhost in, so the switcher needs none.
-export function go2rtcYaml({ ports, cameras, rtsp = { login: null } }) {
+export function go2rtcYaml({ ports, cameras }) {
   const q = JSON.stringify;   // JSON strings are valid YAML scalars
-  const login = rtsp.login ? `\n  username: ${q(rtsp.login.username)}\n  password: ${q(rtsp.login.password)}` : '';
+  const streams = cameras.flatMap((c) => [`  ${q(c.name)}:`, ...Object.entries(streamVariants(c)).map(([name, source]) => `  ${q(name)}: ${q(source)}`)]);
   return [
     '# Generated at container start. Edit config.json instead.',
-    `rtsp:\n  listen: ${q(':' + ports.rtsp)}${login}`,
+    `rtsp:\n  listen: ${q('127.0.0.1:' + ports.go2rtc)}`,
     'api:\n  listen: ""',
     'webrtc:\n  listen: ""',
     'srtp:\n  listen: ""',
     'rtmp:\n  listen: ""',
     'log:\n  level: warn',
     'streams:' + (cameras.length ? '' : ' {}'),
-    ...cameras.map((c) => `  ${q(c.name)}:`),
+    ...streams,
     '',
   ].join('\n');
 }
@@ -25,13 +42,14 @@ export function switcherConfig({ ports, timeZone, cameras, onvif = null, web = {
   return {
     bridgeWs: `ws://127.0.0.1:${ports.bridge}/ws`,
     bridgeHttp: `http://127.0.0.1:${ports.bridge}`,
-    output: `rtsp://127.0.0.1:${ports.rtsp}/{name}`,
-    rtspPort: ports.rtsp,
+    output: `rtsp://127.0.0.1:${ports.go2rtc}/{name}`,
+    rtspPort: ports.rtsp,      // the RTSP front NVRs use
+    go2rtcPort: ports.go2rtc,  // where the front finds the streams
     webPort: ports.web,
     dataDir: `${dataDir}/switcher`,
     timeZone,
     cameras,
-    onvif,   // the ONVIF login, if any; cameras carry their own onvif address
+    onvif,   // the RTSP/ONVIF login, if any; cameras carry their own onvif address
     web: {   // the web page: login (if any), theme, HTTPS certificate files (if HTTPS)
       login: web.login ?? null,
       theme: web.theme ?? 'auto',

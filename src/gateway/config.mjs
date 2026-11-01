@@ -4,7 +4,9 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { webSettings, rtspSettings } from './access.mjs';
 
-export const DEFAULT_PORTS = { web: 8099, rtsp: 8554, bridge: 3000 };
+// web and rtsp face the LAN; bridge and go2rtc listen on 127.0.0.1 only (the RTSP port in front of
+// go2rtc is the gateway's own, src/rtsp/).
+export const DEFAULT_PORTS = { web: 8099, rtsp: 8554, bridge: 3000, go2rtc: 18554 };
 const CAMERA_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;   // becomes the RTSP path
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 const MAC = /^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$/;

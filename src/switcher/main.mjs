@@ -19,6 +19,7 @@ import { createUpdateCheck } from './updates.mjs';
 import { encodeJpeg } from '../video/ffmpeg.mjs';
 import { startOnvif } from '../onvif/index.mjs';
 import { onvifNetworkProblem } from '../onvif/network.mjs';
+import { createRtspFront } from '../rtsp/server.mjs';
 
 const config = JSON.parse(readFileSync(process.argv[2] ?? '/data/switcher/config.json', 'utf8'));
 const log = (...a) => console.log(new Date().toISOString(), ...a);
@@ -33,6 +34,12 @@ const rtspPort = config.rtspPort ?? 8554;
 const snapshot = createSnapshots(encodeJpeg);
 const updates = createUpdateCheck({ current: version, enabled: config.checkForUpdates !== false, log });
 updates.start();
+
+// The RTSP port NVRs connect to, in front of go2rtc: the login, RTP over UDP, RTSP over HTTP and
+// RTCP sender reports (what ONVIF requires and go2rtc lacks).
+const rtspFront = createRtspFront({ upstream: { host: '127.0.0.1', port: config.go2rtcPort ?? 18554 }, credentials: config.onvif ?? null, log });
+rtspFront.on('error', (e) => log(`RTSP port ${rtspPort}: ${e.message}`));
+rtspFront.listen(rtspPort, () => log(`RTSP streams on :${rtspPort}${config.onvif ? ', login required' : ', no login'} (TCP, UDP, HTTP tunnel)`));
 
 // ONVIF devices for cameras with an `onvif` section (NVRs such as UniFi Protect adopt only ONVIF).
 const onvifProblem = onvifNetworkProblem(cameras.filter((c) => c.onvif?.address).map((c) => c.onvif.address));   // bridge network

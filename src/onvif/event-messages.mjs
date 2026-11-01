@@ -16,23 +16,29 @@ export function parseDuration(value, fallback, now = Date.now()) {
   return Number.isNaN(t) ? fallback : Math.max(t - now, 1000);
 }
 
-// The notification messages for the current motion state.
+// The events for the current motion state: [{ topic, source: [[name, value]], data: [[name, value]],
+// time, operation, items }] (items: what message content filters look at).
 // operation: 'Initialized' (current state, for a new subscriber) or 'Changed'.
-export function motionMessages(motion, changedAt, operation) {
+export function motionEvents(motion, changedAt, operation) {
   const value = String(motion), time = new Date(changedAt).toISOString();
-  const message = (topic, source, data) => `<wsnt:NotificationMessage><wsnt:Topic Dialect="${DIALECT}">${topic}</wsnt:Topic>`
-    + `<wsnt:Message><tt:Message UtcTime="${time}" PropertyOperation="${operation}"><tt:Source>${source}</tt:Source>`
-    + `<tt:Data>${data}</tt:Data></tt:Message></wsnt:Message></wsnt:NotificationMessage>`;
+  const event = (topic, source, data) => ({ topic, source, data, time, operation,
+    items: [...source, ...data].map(([name, v]) => ({ kind: 'SimpleItem', name, value: v })) });
   return [
-    message('tns1:RuleEngine/CellMotionDetector/Motion',
-      '<tt:SimpleItem Name="VideoSourceConfigurationToken" Value="video_src_config"/>'
-      + '<tt:SimpleItem Name="VideoAnalyticsConfigurationToken" Value="video_analytics_config"/>'
-      + '<tt:SimpleItem Name="Rule" Value="MotionDetectorRule"/>',
-      `<tt:SimpleItem Name="IsMotion" Value="${value}"/>`),
-    message('tns1:VideoSource/MotionAlarm',
-      '<tt:SimpleItem Name="Source" Value="video_src"/>',
-      `<tt:SimpleItem Name="State" Value="${value}"/>`),
+    event('tns1:RuleEngine/CellMotionDetector/Motion',
+      [['VideoSourceConfigurationToken', 'video_src_config'], ['VideoAnalyticsConfigurationToken', 'video_analytics_config'], ['Rule', 'MotionDetectorRule']],
+      [['IsMotion', value]]),
+    event('tns1:VideoSource/MotionAlarm', [['Source', 'video_src']], [['State', value]]),
   ];
+}
+
+const items = (list) => list.map(([name, value]) => `<tt:SimpleItem Name="${name}" Value="${value}"/>`).join('');
+
+// One wsnt:NotificationMessage. A push notification also names its subscription and producer.
+export function notificationMessage(e, { subscription = null, producer = null } = {}) {
+  const ref = (tag, address) => (address ? `<wsnt:${tag}><wsa:Address>${address}</wsa:Address></wsnt:${tag}>` : '');
+  return `<wsnt:NotificationMessage>${ref('SubscriptionReference', subscription)}<wsnt:Topic Dialect="${DIALECT}">${e.topic}</wsnt:Topic>`
+    + `${ref('ProducerReference', producer)}<wsnt:Message><tt:Message UtcTime="${e.time}" PropertyOperation="${e.operation}">`
+    + `<tt:Source>${items(e.source)}</tt:Source><tt:Data>${items(e.data)}</tt:Data></tt:Message></wsnt:Message></wsnt:NotificationMessage>`;
 }
 
 export function eventProperties() {

@@ -57,7 +57,7 @@ const { ports, cameras, timeZone } = settings;
 const services = [
   { name: 'bridge', cmd: 'node', args: ['/opt/bridge/server.mjs'], cwd: `${DATA}/bridge`, env: bridgeEnv(settings, DATA, process.env) },
   { name: 'go2rtc', cmd: '/usr/local/bin/go2rtc', args: ['-config', `${DATA}/go2rtc/go2rtc.yaml`], cwd: `${DATA}/go2rtc` },
-  { name: 'switcher', waitFor: [ports.rtsp, ports.bridge], cmd: 'node',
+  { name: 'switcher', waitFor: [ports.go2rtc, ports.bridge], cmd: 'node',
     args: [new URL('./switcher/main.mjs', import.meta.url).pathname, `${DATA}/switcher/config.json`], cwd: '/app', env: { TZ: timeZone } },
 ];
 

@@ -1,21 +1,24 @@
-// One ONVIF camera's HTTP endpoint: routes SOAP requests to the device, media and events services,
-// checks the login, and always answers in SOAP (faults included). Also serves the snapshot
+// One ONVIF camera's HTTP endpoint: routes SOAP requests to the device, media, media2 and events
+// services, checks the login, and always answers in SOAP (faults included). Also serves the snapshot
 // (GET /onvif/snapshot.jpg, with the same login over HTTP Digest or Basic) and remembers the last
 // request, so the web page can show whether an NVR talks to the camera.
 
 import { createServer } from 'node:http';
-import { operation, envelope, fault } from './xml.mjs';
+import { operation, envelope, fault, isReceiverFault } from './xml.mjs';
 import { checkUsernameToken } from './auth.mjs';
 import { deviceResponse } from './device.mjs';
 import { mediaResponse } from './media.mjs';
+import { media2Response } from './media2.mjs';
 import { createHttpAuth } from './http-auth.mjs';
 
 // What a client may ask before logging in (ONVIF "pre-auth" operations).
-const OPEN = new Set(['GetSystemDateAndTime', 'GetCapabilities', 'GetServices', 'GetServiceCapabilities', 'GetHostname', 'GetEndpointReference']);
+const OPEN = new Set(['GetSystemDateAndTime', 'GetCapabilities', 'GetServices', 'GetServiceCapabilities', 'GetHostname',
+  'GetWsdlUrl', 'GetEndpointReference']);
 
-// device: see index.mjs   events: MotionEvents   credentials: { username, password } | null
+// camera: { device, settings, model, events } (index.mjs)   credentials: { username, password } | null
 // snapshot() -> Promise<jpeg Buffer>   contact: filled with { at, from, op } of the last SOAP request
-export function createCameraServer({ device, events, credentials, log, snapshot, contact = {}, now = Date.now }) {
+export function createCameraServer({ camera, credentials, log, snapshot, contact = {}, now = Date.now }) {
+  const { device, settings, events } = camera;
   const httpAuth = createHttpAuth(credentials, { now });
   const server = createServer(async (req, res) => {
     if (req.method === 'GET' && req.url.split('?')[0] === '/onvif/snapshot.jpg') {
@@ -27,35 +30,49 @@ export function createCameraServer({ device, events, credentials, log, snapshot,
       res.writeHead(status, { 'content-type': 'application/soap+xml; charset=utf-8' });
       res.end(xml);
     };
+    const sendFault = (code, reason) => send(isReceiverFault(code) ? 500 : 400, fault(code, reason));
     const xml = await readBody(req);
     const op = operation(xml);
     const path = req.url.split('?')[0];
-    if (req.method !== 'POST' || !op) return send(400, fault('ter:InvalidArgVal', 'expected a SOAP request'));
+    if (req.method !== 'POST' || !op) return sendFault('ter:InvalidArgVal', 'expected a SOAP request');
     Object.assign(contact, { at: now(), from: String(req.socket.remoteAddress ?? '').replace(/^::ffff:/, ''), op });
 
-    if (!(path === '/onvif/device_service' && OPEN.has(op))) {
-      const problem = checkUsernameToken(xml, credentials, now());
+    // WS-UsernameToken (what ONVIF clients send), or HTTP Digest/Basic on the request. The token's
+    // time is checked against the device's clock, which an NVR may have set.
+    if (!(path === '/onvif/device_service' && OPEN.has(op)) && !(req.headers.authorization && httpAuth.allows(req))) {
+      const problem = checkUsernameToken(xml, credentials, settings.clock());
       if (problem) {
         log(device.name, `ONVIF: ${op} refused: ${problem}`);
-        return send(400, fault('ter:NotAuthorized', `Sender not authorized: ${problem}`));
+        return sendFault('ter:NotAuthorized', `Sender not authorized: ${problem}`);
       }
     }
     try {
-      const answer = await route(path, op, xml, device, events, now);
-      if (!answer) return send(400, fault('ter:ActionNotSupported', `${op} is not supported`));
+      const answer = await route(path, op, xml, camera, credentials);
+      if (!answer) return sendFault('ter:ActionNotSupported', `${op} is not supported`);
       send(200, envelope(answer.body, { action: answer.action }));
     } catch (e) {
-      send(400, fault(e.code ?? 'ter:InvalidArgVal', e.message));
+      if (!e.code) log(device.name, `ONVIF: ${op} failed: ${e.stack ?? e.message}`);
+      sendFault(e.code ?? 'ter:Action', e.code ? e.message : `${op} failed`);
     }
   });
   server.requestTimeout = 0;   // PullMessages may wait up to a minute
+  server.on('clientError', (e, socket) => socket.destroy());
   return server;
 }
 
-async function route(path, op, xml, device, events, now) {
+// A device restart (SystemReboot, SetSystemFactoryDefault) ends event subscriptions; a factory
+// default also resets the media profiles. The stream itself keeps running.
+const restart = (camera) => (why) => {
+  camera.events.reset();
+  if (why === 'factory default') camera.model.reset();
+};
+
+async function route(path, op, xml, camera, credentials) {
   const plain = (body) => body && { body };
-  if (path === '/onvif/device_service') return plain(deviceResponse(op, device, now()));
-  if (path === '/onvif/media_service') return plain(mediaResponse(op, device));
+  const { device, settings, model, events } = camera;
+  if (path === '/onvif/device_service') return plain(deviceResponse(op, xml, { device, settings, credentials, onReboot: restart(camera) }));
+  if (path === '/onvif/media_service') return plain(mediaResponse(op, xml, { device, model }));
+  if (path === '/onvif/media2_service') return plain(media2Response(op, xml, { device, model }));
   if (path === '/onvif/events_service') return events.handle(op, xml);
   const subscription = /^\/onvif\/subscription\/(\w+)$/.exec(path);
   if (subscription) return events.handle(op, xml, subscription[1]);

@@ -89,3 +89,58 @@ describe('motion events (PullPoint, what UniFi Protect uses)', () => {
     assert.match(body, /<tns1:VideoSource><MotionAlarm wstop:topic="true">/);
   });
 });
+
+describe('motion events (WS-BaseNotification: pushed to the client)', () => {
+  const subscribe = (address, filter = '') => `<s:Body><wsnt:Subscribe><wsnt:ConsumerReference><wsa:Address>${address}</wsa:Address></wsnt:ConsumerReference>`
+    + `${filter ? `<wsnt:Filter>${filter}</wsnt:Filter>` : ''}<wsnt:InitialTerminationTime>PT1M</wsnt:InitialTerminationTime></wsnt:Subscribe></s:Body>`;
+
+  test('Subscribe sends the current state, then every change, as Notify to the client\'s address', async () => {
+    const sent = [];
+    const events = new MotionEvents({ baseUrl: BASE, post: async (url, xml) => sent.push({ url, xml }) && true });
+    const { body, action } = await events.handle('Subscribe', subscribe('http://192.168.1.10:9000/notify'));
+    assert.equal(action, 'http://docs.oasis-open.org/wsn/bw-2/NotificationProducer/SubscribeResponse');
+    assert.match(body, /<wsnt:SubscribeResponse><wsnt:SubscriptionReference><wsa:Address>http:\/\/192\.168\.1\.51:8000\/onvif\/subscription\/\w+</);
+    events.setMotion(true);
+    assert.equal(sent.length, 2);
+    assert.equal(sent[0].url, 'http://192.168.1.10:9000/notify');
+    assert.match(sent[0].xml, /<wsa:Action>http:\/\/docs\.oasis-open\.org\/wsn\/bw-2\/NotificationConsumer\/Notify<\/wsa:Action>/);
+    assert.match(sent[0].xml, /<wsnt:Notify><wsnt:NotificationMessage><wsnt:SubscriptionReference>/);
+    assert.deepEqual(motionValues(sent[1].xml), ['true']);
+  });
+
+  test('a push subscription has no pull point, and ends with Unsubscribe', async () => {
+    const sent = [];
+    const events = new MotionEvents({ baseUrl: BASE, post: async (url, xml) => sent.push(xml) && true });
+    const id = idFrom((await events.handle('Subscribe', subscribe('http://192.168.1.10:9000/notify'))).body);
+    await assert.rejects(events.handle('PullMessages', pull(), id), { code: 'ter:ActionNotSupported' });
+    await events.handle('Unsubscribe', '<s:Body><wsnt:Unsubscribe/></s:Body>', id);
+    events.setMotion(true);
+    assert.equal(sent.length, 1, 'only the first state');
+  });
+
+  test('Subscribe needs an http address to send to', async () => {
+    await assert.rejects(new MotionEvents({ baseUrl: BASE }).handle('Subscribe', subscribe('mailto:x')), { code: 'ter:InvalidArgVal' });
+  });
+});
+
+describe('event filters on subscriptions', () => {
+  test('a topic filter: only MotionAlarm messages', async () => {
+    const events = new MotionEvents({ baseUrl: BASE });
+    const filtered = '<s:Body><tev:CreatePullPointSubscription><tev:Filter><wsnt:TopicExpression Dialect="http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet">'
+      + 'tns1:VideoSource/MotionAlarm</wsnt:TopicExpression></tev:Filter></tev:CreatePullPointSubscription></s:Body>';
+    const id = idFrom((await events.handle('CreatePullPointSubscription', filtered)).body);
+    const { body } = await events.handle('PullMessages', pull(), id);
+    assert.match(body, /MotionAlarm/);
+    assert.doesNotMatch(body, /CellMotionDetector/);
+  });
+
+  test('a content filter: only when motion starts', async () => {
+    const events = new MotionEvents({ baseUrl: BASE });
+    const filtered = '<s:Body><tev:CreatePullPointSubscription><tev:Filter><wsnt:MessageContent Dialect="http://www.onvif.org/ver10/tev/messageContentFilter/ItemFilter">'
+      + 'boolean(//tt:SimpleItem[@Name="IsMotion" and @Value="true"])</wsnt:MessageContent></tev:Filter></tev:CreatePullPointSubscription></s:Body>';
+    const id = idFrom((await events.handle('CreatePullPointSubscription', filtered)).body);
+    events.setMotion(true);
+    events.setMotion(false);
+    assert.deepEqual(motionValues((await events.handle('PullMessages', pull('PT0S'), id)).body), ['true']);
+  });
+});

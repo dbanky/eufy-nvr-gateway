@@ -2,14 +2,13 @@ import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createCameraServer } from '../../src/onvif/camera-server.mjs';
-import { MotionEvents } from '../../src/onvif/events.mjs';
-import { device } from './fixtures.mjs';
+import { onvifCamera } from './fixtures.mjs';
 
 const credentials = { username: 'protect', password: 'secret' };
 let server, base;
 const contact = {};
 before(async () => {
-  server = createCameraServer({ device: device(), events: new MotionEvents({ baseUrl: 'http://x' }), credentials, log: () => {}, contact,
+  server = createCameraServer({ camera: onvifCamera(), credentials, log: () => {}, contact,
     snapshot: async () => Buffer.from('jpeg') });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -35,18 +34,39 @@ describe('an ONVIF camera endpoint', () => {
   });
 
   test('everything else needs the right login', async () => {
-    const refused = await soap('/onvif/media_service', '<GetStreamUri/>');
+    const uri = '<GetStreamUri><ProfileToken>main</ProfileToken></GetStreamUri>';
+    const refused = await soap('/onvif/media_service', uri);
     assert.equal(refused.status, 400);
     assert.match(await refused.text(), /ter:NotAuthorized/);
-    const wrong = await soap('/onvif/media_service', '<GetStreamUri/>', security('nope'));
+    const wrong = await soap('/onvif/media_service', uri, security('nope'));
     assert.match(await wrong.text(), /ter:NotAuthorized/);
-    const ok = await soap('/onvif/media_service', '<GetStreamUri/>', security());
+    const ok = await soap('/onvif/media_service', uri, security());
     assert.match(await ok.text(), /rtsp:\/\/192\.168\.1\.51:8554\/garden/);
   });
 
-  test('unknown operations get a SOAP fault, not plain text', async () => {
-    const res = await soap('/onvif/device_service', '<SystemReboot/>', security());
-    assert.match(await res.text(), /ter:ActionNotSupported/);
+  test('unknown operations get a SOAP fault, not plain text: the device can\'t (Receiver, HTTP 500)', async () => {
+    const res = await soap('/onvif/device_service', '<UpgradeSystemFirmware/>', security());
+    assert.equal(res.status, 500);
+    const xml = await res.text();
+    assert.match(xml, /<s:Value>s:Receiver<\/s:Value><s:Subcode><s:Value>ter:ActionNotSupported<\/s:Value>/);
+  });
+
+  test('a wrong request gets the ONVIF fault codes (Sender, HTTP 400)', async () => {
+    const res = await soap('/onvif/media_service', '<GetProfile><ProfileToken>nope</ProfileToken></GetProfile>', security());
+    assert.equal(res.status, 400);
+    assert.match(await res.text(), /<s:Value>s:Sender<\/s:Value><s:Subcode><s:Value>ter:InvalidArgVal<\/s:Value><s:Subcode><s:Value>ter:NoProfile<\/s:Value>/);
+  });
+
+  test('HTTP Basic or Digest on the request is a login too', async () => {
+    const res = await fetch(`${base}/onvif/device_service`, { method: 'POST',
+      headers: { 'content-type': 'application/soap+xml', authorization: 'Basic ' + Buffer.from('protect:secret').toString('base64') },
+      body: '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><GetUsers/></s:Body></s:Envelope>' });
+    assert.match(await res.text(), /<tt:Username>protect<\/tt:Username>/);
+  });
+
+  test('Media2 is served too (for H.265 cameras)', async () => {
+    const res = await soap('/onvif/media2_service', '<GetProfiles/>', security());
+    assert.match(await res.text(), /<tr2:Profiles token="main"/);
   });
 
   test('serves the snapshot as a JPEG, behind the same login (HTTP Digest or Basic)', async () => {

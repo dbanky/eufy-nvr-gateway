@@ -14,6 +14,28 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
   so the track never stops; it shares the picture's timeline. The ONVIF device reports the audio
   track, and the tile details show it. The bundled eufy bridge gets one added route for live audio
   (`patches/bridge-live-audio.patch`), on the same camera session as the video.
+- **ONVIF Profile S** for the ONVIF devices ([what is covered](docs/onvif.md#onvif-profile-s)):
+  - Device service: everything Profile S requires — network settings (host name, DNS, NTP, default
+    gateway; the address and ports stay in `config.json`), date and time, scopes, users (the one
+    login), reboot and factory default, `GetWsdlUrl`, capabilities per category.
+  - Media service: create and delete profiles, add and remove configurations, change encoders,
+    video source, audio and metadata configurations with their options. A profile can switch to
+    MJPEG (640 pixels wide) and, with sound, to G711; those streams run an ffmpeg only while watched.
+  - Events: pushed notifications (WS-BaseNotification `Subscribe` / `Notify`) besides PullPoint,
+    and topic and message content filters for both.
+  - Errors as ONVIF fault codes (`ter:InvalidArgVal/ter:NoProfile` …), HTTP Digest or Basic as a
+    login on ONVIF requests too.
+- **Media2** for cameras that pass their H.265 through, which describes H.265 properly (Media ver10
+  can't). H.264 cameras don't list it, so NVRs keep using Media ver10 for them.
+- **RTSP over UDP and over HTTP**, and RTCP sender reports (audio/video sync), on the same RTSP port:
+  the gateway's own RTSP front now sits in front of go2rtc and checks the login.
+
+### Changed
+
+- go2rtc listens on `127.0.0.1:18554` only (`ports.go2rtc`); NVRs connect to the RTSP front on
+  `ports.rtsp` (8554) as before. RTP over UDP is sent from ports 40000–49998 (host networking).
+- The ONVIF scopes no longer claim Profile T, and claim Profile S (`Profile/Streaming`) only for
+  cameras that stream H.264.
 
 ## [0.4.0] - 2026-10-31
 

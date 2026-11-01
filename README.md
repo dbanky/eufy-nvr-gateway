@@ -55,8 +55,8 @@ flowchart LR
 - **Battery-friendly by design.** A camera only streams during an event; the raw camera stream is
   never reachable from the network, so nothing can keep a camera awake by accident.
 - **RTSP and ONVIF.** Any NVR reads the RTSP streams; NVRs that only adopt ONVIF cameras (UniFi
-  Protect) get one ONVIF device per camera, with motion events, pointing at the same stream —
-  nothing is encoded twice. See [the UniFi Protect guide](docs/unifi-protect.md) and
+  Protect) get one ONVIF device per camera, built to ONVIF Profile S, with motion events, pointing
+  at the same stream — nothing is encoded twice. See [the UniFi Protect guide](docs/unifi-protect.md) and
   [docs/onvif.md](docs/onvif.md).
 - **Full resolution and quality.** By default the camera's own video reaches the NVR unchanged (e.g.
   2880×1616 for a 3K SoloCam). Converted video keeps that size, at SSIM 0.993–0.997 against the
@@ -324,7 +324,8 @@ mapped. With a `bridge` network, map these from the host to the same port in the
 | Port | Protocol | What | Map with `bridge` |
 |---|---|---|---|
 | `8099` | TCP | Web page and API (HTTP, or HTTPS with `"web.https": true`) | yes |
-| `8554` | TCP | RTSP streams — `rtsp://<host>:8554/<name>` | yes |
+| `8554` | TCP | RTSP streams — `rtsp://<host>:8554/<name>` (also RTSP over HTTP) | yes |
+| `40000`–`49998` | UDP | RTP for NVRs that ask for RTSP over UDP (most use TCP) | — UDP needs host networking |
 | `8000` | TCP | ONVIF, only on the addresses of cameras published as ONVIF devices ([docs/onvif.md](docs/onvif.md)); one port per camera (`onvif.port`) | — ONVIF needs host networking |
 
 ONVIF works only with host networking: each camera's ONVIF device listens on its own LAN address

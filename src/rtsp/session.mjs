@@ -1,0 +1,221 @@
+// One client's RTSP session, relayed to go2rtc (which only does RTP inside the RTSP connection).
+//
+// What the front adds on the way:
+// - RTP over UDP: the client's UDP SETUP becomes an interleaved one upstream; its packets are sent
+//   to the client's ports from a UDP port pair on the address the client connected to.
+// - RTCP sender reports for every track (go2rtc sends none), every 5 s and at the first packet.
+// - Its own session id: go2rtc hands out a new one per SETUP. The client sees one id for the session,
+//   and may come back with it on a new connection (allowed with UDP; RFC 2326 section 12.37).
+// - "sendonly" in the SDP (go2rtc says recvonly).
+// - Keep-alive per ONVIF: any request or RTCP report from the client; a session whose client left
+//   ends after the timeout.
+
+import { formatMessage, formatFrame, header, withHeader, requestLine, response } from './messages.mjs';
+import { parseTransport, chooseTransport, interleavedTransport, udpTransport } from './transport.mjs';
+import { sdpTracks, trackFor, fromTheDevice } from './sdp.mjs';
+import { RtpTrackStats, isRtcp } from './sender-report.mjs';
+import { RtspReader } from './messages.mjs';
+
+// Ends a client connection after what was written to it (an answer) has gone out.
+export function endPeer(peer) {
+  if (!peer || peer.destroyed) return;
+  peer.end();
+  setTimeout(() => peer.destroy(), 2000).unref?.();
+}
+
+export const TIMEOUT_S = 60;
+const REPORT_MS = 5000;
+const MAX_CLIENT_BACKLOG = 8 * 1024 * 1024;   // a client this far behind pauses the stream
+
+// deps: connectUpstream() -> net.Socket, openUdp(localAddress) -> Promise<{ rtp, rtcp, ports }>,
+// now() ms, onClose(session), log(...)
+export class ProxySession {
+  constructor(id, deps) {
+    Object.assign(this, { id, deps });
+    this.client = null;
+    this.upstream = null;
+    this.upstreamSession = null;
+    this.pending = new Map();   // CSeq -> { method, uri, setup }
+    this.tracks = [];           // from the last DESCRIBE
+    this.channels = new Map();  // upstream channel -> { kind: 'rtp' | 'rtcp', binding }
+    this.bindings = [];         // one per SETUP: { channels, udp?, clientPort?, stats }
+    this.playing = false;
+    this.closed = false;
+    this.lastActivity = deps.now();
+    this.timer = setInterval(() => this.tick(), REPORT_MS);
+    this.timer.unref?.();
+  }
+
+  attach(client) {
+    this.client = client;
+    this.clientAddress();   // remembered: UDP packets keep going there if the connection ends
+    this.lastActivity = this.deps.now();
+  }
+
+  // The client's connection ended. A UDP session that is playing may live on (it can come back).
+  detach(client) {
+    if (this.client !== client) return;
+    this.client = null;
+    const udpOnly = this.bindings.length && this.bindings.every((b) => b.udp);
+    if (!(this.playing && udpOnly)) this.close();
+  }
+
+  // An authorised request from the client.
+  async fromClient({ startLine, headers, body }) {
+    this.lastActivity = this.deps.now();
+    const { method, uri } = requestLine(startLine);
+    const cseq = header(headers, 'cseq');
+    let out = withHeader(headers, 'Session', this.upstreamSession);
+    let setup = null;
+    if (method === 'SETUP') {
+      setup = await this.prepareSetup(uri, header(headers, 'transport'));
+      if (!setup) return this.reply(response(461, 'Unsupported Transport', cseq));
+      out = withHeader(out, 'Transport', interleavedTransport(setup.channels));
+    }
+    this.pending.set(cseq, { method, uri, setup });
+    this.toUpstream().write(formatMessage({ startLine, headers: out, body }));
+  }
+
+  // Interleaved data from the client: RTCP receiver reports. They keep the session alive; go2rtc
+  // doesn't need them.
+  fromClientFrame() {
+    this.lastActivity = this.deps.now();
+  }
+
+  async prepareSetup(uri, transportHeader) {
+    const choice = chooseTransport(parseTransport(transportHeader));
+    if (!choice) return null;
+    const used = new Set(this.bindings.flatMap((b) => b.channels));
+    const free = () => { let c = 0; while (used.has(c) || used.has(c + 1)) c += 2; return [c, c + 1]; };
+    const wanted = choice.protocol === 'tcp' ? choice.interleaved : null;
+    const channels = wanted && !used.has(wanted[0]) && !used.has(wanted[1]) ? wanted : free();
+    const track = trackFor(this.tracks, uri);
+    const binding = { channels, stats: new RtpTrackStats(track?.clockRate ?? 90000), clientChannels: channels };
+    if (choice.protocol === 'udp') {
+      binding.clientPort = choice.clientPort;
+      binding.udp = await this.deps.openUdp(this.client?.localAddress);
+      binding.udp.rtcp.on('message', (packet) => { if (isRtcp(packet)) this.lastActivity = this.deps.now(); });
+    }
+    return binding;
+  }
+
+  toUpstream() {
+    if (this.upstream) return this.upstream;
+    const socket = this.deps.connectUpstream();
+    const reader = new RtspReader();
+    socket.on('data', (chunk) => {
+      let items;
+      try {
+        items = reader.push(chunk);
+      } catch (e) {
+        this.deps.log?.(`RTSP: bad answer from the stream server: ${e.message}`);
+        return this.close();
+      }
+      for (const item of items) item.frame ? this.fromUpstreamFrame(item.frame) : this.fromUpstreamMessage(item.message);
+    });
+    socket.on('error', () => this.close());
+    socket.on('close', () => this.close());
+    this.upstream = socket;
+    return socket;
+  }
+
+  fromUpstreamMessage({ startLine, headers, body }) {
+    const cseq = header(headers, 'cseq');
+    const request = this.pending.get(cseq);
+    this.pending.delete(cseq);
+    const ok = /^RTSP\/1\.0 2\d\d/.test(startLine);
+    let out = headers;
+    if (header(headers, 'session')) out = withHeader(out, 'Session', this.id);
+    if (request?.method === 'DESCRIBE' && ok) {
+      this.tracks = sdpTracks(body);
+      body = Buffer.from(fromTheDevice(body));
+    }
+    if (request?.method === 'SETUP') {
+      const binding = request.setup;
+      if (ok) {
+        this.upstreamSession = (header(headers, 'session') ?? '').split(';')[0] || this.upstreamSession;
+        this.bind(binding);
+        out = withHeader(out, 'Session', `${this.id};timeout=${TIMEOUT_S}`);
+        out = withHeader(out, 'Transport', binding.udp
+          ? udpTransport({ clientPort: binding.clientPort, serverPort: binding.udp.ports })
+          : interleavedTransport(binding.channels));
+      } else {
+        binding?.udp?.close();
+      }
+    }
+    if (request?.method === 'PLAY' && ok) this.playing = true;
+    this.reply(formatMessage({ startLine, headers: out, body }));
+  }
+
+  bind(binding) {
+    this.bindings.push(binding);
+    this.channels.set(binding.channels[0], { kind: 'rtp', binding });
+    this.channels.set(binding.channels[1], { kind: 'rtcp', binding });
+  }
+
+  fromUpstreamFrame({ channel, data }) {
+    const route = this.channels.get(channel);
+    if (!route) return;
+    const { binding } = route;
+    if (route.kind === 'rtp') {
+      const first = binding.stats.ssrc == null;
+      binding.stats.count(data, this.deps.now());
+      this.sendRtp(binding, data);
+      if (first) this.report(binding);
+    } else {
+      this.sendRtcp(binding, data);
+    }
+  }
+
+  sendRtp(binding, data) {
+    if (binding.udp) return binding.udp.rtp.send(data, binding.clientPort[0], this.clientAddress());
+    this.writeToClient(formatFrame(binding.channels[0], data));
+  }
+
+  sendRtcp(binding, data) {
+    if (binding.udp) return binding.udp.rtcp.send(data, binding.clientPort[1], this.clientAddress());
+    this.writeToClient(formatFrame(binding.channels[1], data));
+  }
+
+  clientAddress() {
+    this.lastAddress = this.client?.remoteAddress?.replace(/^::ffff:/, '') ?? this.lastAddress;
+    return this.lastAddress;
+  }
+
+  report(binding) {
+    const packet = binding.stats.report(this.deps.now());
+    if (packet) this.sendRtcp(binding, packet);
+  }
+
+  writeToClient(data) {
+    const client = this.client;
+    if (!client) return;
+    client.write(data);
+    if (client.writableLength > MAX_CLIENT_BACKLOG && this.upstream && !this.upstream.isPaused()) {
+      this.upstream.pause();
+      client.once('drain', () => this.upstream?.resume());
+    }
+  }
+
+  reply(data) {
+    this.client?.write(data);
+  }
+
+  tick() {
+    if (this.closed) return;
+    if (!this.client && this.deps.now() - this.lastActivity > TIMEOUT_S * 1000) return this.close();
+    if (this.playing) for (const binding of this.bindings) this.report(binding);
+  }
+
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    clearInterval(this.timer);
+    this.upstream?.destroy();
+    for (const binding of this.bindings) binding.udp?.close();
+    for (const { setup } of this.pending.values()) setup?.udp?.close();
+    endPeer(this.client);
+    this.client = null;
+    this.deps.onClose?.(this);
+  }
+}

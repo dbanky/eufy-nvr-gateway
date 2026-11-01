@@ -4,17 +4,19 @@
 the general ONVIF reference.
 
 Some NVRs adopt only ONVIF cameras — UniFi Protect most notably. The gateway can publish each camera
-as an ONVIF device as well. Nothing is encoded for this: ONVIF only describes the camera and points
-the NVR at the camera's existing RTSP stream (`rtsp://<address>:8554/<name>`), plus motion events
-so the NVR can record only while the camera is awake.
+as an ONVIF device as well, built to **ONVIF Profile S** ([what that covers](#onvif-profile-s)).
+Nothing is encoded for the default stream: ONVIF describes the camera and points the NVR at the
+camera's existing RTSP stream (`rtsp://<address>:8554/<name>`), plus motion events so the NVR can
+record only while the camera is awake.
 
 | What the NVR sees | |
 |---|---|
-| Device | Manufacturer `eufy`, the camera's model and serial, one stream profile |
-| Stream | The gateway's RTSP stream of that camera — H.264, or the camera's own H.265 when passed through |
+| Device | Manufacturer `eufy`, the camera's model and serial, one ready-to-use profile (`main`) |
+| Stream | The gateway's RTSP stream of that camera — H.264, or the camera's own H.265 when passed through. Over RTSP/TCP, RTP over UDP or RTSP over HTTP, with RTCP sender reports |
+| Other encodings | An NVR may switch a profile to MJPEG (640 pixels wide) or, with sound, to G711; the gateway then runs an ffmpeg for that stream while it is watched |
 | Audio | With `"audio": true`: an audio source and an AAC encoder configuration (AAC-LC, 16 kHz, mono); otherwise none |
 | Snapshot | What the stream shows, as a JPEG on the camera's ONVIF port (`/onvif/snapshot.jpg`), behind the login (`rtsp.username`) |
-| Motion | `true` while the camera is waking up or live, `false` when it sleeps (ONVIF PullPoint events, topics `RuleEngine/CellMotionDetector/Motion` and `VideoSource/MotionAlarm`) |
+| Motion | `true` while the camera is waking up or live, `false` when it sleeps (PullPoint or pushed WS-BaseNotification events, with topic and content filters; topics `RuleEngine/CellMotionDetector/Motion` and `VideoSource/MotionAlarm`) |
 | Adding | By IP address and port, with the login (UniFi Protect: *Advanced Adoption*). There is no WS-Discovery: Protect didn't find the cameras with it in practice |
 
 ## 1. Give each camera its own address
@@ -81,6 +83,33 @@ and the login from step 2. Details, including the H.265 setting that matters: th
 
 To record only events, set the cameras to record on motion: the gateway reports motion exactly
 while a camera is awake.
+
+## ONVIF Profile S
+
+The ONVIF devices implement what the [Profile S specification](https://www.onvif.org/profiles/profile-s/)
+(v1.3) lists as mandatory for a device, and its conditional audio streaming, with these exceptions:
+
+| | |
+|---|---|
+| **WS-Discovery** (mandatory) | Not there, on purpose: UniFi Protect never found the cameras with it, and NVRs add them by address. `GetDiscoveryMode` says `NonDiscoverable`. |
+| **H.265 cameras** | Profile S has no H.265. A camera whose own H.265 is passed through (the default for the SoloCam S340) reports `H265`, which is outside Profile S, and doesn't carry the `Profile/Streaming` scope. Its device also lists the Media2 service, which describes H.265 properly (Media2 is the Profile T service; the gateway doesn't implement all of Profile T). Set `"transcode": true` for the camera to make it H.264, and so Profile S, while it is live. |
+| **Not certified** | ONVIF conformance is certified by ONVIF members with ONVIF's own test tool; this project isn't. The implementation follows the specification and is tested with the npm `onvif` library (UniFi Protect's client), ffmpeg and VLC. |
+
+What that means in practice:
+
+- **Settings an NVR changes** (host name, DNS, NTP, default gateway, time zone and manual time,
+  scopes, profiles, encoder choices) are kept in memory: every container start begins from
+  `config.json`, like a camera after a factory reset (`SetSystemFactoryDefault` does the same).
+  They describe the ONVIF device; the gateway's own network and clock never change. The camera's
+  address and ports come from `config.json` and can't be changed over ONVIF.
+- **Users:** one, the login from `config.json`, as an administrator. Adding, changing or deleting
+  users over ONVIF is refused.
+- **Encoders** offer only what the stream really is: the camera's resolution, frame rate and
+  bitrate (H.264), or MJPEG at 640 pixels wide; AAC 16 kHz or G711 8 kHz. Other values are refused.
+- **RTSP** goes through the gateway's own RTSP port in front of go2rtc: RTSP over TCP, RTP over UDP
+  (from ports 40000–49998 on the camera's address, which needs host networking) and RTSP over HTTP
+  on the same port, RTCP sender reports for audio/video sync, RTSP Digest or Basic login. No
+  multicast (conditional in Profile S).
 
 ## Things to know
 

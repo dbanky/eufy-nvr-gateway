@@ -15,11 +15,42 @@ export function valueOf(xml, name) {
   return match ? match[1].trim() : null;
 }
 
+// The inner XML of every element with this name (any prefix), in order. Elements of the same name
+// must not nest (true for the ONVIF requests read here).
+export function elementsOf(xml, name) {
+  const re = new RegExp(`<(?:[\\w-]+:)?${name}\\b([^>]*?)(?:/>|>([\\s\\S]*?)</(?:[\\w-]+:)?${name}>)`, 'g');
+  return [...String(xml ?? '').matchAll(re)].map((m) => m[2] ?? '');
+}
+
+// All values of elements with this name.
+export const valuesOf = (xml, name) => elementsOf(xml, name).map((v) => v.trim());
+
+// An attribute of the first element with this name, or null.
+export function attributeOf(xml, name, attribute) {
+  const tag = new RegExp(`<(?:[\\w-]+:)?${name}\\b([^>]*)>`).exec(String(xml ?? ''));
+  if (!tag) return null;
+  const m = new RegExp(`(?:^|\\s)(?:[\\w-]+:)?${attribute}\\s*=\\s*("([^"]*)"|'([^']*)')`).exec(tag[1]);
+  return m ? (m[2] ?? m[3]) : null;
+}
+
+// A SOAP fault with ONVIF codes. code: "ter:InvalidArgVal/ter:NoProfile" (subcode/subcode).
+// Errors from ter:Action and ter:ActionNotSupported are the receiver's (the device can't); the
+// rest are the sender's (the request is wrong).
+export class OnvifFault extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
+
+export const isReceiverFault = (code) => /^ter:(Action|ActionNotSupported)(\/|$)/.test(code);
+
 const NAMESPACES = [
   'xmlns:s="http://www.w3.org/2003/05/soap-envelope"',
   'xmlns:tt="http://www.onvif.org/ver10/schema"',
   'xmlns:tds="http://www.onvif.org/ver10/device/wsdl"',
   'xmlns:trt="http://www.onvif.org/ver10/media/wsdl"',
+  'xmlns:tr2="http://www.onvif.org/ver20/media/wsdl"',
   'xmlns:tev="http://www.onvif.org/ver10/events/wsdl"',
   'xmlns:ter="http://www.onvif.org/ver10/error"',
   'xmlns:wsa="http://www.w3.org/2005/08/addressing"',
@@ -34,9 +65,10 @@ export function envelope(body, { action } = {}) {
   return `<?xml version="1.0" encoding="UTF-8"?><s:Envelope ${NAMESPACES}>${header}<s:Body>${body}</s:Body></s:Envelope>`;
 }
 
-// code: an ONVIF subcode such as ter:ActionNotSupported or ter:NotAuthorized.
-export function fault(code, reason, { sender = true } = {}) {
-  return envelope(`<s:Fault><s:Code><s:Value>${sender ? 's:Sender' : 's:Receiver'}</s:Value>`
-    + `<s:Subcode><s:Value>${code}</s:Value></s:Subcode></s:Code>`
+// code: one ONVIF subcode or a chain of them, "ter:InvalidArgVal/ter:NoProfile".
+export function fault(code, reason, { sender = !isReceiverFault(code) } = {}) {
+  const subcodes = code.split('/');
+  const nested = subcodes.reduceRight((inner, c) => `<s:Subcode><s:Value>${c}</s:Value>${inner}</s:Subcode>`, '');
+  return envelope(`<s:Fault><s:Code><s:Value>${sender ? 's:Sender' : 's:Receiver'}</s:Value>${nested}</s:Code>`
     + `<s:Reason><s:Text xml:lang="en">${xmlEscape(reason)}</s:Text></s:Reason></s:Fault>`);
 }
