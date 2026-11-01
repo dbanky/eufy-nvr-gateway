@@ -9,6 +9,14 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ### Fixed
 
+- **VLC (and other viewers on UDP) dropped the stream after a few minutes**: the internal stream
+  server (go2rtc) never answers the keep-alive requests `GET_PARAMETER` and `SET_PARAMETER`, nor
+  `TEARDOWN`, once a stream plays, and it drops a viewer's connection after 60 s without hearing
+  from it, which is what happens with RTP over UDP (the viewer's reports go by UDP). The RTSP front
+  now answers those requests itself and keeps its own connection to go2rtc alive. Measured: a
+  VLC-style UDP session now plays without end; before, go2rtc dropped it after 60 s once the
+  keep-alives stopped reaching it.
+
 - **Long motion was cut off**: a session ended 30 s (`holdMs`) after the camera's first detection,
   even while the motion went on, because eufy cameras send no new detection during continuing
   motion (only after their own re-trigger interval). The gateway now also sees movement in the live

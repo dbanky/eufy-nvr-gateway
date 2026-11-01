@@ -8,7 +8,8 @@
 //   and may come back with it on a new connection (allowed with UDP; RFC 2326 section 12.37).
 // - "sendonly" in the SDP (go2rtc says recvonly).
 // - Keep-alive per ONVIF: any request or RTCP report from the client; a session whose client left
-//   ends after the timeout.
+//   ends after the timeout. GET_PARAMETER, SET_PARAMETER and TEARDOWN are answered here: go2rtc
+//   leaves them unanswered once a stream plays.
 
 import { formatMessage, formatFrame, header, withHeader, requestLine, response } from './messages.mjs';
 import { parseTransport, chooseTransport, interleavedTransport, udpTransport } from './transport.mjs';
@@ -25,6 +26,11 @@ export function endPeer(peer) {
 
 export const TIMEOUT_S = 60;
 const REPORT_MS = 5000;
+// go2rtc drops a viewer's connection after 60 s without hearing from it, and a viewer on UDP sends
+// its RTCP over UDP: nothing reaches go2rtc. So the front sends OPTIONS (which go2rtc answers)
+// whenever it has sent go2rtc nothing for this long.
+export const UPSTREAM_KEEPALIVE_MS = 20000;
+const KEEPALIVE_CSEQ = 1_000_000;   // far from the client's own CSeq numbers
 const MAX_CLIENT_BACKLOG = 8 * 1024 * 1024;   // a client this far behind pauses the stream
 
 // deps: connectUpstream() -> net.Socket, openUdp(localAddress, { uri, media }) -> Promise<{ rtp, rtcp, ports, onRtcp, close }>,
@@ -42,6 +48,9 @@ export class ProxySession {
     this.playing = false;
     this.closed = false;
     this.lastActivity = deps.now();
+    this.upstreamWrittenAt = 0;
+    this.keepaliveCseq = KEEPALIVE_CSEQ;
+    this.uri = null;            // the stream's URI, for the keep-alive
     this.timer = setInterval(() => this.tick(), REPORT_MS);
     this.timer.unref?.();
   }
@@ -65,6 +74,15 @@ export class ProxySession {
     this.lastActivity = this.deps.now();
     const { method, uri } = requestLine(startLine);
     const cseq = header(headers, 'cseq');
+    // go2rtc answers OPTIONS while playing, but never GET_PARAMETER, SET_PARAMETER or TEARDOWN:
+    // VLC's keep-alives went unanswered and it gave up after a few minutes. Answered here instead.
+    if (method === 'GET_PARAMETER' || method === 'SET_PARAMETER') {
+      return this.reply(response(200, 'OK', cseq, [['Session', `${this.id};timeout=${TIMEOUT_S}`]]));
+    }
+    if (method === 'TEARDOWN') {
+      this.reply(response(200, 'OK', cseq, [['Session', this.id]]));
+      return this.close();
+    }
     let out = withHeader(headers, 'Session', this.upstreamSession);
     let setup = null;
     if (method === 'SETUP') {
@@ -73,7 +91,21 @@ export class ProxySession {
       out = withHeader(out, 'Transport', interleavedTransport(setup.channels));
     }
     this.pending.set(cseq, { method, uri, setup });
-    this.toUpstream().write(formatMessage({ startLine, headers: out, body }));
+    if (method === 'PLAY' || method === 'DESCRIBE') this.uri = uri;
+    this.writeUpstream(formatMessage({ startLine, headers: out, body }));
+  }
+
+  writeUpstream(data) {
+    this.upstreamWrittenAt = this.deps.now();
+    this.toUpstream().write(data);
+  }
+
+  keepUpstreamAlive() {
+    if (!this.playing || !this.upstream || !this.uri) return;
+    if (this.deps.now() - this.upstreamWrittenAt < UPSTREAM_KEEPALIVE_MS) return;
+    const cseq = String(++this.keepaliveCseq);
+    this.pending.set(cseq, { method: 'OPTIONS', keepalive: true });
+    this.writeUpstream(formatMessage({ startLine: `OPTIONS ${this.uri} RTSP/1.0`, headers: [['CSeq', cseq], ...(this.upstreamSession ? [['Session', this.upstreamSession]] : [])], body: Buffer.alloc(0) }));
   }
 
   // Interleaved data from the client: RTCP receiver reports. They keep the session alive; go2rtc
@@ -133,6 +165,7 @@ export class ProxySession {
     const cseq = header(headers, 'cseq');
     const request = this.pending.get(cseq);
     this.pending.delete(cseq);
+    if (request?.keepalive) return;   // the front's own keep-alive: not the client's business
     const ok = /^RTSP\/1\.0 2\d\d/.test(startLine);
     let out = headers;
     if (header(headers, 'session')) out = withHeader(out, 'Session', this.id);
@@ -215,6 +248,7 @@ export class ProxySession {
     if (this.closed) return;
     if (!this.client && this.deps.now() - this.lastActivity > TIMEOUT_S * 1000) return this.close();
     if (this.playing) for (const binding of this.bindings) this.report(binding);
+    this.keepUpstreamAlive();
   }
 
   close() {
