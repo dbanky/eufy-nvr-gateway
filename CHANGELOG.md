@@ -7,6 +7,15 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Streams with sound stopped for good after a live session** (`"audio": true`): NVRs then got
+  *404* / go2rtc logged `streams: unknown error` every few seconds, and only a container restart
+  helped. ffmpeg could stop reading the picture while it waited for sound, and the gateway sent
+  sound only as the picture went out: both waited for each other. Now the gateway sends the sound
+  ffmpeg waits for (and keeps it in step with the picture), and a stream that takes no video for
+  10 s is restarted, with a line in the log.
+
 ## [0.4.1-beta.3] - 2026-11-01
 
 ### Fixed

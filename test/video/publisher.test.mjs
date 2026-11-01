@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { framesDue, audioFramesDue, publisherArgs } from '../../src/video/publisher.mjs';
+import { framesDue, audioFramesDue, soundWanted, MAX_EXTRA_SOUND_SECONDS, publisherArgs } from '../../src/video/publisher.mjs';
 
 describe('the publisher sends at exactly the frame rate', () => {
   test('the first frame at once, then one every 1/fps second', () => {
@@ -49,5 +49,15 @@ describe('audio in the stream', () => {
     assert.equal(audioFramesDue(15 * 64, 15), 1001);   // 64 s: exactly 1000 frames + the first
     assert.equal(audioFramesDue(25 * 64, 25), 1001, 'the same at another frame rate');
   });
-});
 
+  test('when ffmpeg waits for sound with the video blocked, one more frame goes out (no deadlock)', () => {
+    // ffmpeg interleaves by time: with its video queue full it waits for sound up to that time. Sound
+    // paced only by the video written would never come, and the stream would silently end.
+    const waiting = { videoBlockedMs: 500, audioBlocked: false, audioSent: 392, audioDue: 392, extra: 0, fps: 15 };
+    assert.equal(soundWanted(waiting), true);
+    assert.equal(soundWanted({ ...waiting, videoBlockedMs: 0 }), false, 'video moving: sound follows the video');
+    assert.equal(soundWanted({ ...waiting, audioBlocked: true }), false, 'ffmpeg takes no sound either: not waiting for sound');
+    assert.equal(soundWanted({ ...waiting, audioDue: 393 }), false, 'sound still due anyway');
+    assert.equal(soundWanted({ ...waiting, extra: MAX_EXTRA_SOUND_SECONDS * 15 }), false, 'bounded');
+  });
+});

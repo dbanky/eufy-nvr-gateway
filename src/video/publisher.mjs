@@ -16,6 +16,22 @@ export const MAX_CATCH_UP_SECONDS = 2;
 // Audio frames (1024 samples each) that belong with `videoFrames` frames of video, the first at once.
 export const audioFramesDue = (videoFrames, fps, sampleRate = 16000) => Math.floor(videoFrames * sampleRate / (1024 * fps)) + 1;
 
+// ffmpeg interleaves by time: it can stop reading video until it has sound up to that time. Sound
+// paced only by the video written would then never come, a deadlock that silently ends the stream.
+// It happens when the sound timeline falls behind, e.g. for every camera audio frame ffmpeg can't
+// decode and drops. So when ffmpeg visibly waits for sound (video blocked, the sound pipe free,
+// nothing more due), one more sound frame goes out, and the extra is kept for good: it makes up
+// for the frame that was lost, so picture and sound stay in step.
+export const WAIT_FOR_SOUND_MS = 100;
+export const MAX_EXTRA_SOUND_SECONDS = 10;
+
+// Whether to add one more sound frame now (see above).
+export const soundWanted = ({ videoBlockedMs, audioBlocked, audioSent, audioDue, extra, fps }) =>
+  videoBlockedMs > WAIT_FOR_SOUND_MS && !audioBlocked && audioSent >= audioDue && extra < MAX_EXTRA_SOUND_SECONDS * fps;
+
+// ffmpeg that takes no video for this long is stuck (go2rtc has already dropped it): restart it.
+export const STALL_SECONDS = 10;
+
 // Raw H.264/H.265 has no timestamps: the frames are numbered at the fixed rate instead (setts).
 //
 // With audio, three more things are needed:
@@ -55,8 +71,8 @@ export class Publisher {
     child.on('error', (e) => this.log(this.name, 'publisher error:', e.message));
 
     const startedAt = Date.now();
-    let sent = 0, written = 0, needKeyframe = true, blocked = false;
-    let audioSent = 0, audioBlocked = false;
+    let sent = 0, written = 0, needKeyframe = true, blocked = false, blockedSince = 0, stalled = false;
+    let audioSent = 0, audioBlocked = false, extraSound = 0;
     child.stdin.on('drain', () => { blocked = false; });
     audioPipe?.on('drain', () => { audioBlocked = false; });
     const tick = setInterval(() => {
@@ -70,9 +86,19 @@ export class Publisher {
         sent++;
         written++;
       }
+      if (!blocked) blockedSince = 0;
+      else if (!blockedSince) blockedSince = Date.now();
+      else if (!stalled && Date.now() - blockedSince > STALL_SECONDS * 1000) {
+        stalled = true;
+        this.log(this.name, `publisher took no video for ${STALL_SECONDS} s, restarting the stream`);
+        child.kill('SIGKILL');
+      }
       if (!audioPipe) return;
-      const audioDue = audioFramesDue(written, this.fps);
-      while (audioSent < audioDue && !audioBlocked) {
+      const audioDue = audioFramesDue(written, this.fps) + extraSound;
+      const videoBlockedMs = blockedSince ? Date.now() - blockedSince : 0;
+      if (soundWanted({ videoBlockedMs, audioBlocked, audioSent, audioDue, extra: extraSound, fps: this.fps })) extraSound++;
+      const audioWanted = audioFramesDue(written, this.fps) + extraSound;
+      while (audioSent < audioWanted && !audioBlocked) {
         audioBlocked = !audioPipe.write(audio.next());
         audioSent++;
       }
