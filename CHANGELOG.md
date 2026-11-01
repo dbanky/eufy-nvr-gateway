@@ -7,6 +7,8 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.4.1-beta.6] - 2026-11-01
+
 ### Fixed
 
 - **H.264 cameras in UniFi Protect's live view** (since 0.4.1-beta.4): the stream's description
@@ -346,7 +348,8 @@ First release: always-on H.264 RTSP streams for battery-powered eufy cameras, wi
 awake. One container with the eufy bridge, go2rtc and the switcher; frozen last frame while idle,
 live video on motion, person detection or a doorbell press; web page for the eufy login and status.
 
-[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.5...HEAD
+[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.6...HEAD
+[0.4.1-beta.6]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.5...v0.4.1-beta.6
 [0.4.1-beta.5]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.4...v0.4.1-beta.5
 [0.4.1-beta.4]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.3...v0.4.1-beta.4
 [0.4.1-beta.3]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.2...v0.4.1-beta.3
