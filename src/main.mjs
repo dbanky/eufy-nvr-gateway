@@ -12,6 +12,7 @@ import { onvifNetworkProblem } from './onvif/network.mjs';
 import { go2rtcYaml, switcherConfig, bridgeEnv } from './gateway/service-configs.mjs';
 import { Supervisor } from './gateway/supervisor.mjs';
 import { waitForPort } from './gateway/wait-for-port.mjs';
+import { freePort } from './gateway/free-port.mjs';
 
 const DATA = process.env.DATA_DIR || '/data';
 const log = (...a) => console.log(new Date().toISOString(), '[start]', ...a);
@@ -27,6 +28,18 @@ try {
   settings = resolveSettings(readConfigFile(file), process.env);
 } catch (e) {
   die(e.message);
+}
+
+// The internal ports (127.0.0.1) are shared with the host under host networking: another program
+// may already use one, and then our streams would go to it. Take the next free port instead.
+for (const [key, what] of [['go2rtc', 'go2rtc'], ['bridge', 'eufy bridge']]) {
+  const wanted = settings.ports[key];
+  const port = await freePort(wanted);
+  if (port === null) die(`internal port ${wanted} (${what}) and the 100 after it are in use by other programs on this machine: set "ports.${key}" in config.json to a free port.`);
+  if (port !== wanted) {
+    log(`Note: internal port ${wanted} (${what}, 127.0.0.1) is already used by another program on this machine; using ${port} instead. Set "ports.${key}" to choose one.`);
+    settings.ports[key] = port;
+  }
 }
 
 for (const dir of ['bridge', 'go2rtc', 'switcher']) mkdirSync(`${DATA}/${dir}`, { recursive: true });

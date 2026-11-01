@@ -90,7 +90,7 @@ rather than `motion`.
 |---|---|---|
 | `ports.web` | `8099` | Web page and API, HTTP or HTTPS (also `WEB_PORT`) |
 | `ports.rtsp` | `8554` | RTSP output: RTSP over TCP, RTP over UDP and RTSP over HTTP all on this port. RTP over UDP is sent from ports 40000–49998 (host networking) |
-| `ports.go2rtc` | `18554` | Internal: go2rtc, on `127.0.0.1` only, behind the RTSP port. Change it only if something else on the host uses it |
+| `ports.go2rtc` | `28554` | Internal: go2rtc, on `127.0.0.1` only, behind the RTSP port. If another program on the host already uses it (host networking), the gateway takes the next free port and says so in the log |
 
 ## Sound (`audio`)
 

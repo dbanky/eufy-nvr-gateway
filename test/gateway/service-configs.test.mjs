@@ -4,7 +4,7 @@ import { go2rtcYaml, switcherConfig, bridgeEnv, streamVariants } from '../../src
 
 const settings = {
   eufy: { email: 'you@example.com', password: 'secret', country: 'GB' },
-  ports: { web: 8099, rtsp: 8554, bridge: 3000, go2rtc: 18554 },
+  ports: { web: 8099, rtsp: 8554, bridge: 3000, go2rtc: 28554 },
   timeZone: 'Europe/London',
   cameras: [{ name: 'garden' }, { name: 'front-door' }],
   bridgeEnv: {},
@@ -13,7 +13,7 @@ const settings = {
 describe('go2rtc', () => {
   test('serves one RTSP stream per camera on localhost only: NVRs go through the RTSP front', () => {
     const yaml = go2rtcYaml(settings);
-    assert.match(yaml, /rtsp:\n {2}listen: "127\.0\.0\.1:18554"/);
+    assert.match(yaml, /rtsp:\n {2}listen: "127\.0\.0\.1:28554"/);
     assert.match(yaml, /streams:\n {2}"garden":\n/);
     assert.match(yaml, /\n {2}"front-door":\n/);
   });
@@ -96,8 +96,8 @@ describe('switcher', () => {
   test('reaches the bridge and go2rtc on localhost; NVRs use the RTSP port', () => {
     const config = switcherConfig(settings, '/data');
     assert.equal(config.bridgeWs, 'ws://127.0.0.1:3000/ws');
-    assert.equal(config.output, 'rtsp://127.0.0.1:18554/{name}');
-    assert.equal(config.go2rtcPort, 18554);
+    assert.equal(config.output, 'rtsp://127.0.0.1:28554/{name}');
+    assert.equal(config.go2rtcPort, 28554);
     assert.equal(config.rtspPort, 8554);
     assert.equal(config.dataDir, '/data/switcher');
   });

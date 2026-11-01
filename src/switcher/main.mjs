@@ -37,7 +37,7 @@ updates.start();
 
 // The RTSP port NVRs connect to, in front of go2rtc: the login, RTP over UDP, RTSP over HTTP and
 // RTCP sender reports (what ONVIF requires and go2rtc lacks).
-const rtspFront = createRtspFront({ upstream: { host: '127.0.0.1', port: config.go2rtcPort ?? 18554 }, credentials: config.onvif ?? null, log });
+const rtspFront = createRtspFront({ upstream: { host: '127.0.0.1', port: config.go2rtcPort ?? 28554 }, credentials: config.onvif ?? null, log });
 rtspFront.on('error', (e) => log(`RTSP port ${rtspPort}: ${e.message}`));
 rtspFront.listen(rtspPort, () => log(`RTSP streams on :${rtspPort}${config.onvif ? ', login required' : ', no login'} (TCP, UDP, HTTP tunnel)`));
 

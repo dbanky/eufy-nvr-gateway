@@ -1,5 +1,6 @@
 # Your real settings and runtime data never belong in the repository
 /config.json
 /data/
+/debug/
 .env
 node_modules/

@@ -7,6 +7,15 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **No picture and no live video when Home Assistant runs on the same machine** (host networking):
+  0.4.1-beta.1 put the internal go2rtc on `127.0.0.1:18554`, the port Home Assistant's own go2rtc
+  uses. Our go2rtc couldn't start its RTSP server, the streams went to Home Assistant's go2rtc,
+  which refused them, and every RTSP request got *404 Not Found*. The internal port is now `28554`,
+  and if an internal port (go2rtc or the eufy bridge) is already taken, the gateway uses the next
+  free one and says so in the log.
+
 ## [0.4.1-beta.1] - 2026-11-01
 
 ### Added
