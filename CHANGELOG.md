@@ -7,6 +7,14 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.4.1-beta.3] - 2026-11-01
+
+### Fixed
+
+- **VLC kept asking for the RTSP password.** VLC reads the Digest login request with a fixed
+  pattern (realm, then nonce) and couldn't read ours, which had other fields in between. The order
+  is now the one VLC expects; other players and NVRs are unaffected.
+
 ## [0.4.1-beta.2] - 2026-11-01
 
 ### Fixed
@@ -292,7 +300,8 @@ First release: always-on H.264 RTSP streams for battery-powered eufy cameras, wi
 awake. One container with the eufy bridge, go2rtc and the switcher; frozen last frame while idle,
 live video on motion, person detection or a doorbell press; web page for the eufy login and status.
 
-[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.2...HEAD
+[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.3...HEAD
+[0.4.1-beta.3]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.2...v0.4.1-beta.3
 [0.4.1-beta.2]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.1...v0.4.1-beta.2
 [0.4.1-beta.1]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0...v0.4.1-beta.1
 [0.4.0]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0-beta.4...v0.4.0
