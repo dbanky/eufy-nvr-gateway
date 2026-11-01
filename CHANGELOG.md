@@ -7,6 +7,33 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-01
+
+The first stable release since 0.4.0. It brings everything from the 0.4.1 pre-releases below:
+
+- **Sound** (`"audio": true`), passed through as the camera sends it, starting while the camera wakes.
+- **ONVIF Profile S** devices, with Media2 for H.265 cameras.
+- **The gateway's own RTSP server** in front of go2rtc: RTP over UDP from fixed ports per camera
+  (`udpPort`), RTSP over HTTP, RTCP sender reports, and keep-alives that go2rtc leaves unanswered, so
+  VLC no longer drops the stream after a few minutes.
+- **A new publisher** that sends every picture and sound frame the moment it arrives, without an ffmpeg.
+- **Long motion stays live**: movement in the live picture keeps a session going (`motionInPicture`,
+  `motionInPictureMaxMs`), since eufy cameras send no new detection during continuing motion.
+- **Faster start** of a sleeping camera's stream (a keyframe every second).
+- **UniFi Protect fixes and findings**: one slice per H.264 picture, the profile-level-id, and the
+  advice to use `"transcode": true` for cameras Protect records, since Protect can't follow a
+  passed-through stream's changing video settings.
+- **Ports and firewall**: the internal go2rtc port moved to `28554` (Home Assistant's go2rtc uses
+  `18554`), with a free-port check at startup; the docs explain which ports to open on a Synology
+  and why.
+
+### Known issues
+
+- **The sound can be 0.5–1 s behind the picture.** eufy delivers the camera's sound later than the
+  picture of the same moment, and the bundled bridge passes it on without the camera's timestamps,
+  so the gateway can only stamp it on arrival. A correction (stamping the sound earlier by a
+  measured amount, or passing the camera's timestamps through) is planned.
+
 ### Documentation
 
 - **Synology in three steps**: the README's setup now says up front that in Container Manager's
@@ -417,7 +444,8 @@ First release: always-on H.264 RTSP streams for battery-powered eufy cameras, wi
 awake. One container with the eufy bridge, go2rtc and the switcher; frozen last frame while idle,
 live video on motion, person detection or a doorbell press; web page for the eufy login and status.
 
-[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.9...HEAD
+[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.9...v0.5.0
 [0.4.1-beta.9]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.8...v0.4.1-beta.9
 [0.4.1-beta.8]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.7...v0.4.1-beta.8
 [0.4.1-beta.7]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.6...v0.4.1-beta.7
