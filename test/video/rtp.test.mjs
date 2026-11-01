@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { nalUnits, parameterSets, nalPayloads, framePayloads, aacPayload, aacConfig, rtpPacket, publishSdp, rtpTime } from '../../src/video/rtp.mjs';
+import { nalUnits, parameterSets, nalPayloads, framePayloads, aacPayload, aacConfig, rtpPacket, publishSdp, rtpTime, profileLevelId } from '../../src/video/rtp.mjs';
 import { adtsFrame } from '../helpers/aac.mjs';
 
 const START = [0, 0, 0, 1];
@@ -82,10 +82,14 @@ describe('the RTP packet and the SDP', () => {
   });
 
   test('the SDP announces H.264 with its parameter sets, and AAC when there is sound', () => {
-    const sdp = publishSdp({ codec: 'h264', params: { sps: 'Z0IA', pps: 'aM48' }, audio: true });
-    assert.match(sdp, /m=video 0 RTP\/AVP 96\r\na=rtpmap:96 H264\/90000\r\na=fmtp:96 packetization-mode=1;sprop-parameter-sets=Z0IA,aM48\r\na=control:trackID=0/);
+    const sdp = publishSdp({ codec: 'h264', params: { sps: 'Z0IAHw==', pps: 'aM48' }, audio: true });
+    assert.match(sdp, /m=video 0 RTP\/AVP 96\r\na=rtpmap:96 H264\/90000\r\na=fmtp:96 packetization-mode=1;profile-level-id=42001f;sprop-parameter-sets=Z0IAHw==,aM48\r\na=control:trackID=0/);
     assert.match(sdp, /m=audio 0 RTP\/AVP 97\r\na=rtpmap:97 MPEG4-GENERIC\/16000\/1\r\n.*mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3;config=1408\r\na=control:trackID=1/);
     assert.doesNotMatch(publishSdp({ codec: 'h264' }), /m=audio/);
+  });
+
+  test('H.264\'s profile-level-id, which browsers need, comes from the SPS (a doorbell: High, level 5.0)', () => {
+    assert.equal(profileLevelId('Z2QAMqy0AQAGDQgAAAMACAAAAwD0eMGV'), '640032');
   });
 
   test('H.265 with its VPS, SPS and PPS', () => {

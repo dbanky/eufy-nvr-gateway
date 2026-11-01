@@ -7,6 +7,12 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **H.264 cameras in UniFi Protect's live view** (since 0.4.1-beta.4): the stream's description
+  lacked H.264's `profile-level-id`, which ffmpeg used to add and which browsers set up their
+  decoder from. It is back, taken from the camera's own parameters. H.265 cameras were not affected.
+
 ## [0.4.1-beta.5] - 2026-11-01
 
 ### Changed

@@ -102,13 +102,19 @@ export function rtpPacket({ pt, seq, ts, ssrc, marker = false, payload }) {
   return Buffer.concat([head, payload]);
 }
 
+// H.264's profile-level-id (RFC 6184): the three bytes after the SPS's NAL header, in hex. Players,
+// browsers above all, set up their decoder from it; ffmpeg's RTSP output always carried it.
+export function profileLevelId(spsBase64) {
+  return Buffer.from(spsBase64, 'base64').subarray(1, 4).toString('hex');
+}
+
 // The SDP the publisher announces: the video track, and the audio track if there is sound.
 export function publishSdp({ codec = 'h264', params = {}, audio = false }) {
   const video = codec === 'hevc'
     ? [`a=rtpmap:${VIDEO_PT} H265/${VIDEO_RATE}`,
       `a=fmtp:${VIDEO_PT} ${['vps', 'sps', 'pps'].filter((k) => params[k]).map((k) => `sprop-${k}=${params[k]}`).join(';')}`]
     : [`a=rtpmap:${VIDEO_PT} H264/${VIDEO_RATE}`,
-      `a=fmtp:${VIDEO_PT} packetization-mode=1${params.sps && params.pps ? `;sprop-parameter-sets=${params.sps},${params.pps}` : ''}`];
+      `a=fmtp:${VIDEO_PT} packetization-mode=1${params.sps ? `;profile-level-id=${profileLevelId(params.sps)}` : ''}${params.sps && params.pps ? `;sprop-parameter-sets=${params.sps},${params.pps}` : ''}`];
   const lines = ['v=0', 'o=- 0 0 IN IP4 127.0.0.1', 's=eufy-nvr-gateway', 'c=IN IP4 127.0.0.1', 't=0 0',
     `m=video 0 RTP/AVP ${VIDEO_PT}`, ...video, 'a=control:trackID=0'];
   if (audio) {
