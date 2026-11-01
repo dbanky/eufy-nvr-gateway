@@ -22,7 +22,7 @@ describe('the ONVIF snapshot login', () => {
 
   test('offers Digest first, Basic as a fallback', () => {
     const [digest, basic] = createHttpAuth(credentials).challenges();
-    assert.match(digest, /^Digest realm="eufy-nvr-gateway", qop="auth", algorithm=MD5, nonce="[0-9a-f]+\.[0-9a-f]+"$/);
+    assert.match(digest, /^Digest realm="eufy-nvr-gateway", nonce="[0-9a-f]+\.[0-9a-f]+", algorithm=MD5, qop="auth"$/);
     assert.equal(basic, 'Basic realm="eufy-nvr-gateway"');
   });
 
@@ -32,6 +32,17 @@ describe('the ONVIF snapshot login', () => {
     assert.equal(auth.allows(request(digestAnswer(challenge))), true);
     assert.equal(auth.allows(request(digestAnswer(challenge, { password: 'nope' }))), false);
     assert.equal(auth.allows(request(digestAnswer(challenge, { username: 'admin' }))), false);
+  });
+
+  test('VLC (live555): reads realm and nonce with a fixed pattern, answers without qop (RFC 2069)', () => {
+    const auth = createHttpAuth(credentials);
+    const [challenge] = auth.challenges();
+    const parsed = /^Digest realm="([^"]+)", nonce="([^"]+)"/.exec(challenge);   // live555's sscanf pattern
+    assert.ok(parsed, 'live555 must find realm and nonce right after "Digest"');
+    const [, realm, nonce] = parsed, uri = 'rtsp://192.168.1.10:8554/garden';
+    const response = md5(`${md5(`protect:${realm}:secret`)}:${nonce}:${md5(`DESCRIBE:${uri}`)}`);
+    const answer = `Digest username="protect", realm="${realm}", nonce="${nonce}", uri="${uri}", response="${response}"`;
+    assert.equal(auth.allows(request(answer, 'DESCRIBE')), true);
   });
 
   test('a nonce it didn\'t make, or an old one, is refused', () => {

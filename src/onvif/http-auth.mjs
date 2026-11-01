@@ -42,6 +42,8 @@ export function createHttpAuth(credentials, { now = Date.now, secret = randomByt
       return false;
     },
     // The challenges for a 401: Digest first (preferred), Basic as a fallback.
-    challenges: () => [`Digest realm="${REALM}", qop="auth", algorithm=MD5, nonce="${nonce()}"`, `Basic realm="${REALM}"`],
+    // realm and nonce first, in that order: VLC (live555) reads the challenge with a fixed pattern,
+    // `Digest realm="…", nonce="…"`, and keeps asking for the password if anything sits in between.
+    challenges: () => [`Digest realm="${REALM}", nonce="${nonce()}", algorithm=MD5, qop="auth"`, `Basic realm="${REALM}"`],
   };
 }
