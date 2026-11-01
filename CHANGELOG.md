@@ -7,6 +7,8 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.4.1-beta.4] - 2026-11-01
+
 ### Changed
 
 - **Picture and sound go out the moment they arrive, and nothing is cut.** The gateway now publishes
@@ -326,7 +328,8 @@ First release: always-on H.264 RTSP streams for battery-powered eufy cameras, wi
 awake. One container with the eufy bridge, go2rtc and the switcher; frozen last frame while idle,
 live video on motion, person detection or a doorbell press; web page for the eufy login and status.
 
-[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.3...HEAD
+[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.4...HEAD
+[0.4.1-beta.4]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.3...v0.4.1-beta.4
 [0.4.1-beta.3]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.2...v0.4.1-beta.3
 [0.4.1-beta.2]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.1...v0.4.1-beta.2
 [0.4.1-beta.1]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.0...v0.4.1-beta.1
