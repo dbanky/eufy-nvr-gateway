@@ -1,8 +1,8 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { createCameraServer } from '../../src/onvif/camera-server.mjs';
 import { onvifCamera } from './fixtures.mjs';
+import { passwordDigest } from '../helpers/logins.mjs';
 
 const credentials = { username: 'protect', password: 'secret' };
 let server, base;
@@ -17,7 +17,7 @@ after(() => server.close());
 
 function security(password = 'secret') {
   const nonce = Buffer.from('nonce-123'), created = new Date().toISOString();
-  const digest = createHash('sha1').update(Buffer.concat([nonce, Buffer.from(created), Buffer.from(password)])).digest('base64');
+  const digest = passwordDigest(nonce, created, password);
   return `<s:Header><Security><UsernameToken><Username>protect</Username><Password>${digest}</Password>`
     + `<Nonce>${nonce.toString('base64')}</Nonce><Created>${created}</Created></UsernameToken></Security></s:Header>`;
 }

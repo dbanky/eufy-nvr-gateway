@@ -2,9 +2,9 @@ import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, connect } from 'node:net';
 import { createSocket } from 'node:dgram';
-import { createHash } from 'node:crypto';
 import { createRtspFront } from '../../src/rtsp/server.mjs';
 import { RtspReader, formatMessage, formatFrame, header } from '../../src/rtsp/messages.mjs';
+import { digestAnswer } from '../helpers/logins.mjs';
 
 // A stand-in for go2rtc: RTSP over TCP only, a new session id per SETUP, recvonly in the SDP, no
 // RTCP; after PLAY it sends an RTP packet on every set-up track every 20 ms. Like the real one
@@ -96,12 +96,7 @@ function tcpClient() {
 }
 
 // RTSP Digest, as clients compute it from a 401's challenge.
-function digest(challenge, method, uri, { username, password } = credentials) {
-  const p = Object.fromEntries([...challenge.matchAll(/(\w+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));
-  const md5 = (s) => createHash('md5').update(s).digest('hex');
-  const response = md5(`${md5(`${username}:${p.realm}:${password}`)}:${p.nonce}:${md5(`${method}:${uri}`)}`);
-  return `Digest username="${username}", realm="${p.realm}", nonce="${p.nonce}", uri="${uri}", response="${response}"`;
-}
+const digest = (challenge, method, uri, login = credentials) => digestAnswer(challenge, { ...login, method, uri });
 
 async function login(c, uri) {
   const refused = await c.send('DESCRIBE', uri);

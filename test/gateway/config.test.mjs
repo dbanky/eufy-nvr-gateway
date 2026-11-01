@@ -4,6 +4,7 @@ import { configPath, resolveSettings, validateCameras, DEFAULT_PORTS } from '../
 
 const login = { EUFY_EMAIL: 'you@example.com', EUFY_PASSWORD: 'secret' };
 const camera = { name: 'garden', serial: 'T81XXXXXXXXXXXXX', width: 2880, height: 1616 };
+const cam = (name, extra = {}) => ({ name, serial: 'T81XXXXXXXXXXXXX', width: 640, height: 480, ...extra });
 
 describe('where config.json is read from', () => {
   test('the data folder, so a single folder mapping is enough', () => {
@@ -41,14 +42,12 @@ describe('settings', () => {
   });
 
   test('"motionInPicture" is true or false; "motionInPictureMaxMs" a positive number of ms', () => {
-    const cam = (name, extra = {}) => ({ name, serial: 'T81XXXXXXXXXXXXX', width: 640, height: 480, ...extra });
     assert.equal(validateCameras({ cameras: [cam('front-door', { motionInPicture: false, motionInPictureMaxMs: 60000 })] })[0].motionInPicture, false);
     assert.throws(() => validateCameras({ cameras: [cam('front-door', { motionInPicture: 'yes' })] }), /"motionInPicture" must be true or false/);
     assert.throws(() => validateCameras({ cameras: [cam('front-door', { motionInPictureMaxMs: -1 })] }), /"motionInPictureMaxMs" must be/);
   });
 
   test('each camera has four fixed UDP ports, "udpPort" and the next three: 40000, 40004, … unless set', () => {
-    const cam = (name, extra = {}) => ({ name, serial: 'T81XXXXXXXXXXXXX', width: 640, height: 480, ...extra });
     assert.deepEqual(validateCameras({ cameras: [cam('front-door'), cam('garden')] }).map((c) => c.udpPort), [40000, 40004]);
     assert.deepEqual(validateCameras({ cameras: [cam('front-door', { udpPort: 41000 }), cam('garden')] }).map((c) => c.udpPort), [41000, 40004]);
     assert.throws(() => validateCameras({ cameras: [cam('front-door', { udpPort: 40001 })] }), /"udpPort" must be an even port/);

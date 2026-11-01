@@ -1,11 +1,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { checkUsernameToken } from '../../src/onvif/auth.mjs';
+import { passwordDigest } from '../helpers/logins.mjs';
 
 // What a client (UniFi Protect) puts in the SOAP header: WS-Security UsernameToken, PasswordDigest.
 function token({ username = 'protect', password = 'secret', created = '2026-10-31T12:00:00Z', nonce = 'n0nce' } = {}) {
-  const digest = createHash('sha1').update(Buffer.concat([Buffer.from(nonce), Buffer.from(created), Buffer.from(password)])).digest('base64');
+  const digest = passwordDigest(nonce, created, password);
   return `<s:Header><wsse:Security><wsse:UsernameToken><wsse:Username>${username}</wsse:Username>
     <wsse:Password Type="...#PasswordDigest">${digest}</wsse:Password>
     <wsse:Nonce EncodingType="...#Base64Binary">${Buffer.from(nonce).toString('base64')}</wsse:Nonce>

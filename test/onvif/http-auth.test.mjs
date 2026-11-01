@@ -1,19 +1,13 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { createHttpAuth } from '../../src/onvif/http-auth.mjs';
+import { md5, digestAnswer as answer } from '../helpers/logins.mjs';
 
 const credentials = { username: 'protect', password: 'secret' };
-const md5 = (s) => createHash('md5').update(s).digest('hex');
 const request = (authorization, method = 'GET') => ({ method, headers: authorization ? { authorization } : {} });
 
 // What an ONVIF client does with the Digest challenge (RFC 7616, qop=auth).
-function digestAnswer(challenge, { username = 'protect', password = 'secret', uri = '/onvif/snapshot.jpg', method = 'GET' } = {}) {
-  const nonce = /nonce="([^"]+)"/.exec(challenge)[1], realm = /realm="([^"]+)"/.exec(challenge)[1];
-  const ha1 = md5(`${username}:${realm}:${password}`), ha2 = md5(`${method}:${uri}`), nc = '00000001', cnonce = 'abc';
-  const response = md5(`${ha1}:${nonce}:${nc}:${cnonce}:auth:${ha2}`);
-  return `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}", qop=auth, nc=${nc}, cnonce="${cnonce}", response="${response}"`;
-}
+const digestAnswer = (challenge, options = {}) => answer(challenge, { uri: '/onvif/snapshot.jpg', qop: true, ...options });
 
 describe('the ONVIF snapshot login', () => {
   test('without an ONVIF login, the snapshot is open', () => {
