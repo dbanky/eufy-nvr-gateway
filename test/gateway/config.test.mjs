@@ -40,6 +40,13 @@ describe('settings', () => {
     assert.equal(resolveSettings({}, { ...login, WEB_PORT: '9099' }).ports.web, 9099);
   });
 
+  test('"motionInPicture" is true or false; "motionInPictureMaxMs" a positive number of ms', () => {
+    const cam = (name, extra = {}) => ({ name, serial: 'T81XXXXXXXXXXXXX', width: 640, height: 480, ...extra });
+    assert.equal(validateCameras({ cameras: [cam('front-door', { motionInPicture: false, motionInPictureMaxMs: 60000 })] })[0].motionInPicture, false);
+    assert.throws(() => validateCameras({ cameras: [cam('front-door', { motionInPicture: 'yes' })] }), /"motionInPicture" must be true or false/);
+    assert.throws(() => validateCameras({ cameras: [cam('front-door', { motionInPictureMaxMs: -1 })] }), /"motionInPictureMaxMs" must be/);
+  });
+
   test('each camera has four fixed UDP ports, "udpPort" and the next three: 40000, 40004, … unless set', () => {
     const cam = (name, extra = {}) => ({ name, serial: 'T81XXXXXXXXXXXXX', width: 640, height: 480, ...extra });
     assert.deepEqual(validateCameras({ cameras: [cam('front-door'), cam('garden')] }).map((c) => c.udpPort), [40000, 40004]);

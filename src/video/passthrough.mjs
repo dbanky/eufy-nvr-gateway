@@ -5,10 +5,12 @@
 //   pipe:1  the camera's stream, copied, split into frames for the Feed
 //   pipe:3  JPEGs of its keyframes only (cheap: everything else is skipped by the decoder), for
 //           snapshots and for the sleeping picture after the session
+//   pipe:4  a 32×24 grey thumbnail of the same keyframes, to see motion in the picture
 
 import { spawn } from 'node:child_process';
 import { fitFilter } from './ffmpeg.mjs';
 import { FrameSplitter } from './annexb.mjs';
+import { ThumbnailSplitter, THUMB_WIDTH, THUMB_HEIGHT } from '../switcher/picture-motion.mjs';
 
 export function passthroughArgs({ cam, url, codec }) {
   return [
@@ -21,6 +23,7 @@ export function passthroughArgs({ cam, url, codec }) {
     '-bsf:v', `${codec}_metadata=aud=remove,dump_extra=freq=keyframe,${codec}_metadata=aud=insert`, '-f', codec, 'pipe:1',
     // passthrough: one JPEG per keyframe; otherwise ffmpeg repeats it to a constant 15 per second
     '-map', '0:v', '-vf', fitFilter(cam), '-c:v', 'mjpeg', '-q:v', '3', '-fps_mode', 'passthrough', '-f', 'image2pipe', 'pipe:3',
+    '-map', '0:v', '-vf', `scale=${THUMB_WIDTH}:${THUMB_HEIGHT}:flags=area,format=gray`, '-fps_mode', 'passthrough', '-f', 'rawvideo', 'pipe:4',
   ];
 }
 
@@ -43,14 +46,17 @@ export class JpegSplitter {
   }
 }
 
-// onFrame(encodedFrame), onPicture(jpeg), onClose(code) — onClose once, unless stop() was called.
-export function openPassthrough({ cam, url, codec, onFrame, onPicture, onClose, log }) {
-  const child = spawn('ffmpeg', passthroughArgs({ cam, url, codec }), { stdio: ['ignore', 'pipe', 'pipe', 'pipe'] });
+// onFrame(encodedFrame), onPicture(jpeg), onThumbnail(grey 32×24), onClose(code) — onClose once,
+// unless stop() was called.
+export function openPassthrough({ cam, url, codec, onFrame, onPicture, onThumbnail = () => {}, onClose, log }) {
+  const child = spawn('ffmpeg', passthroughArgs({ cam, url, codec }), { stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe'] });
   let stopped = false;
   const frames = new FrameSplitter((f) => !stopped && onFrame(f), codec);
   const pictures = new JpegSplitter((p) => !stopped && onPicture(p));
   child.stdout.on('data', (c) => frames.push(c));
   child.stdio[3].on('data', (c) => pictures.push(c));
+  const thumbnails = new ThumbnailSplitter((t) => !stopped && onThumbnail(t));
+  child.stdio[4].on('data', (c) => thumbnails.push(c));
   let errLines = 0;
   child.stderr.on('data', (c) => {
     if (++errLines <= 3) log(cam.name, 'pass-through:', String(c).trim().split('\n')[0].slice(0, 200));

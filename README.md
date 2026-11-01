@@ -254,8 +254,10 @@ Per camera:
 | `width`, `height` | yes | The camera's **native live resolution**. The sleeping picture has this size; passed-through video has the camera's own size, so they must match (converted video is scaled to it). See [known resolutions](#known-live-resolutions) |
 | `fps` | | Output frame rate. Default `15` (what eufy cameras send); when passing through it must match the camera |
 | `bitrateKbps` | | Upper bitrate limit for what the gateway encodes: the sleeping picture, and live video when converting. Default `4400`; use ~`6600` for 3K |
-| `holdMs` | | Stay live until this long after the last detection: continuing motion keeps the stream live. Default `30000` (30 s) |
+| `holdMs` | | Stay live until this long after the last detection or the last movement in the picture. Default `30000` (30 s) |
 | `ringHoldMs` | | Same, after a doorbell press. Default `120000` (2 min) |
+| `motionInPicture` | | Stay live while the live picture keeps moving, also when the camera sends no new detection (eufy cameras don't during continuing motion). Default `true` |
+| `motionInPictureMaxMs` | | Movement in the picture alone keeps a session live at most this long after the camera's last detection. Default `300000` (5 min) |
 | `maxLiveMs` | | Optional cap per session, from the first live frame, to save battery when motion never stops (e.g. a busy street). Default `0` (no cap) |
 | `restartGapMs` | | Minimum pause between sessions (a doorbell press ignores it). Default `15000` |
 | `minBatteryPct` | | Below this battery level, only a doorbell press or *Wake up* on the web page wakes the camera. Default `15` |

@@ -42,10 +42,18 @@ event the switcher opens the bridge's `/stream/<serial>` and either passes the c
 or converts it (see below). When the session ends it closes the stream — the bridge then ends the P2P
 session at once (measured: ~0.1 s) and the camera sleeps.
 
-There is no "motion ended" event, so "no more motion" means "no new detection for `holdMs`" (30
-seconds by default; 2 minutes after a doorbell press). Every detection while live pushes the end back;
-the session ends 30 seconds after the last one. An optional `maxLiveMs` caps a session for places
-where motion never stops.
+There is no "motion ended" event, and during continuing motion a eufy camera sends no new detection
+until its own re-trigger interval is over. So the gateway also watches the live picture: it compares
+the camera's consecutive keyframes (every 4 s) as 32×24 grey thumbnails, made by the decoder that
+already runs for snapshots. A change in at least 2 % of the picture (after taking out an overall
+brightness shift, such as the camera adjusting its exposure) counts as movement. A doorbell
+standing still measured 0 changed cells out of 768.
+
+"No more motion" means no new detection and no movement for `holdMs` (30 seconds by default;
+2 minutes after a doorbell press). Movement alone keeps a session live at most
+`motionInPictureMaxMs` (5 minutes) after the camera's last detection, so leaves in the wind can't
+keep a battery camera awake for ever; each new detection allows another 5 minutes. An optional
+`maxLiveMs` caps every session for places where motion never stops.
 
 ## Converting or passing through
 

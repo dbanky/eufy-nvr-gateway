@@ -17,6 +17,8 @@
   "defaults": {
     "fps": 15,
     "holdMs": 30000,
+    "motionInPicture": true,
+    "motionInPictureMaxMs": 300000,
     "ringHoldMs": 120000,
     "restartGapMs": 15000,
     "minBatteryPct": 15,

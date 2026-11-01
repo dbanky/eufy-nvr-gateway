@@ -3,6 +3,10 @@
 // it lets the camera sleep.
 
 import { shouldReconnect } from '../policy.mjs';
+import { thumbnailFromLuma } from '../picture-motion.mjs';
+
+// Converting: how often a decoded picture is turned into a thumbnail (as often as eufy keyframes).
+export const THUMBNAIL_EVERY_MS = 4000;
 
 // Pass through only when the stream already runs in the camera's codec: codecs are never mixed.
 export function chooseLiveMode(cam) {
@@ -16,6 +20,7 @@ export function openLiveFeed(cam) {
       cam, codec: cam.codec, onClose,
       onFrame: (frame) => onPassedThroughFrame(cam, frame),
       onPicture: (jpeg) => { cam.liveJpeg = jpeg; },
+      onThumbnail: (thumbnail) => cam.seePicture(thumbnail),
     })
     : cam.deps.openLiveFeed({
       cam, onClose,
@@ -28,6 +33,10 @@ export function openLiveFeed(cam) {
 function onConvertedFrame(cam, frame) {
   cam.frame = frame;
   cam.lastLiveAt = cam.deps.now();
+  if (cam.lastLiveAt - (cam.thumbnailAt ?? 0) >= THUMBNAIL_EVERY_MS) {
+    cam.thumbnailAt = cam.lastLiveAt;
+    cam.seePicture(thumbnailFromLuma(frame, cam.width, cam.height));
+  }
   if (cam.state !== 'WAKING') return;
   cam.goLive();
   cam.deps.feed.armLive();

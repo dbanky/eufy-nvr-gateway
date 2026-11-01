@@ -6,6 +6,8 @@ export const CAMERA_DEFAULTS = {
   holdMs: 30000,              // stay live until this long after the last detection
   ringHoldMs: 120000,         // ...and this long after a doorbell press
   maxLiveMs: 0,               // optional cap per session from the first live frame; 0 = none
+  motionInPicture: true,      // stay live while the live picture keeps moving (picture-motion.mjs)...
+  motionInPictureMaxMs: 300000, // ...but at most this long after the camera's last detection
   firstFrameTimeoutMs: 60000, // give up if the camera hasn't sent a picture by then
   restartGapMs: 15000,        // minimum pause between sessions
   maxReconnects: 2,           // re-open the feed if it drops mid-session
@@ -41,5 +43,14 @@ export function stopReason(cam, now) {
 
 // The hold time counts from the first live frame, not from the trigger: waking can take a minute.
 export const deadlineWhenLive = (cam, liveStart) => Math.max(cam.deadline, liveStart + cam.holdMs);
+
+// Movement in the live picture: the session ends holdMs after it, as after a detection, but never
+// later than motionInPictureMaxMs after the camera's own last detection (so leaves in the wind
+// can't keep a battery camera awake for ever). The new end, or null to leave it as it is.
+export function holdForPictureMotion(cam, now) {
+  if (cam.state !== 'LIVE' || !cam.motionInPicture) return null;
+  const until = Math.min(now + cam.holdMs, cam.lastDetectionAt + cam.motionInPictureMaxMs);
+  return until > cam.deadline ? until : null;
+}
 
 export const shouldReconnect = (cam, now) => now < cam.deadline && cam.reconnects < cam.maxReconnects;

@@ -36,6 +36,12 @@ describe("passing a camera's own video through", () => {
   });
 });
 
+describe('thumbnails of the keyframes, to see motion in the picture', () => {
+  test('a third output: 32×24 grey, one per keyframe, raw', () => {
+    assert.match(outputs()[2], /scale=32:24:flags=area,format=gray -fps_mode passthrough -f rawvideo pipe:4/);
+  });
+});
+
 describe('JPEG pictures from the side output', () => {
   const jpeg = (tag) => Buffer.from([0xff, 0xd8, tag, tag, 0xff, 0xd9]);
 

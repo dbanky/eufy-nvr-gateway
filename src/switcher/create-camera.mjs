@@ -25,8 +25,8 @@ export function createCamera(settings, { config, bridge, log, time, tmpDir }) {
     renderLoop: ({ cam, picture, view, codec }) => renderStateLoop({ cam, picture, view, codec, tmpDir }),
     openLiveFeed: ({ cam, onFrame, onCodec, onClose }) =>
       openLiveDecoder({ cam, url: streamUrl(cam), onFrame, onCodec, onClose, log }),
-    openPassthrough: ({ cam, codec, onFrame, onPicture, onClose }) =>
-      openPassthrough({ cam, url: streamUrl(cam), codec, onFrame, onPicture, onClose, log }),
+    openPassthrough: ({ cam, codec, onFrame, onPicture, onThumbnail, onClose }) =>
+      openPassthrough({ cam, url: streamUrl(cam), codec, onFrame, onPicture, onThumbnail, onClose, log }),
     createEncoder: ({ cam, getFrame, onFrame }) => new LiveEncoder({ cam, getFrame, onFrame, log }),
     saveLastFrame: (cam, picture) => saveLastFrame(cam, picture, config.dataDir)
       .catch((e) => log(cam.name, 'saving last frame failed:', e.message)),

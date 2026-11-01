@@ -78,7 +78,12 @@ export function validateCameras(cfg) {
     if (!serial) throw new Error(`camera "${name}": "serial" is missing (see the device list on the web page)`);
     if (!c.width || !c.height) throw new Error(`camera "${name}": set "width" and "height" to the camera's native live resolution`);
     const cam = { ...cfg.defaults, ...c, name, serial };
-    if (cam.audio != null && typeof cam.audio !== 'boolean') throw new Error(`camera "${name}": "audio" must be true or false`);
+    for (const key of ['audio', 'motionInPicture']) {
+      if (cam[key] != null && typeof cam[key] !== 'boolean') throw new Error(`camera "${name}": "${key}" must be true or false`);
+    }
+    if (cam.motionInPictureMaxMs != null && !(Number.isFinite(cam.motionInPictureMaxMs) && cam.motionInPictureMaxMs > 0)) {
+      throw new Error(`camera "${name}": "motionInPictureMaxMs" must be a number of milliseconds above 0 (e.g. 300000 for 5 minutes)`);
+    }
     cam.udpPort ??= FIRST_UDP_PORT + UDP_PORTS_PER_CAMERA * i;
     if (!Number.isInteger(cam.udpPort) || cam.udpPort % 2 || cam.udpPort < 1024 || cam.udpPort > 65532) {
       throw new Error(`camera "${name}": "udpPort" must be an even port number between 1024 and 65532 (it uses that one and the next three)`);

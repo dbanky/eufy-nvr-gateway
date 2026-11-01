@@ -7,6 +7,18 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Long motion was cut off**: a session ended 30 s (`holdMs`) after the camera's first detection,
+  even while the motion went on, because eufy cameras send no new detection during continuing
+  motion (only after their own re-trigger interval). The gateway now also sees movement in the live
+  picture itself and stays live until 30 s after the last movement. It compares the camera's
+  keyframes (every 4 s) as tiny grey thumbnails from the decoder that already runs for snapshots,
+  so this costs next to no CPU. New per-camera options: `motionInPicture` (default `true`) and
+  `motionInPictureMaxMs` (default 5 min): movement alone keeps a camera live at most that long after
+  its last detection, so leaves or rain can't drain the battery; every new detection allows
+  another 5 min.
+
 ## [0.4.1-beta.8] - 2026-11-01
 
 ### Changed

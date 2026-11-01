@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { CAMERA_DEFAULTS, decideTrigger, stopReason, deadlineWhenLive, shouldReconnect } from '../../src/switcher/policy.mjs';
+import { CAMERA_DEFAULTS, decideTrigger, stopReason, deadlineWhenLive, shouldReconnect, holdForPictureMotion } from '../../src/switcher/policy.mjs';
 
 const now = 1_000_000;
 const asleep = { ...CAMERA_DEFAULTS, state: 'IDLE', battery: 80, lastStop: 0, deadline: 0 };
@@ -77,5 +77,28 @@ describe('timing details', () => {
     assert.equal(shouldReconnect(live, now), true);
     assert.equal(shouldReconnect({ ...live, reconnects: 2 }, now), false);
     assert.equal(shouldReconnect({ ...live, deadline: now - 1 }, now), false);
+  });
+});
+
+describe('motion in the live picture', () => {
+  const live = { ...CAMERA_DEFAULTS, state: 'LIVE', holdMs: 30000, motionInPictureMaxMs: 300000, lastDetectionAt: 0, deadline: 30000 };
+
+  test('is on by default, for at most 5 minutes after the camera\'s last detection', () => {
+    assert.equal(CAMERA_DEFAULTS.motionInPicture, true);
+    assert.equal(CAMERA_DEFAULTS.motionInPictureMaxMs, 300000);
+  });
+
+  test('pushes the end to the hold time after the movement', () => {
+    assert.equal(holdForPictureMotion(live, 20000), 50000);
+  });
+
+  test('never past motionInPictureMaxMs after the last detection', () => {
+    assert.equal(holdForPictureMotion({ ...live, deadline: 290000 }, 280000), 300000);
+    assert.equal(holdForPictureMotion({ ...live, deadline: 300000 }, 290000), null);
+  });
+
+  test('only while live, and only when switched on', () => {
+    assert.equal(holdForPictureMotion({ ...live, state: 'WAKING' }, 20000), null);
+    assert.equal(holdForPictureMotion({ ...live, motionInPicture: false }, 20000), null);
   });
 });

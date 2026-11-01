@@ -67,8 +67,10 @@ or names each open part with the setting that closes it, e.g.
 | `width`, `height` | — | Required. The camera's native live resolution: the size of the sleeping picture, and of live video when converting |
 | `fps` | `15` | Output frame rate. When passing through it must match the camera's real frame rate (eufy cameras: 15) |
 | `bitrateKbps` | `4400` | Bitrate ceiling for what the gateway encodes: the sleeping picture (which uses far less) and live video when converting (~`6600` for 3K) |
-| `holdMs` | `30000` | Stay live until this long after the last detection (at least this long after the first live frame). Continuing motion keeps the stream live |
+| `holdMs` | `30000` | Stay live until this long after the last detection or the last movement in the live picture (at least this long after the first live frame) |
 | `ringHoldMs` | `120000` | Same, after a doorbell press |
+| `motionInPicture` | `true` | Stay live while the live picture keeps moving. eufy cameras send no new detection during continuing motion (only after their own re-trigger interval), so without this a session ends `holdMs` after the first detection, however long the motion goes on. The gateway compares the camera's keyframes (every 4 s) as tiny thumbnails; next to no CPU |
+| `motionInPictureMaxMs` | `300000` | Movement in the picture alone keeps a session live at most this long after the camera's last detection (5 min), so leaves or rain can't keep a battery camera awake for ever. A new detection from the camera allows another 5 min |
 | `maxLiveMs` | `0` | Optional cap per session, from the first live frame; repeated detections cannot extend past it. `0` = no cap. Set it (e.g. `600000`) if constant motion would drain the battery |
 | `firstFrameTimeoutMs` | `60000` | Give up waking the camera if no video arrives by then |
 | `restartGapMs` | `15000` | Minimum pause between two sessions. A doorbell press and *Wake up* on the web page ignore it |

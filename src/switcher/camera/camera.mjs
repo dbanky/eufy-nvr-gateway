@@ -13,13 +13,14 @@
 //   feed                                   video/feed.mjs: what the stream plays
 //   renderLoop({ cam, picture, view, codec }) -> { still: rawFrame, frames: encodedLoop }
 //   openLiveFeed({ cam, onFrame, onCodec, onClose })              converting       -> { stop() }
-//   openPassthrough({ cam, codec, onFrame, onPicture, onClose })  passing through  -> { stop() }
+//   openPassthrough({ cam, codec, onFrame, onPicture, onThumbnail, onClose })  passing through -> { stop() }
 //   createEncoder({ cam, getFrame, onFrame }) -> { start(), stop() }
 //   saveLastFrame(cam, { raw } | { jpeg }), saveCodec(cam, codec)   kept for after a restart
 //   openLiveAudio(cam) -> { stop() }        only with `audio: true`: the camera's sound, from the wake-up
 //                                           until the session's live connection closes
 
-import { CAMERA_DEFAULTS, decideTrigger, stopReason, deadlineWhenLive } from '../policy.mjs';
+import { CAMERA_DEFAULTS, decideTrigger, stopReason, deadlineWhenLive, holdForPictureMotion } from '../policy.mjs';
+import { pictureMoved } from '../picture-motion.mjs';
 import { viewFor } from '../labels.mjs';
 import { videoInfo } from '../video-info.mjs';
 import { chooseLiveMode, openLiveFeed, endLiveFeed } from './live-feed.mjs';
@@ -38,6 +39,9 @@ export class Camera {
     this.lastLiveAt = 0;
     this.deadline = 0; this.sessionStart = 0; this.liveStart = 0; this.lastStop = 0; this.reconnects = 0;
     this.wakeReason = null; this.wakeAt = 0; this.failedAt = 0;
+    this.lastDetectionAt = 0;         // the camera's (or the web page's) last trigger
+    this.thumbnail = null;            // the previous keyframe's thumbnail this session (picture-motion.mjs)
+    this.movingSince = 0;             // when movement in the picture first kept this session live
     this.battery = null; this.model = null;
     this.liveFeed = null;
     this.liveMode = null;             // 'transcode' | 'passthrough' for the current session
@@ -65,11 +69,12 @@ export class Camera {
     const decision = decideTrigger(this, kind, now);
     if (decision.action === 'ignore') return this.deps.log(this.name, `${kind}: ignored, ${decision.reason}`);
     this.deadline = decision.holdUntil;
+    this.lastDetectionAt = now;
     if (decision.action === 'extend') return this.deps.log(this.name, `${kind}: extended until ${this.deps.time.hms(this.deadline)}`);
 
     this.closeWhenShown?.stop();         // the previous session's feed, if still on air
     this.closeWhenShown = null;
-    Object.assign(this, { state: 'WAKING', sessionStart: now, liveStart: 0, reconnects: 0, wakeReason: kind, wakeAt: now });
+    Object.assign(this, { state: 'WAKING', sessionStart: now, liveStart: 0, reconnects: 0, wakeReason: kind, wakeAt: now, thumbnail: null, movingSince: 0 });
     this.liveMode = chooseLiveMode(this);
     const how = this.liveMode === 'passthrough' ? `${this.codec} pass-through` : 'converting';
     this.deps.log(this.name, `${kind}: waking camera (${how}, hold until ${this.deps.time.hms(this.deadline)})`);
@@ -87,6 +92,20 @@ export class Camera {
     this.deadline = deadlineWhenLive(this, this.liveStart);
     cancelRendering(this);
     this.deps.log(this.name, `live after ${((this.liveStart - this.sessionStart) / 1000).toFixed(1)} s`);
+  }
+
+  // A thumbnail of the live picture (one per keyframe): movement keeps the session live.
+  seePicture(thumbnail) {
+    const moved = this.state === 'LIVE' && pictureMoved(this.thumbnail, thumbnail);
+    this.thumbnail = thumbnail;
+    if (!moved) return;
+    const until = holdForPictureMotion(this, this.deps.now());
+    if (!until) return;
+    this.deadline = until;
+    if (!this.movingSince) {
+      this.movingSince = this.deps.now();
+      this.deps.log(this.name, `motion in the picture: staying live (until ${this.deps.time.hms(until)} for now)`);
+    }
   }
 
   learnCodec(codec) {

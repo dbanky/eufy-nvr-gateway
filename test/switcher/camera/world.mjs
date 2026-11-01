@@ -39,8 +39,8 @@ export function setup(settings = {}) {
       world.liveFeeds.push(liveFeed);
       return liveFeed;
     },
-    openPassthrough: ({ codec, onFrame, onPicture, onClose }) => {
-      const liveFeed = { mode: 'passthrough', codec, onFrame, onPicture, onClose, stopped: false, stop() { this.stopped = true; } };
+    openPassthrough: ({ codec, onFrame, onPicture, onThumbnail, onClose }) => {
+      const liveFeed = { mode: 'passthrough', codec, onFrame, onPicture, onThumbnail, onClose, stopped: false, stop() { this.stopped = true; } };
       world.liveFeeds.push(liveFeed);
       return liveFeed;
     },
