@@ -114,7 +114,15 @@ Images for 64-bit x86 (`amd64`) and ARM (`arm64`) are published for every releas
 The container needs **one folder**, mounted at `/data`. It holds your `config.json`, the eufy login
 session and the last frame of every camera, so all of it survives updates.
 
-**Synology (Container Manager).** The image is on Docker Hub, Container Manager's built-in registry:
+**Synology (Container Manager).** The image is on Docker Hub, Container Manager's built-in registry.
+In the *Run* wizard there are only three things to get right, and then everything works:
+
+> 1. **Ports**: accept the ports the wizard lists (the image declares them); there is nothing to
+>    change or map.
+> 2. **Volume**: mount one folder at `/data`, for your `config.json`.
+> 3. **Network**: switch to `host`.
+>
+> Plus your eufy login in *Environment*. The steps in detail:
 
 1. *Container Manager → Registry*, search for `eufy-nvr-gateway`, select `dbanky/eufy-nvr-gateway`,
    *Download*, tag `latest`.

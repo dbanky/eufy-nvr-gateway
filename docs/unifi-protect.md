@@ -13,7 +13,9 @@ This guide is the path that worked on a real Protect console. The general ONVIF 
 - The gateway running, logged in to eufy, with your cameras on its web page
   ([setup](../README.md#setup-in-five-steps)).
 - **Host networking** for the container (Synology Container Manager: *Network* `host`; Compose:
-  `network_mode: host`). On a bridge network ONVIF can't work, and the gateway says so in red.
+  `network_mode: host`). On a bridge network ONVIF can't work, and the gateway says so in red. On a
+  Synology that is the whole container setup: accept the listed ports, mount a folder at `/data`,
+  switch the network to `host` ([README](../README.md#2-run-the-container)).
 - If the NAS's firewall is on: a few ports allowed in it. Which ones, and why: step 1 below.
 - **One IP address on your LAN per camera**, on the machine the gateway runs on. Protect tells
   cameras apart by address. That can be a second network port (a Synology with two ports, each with
