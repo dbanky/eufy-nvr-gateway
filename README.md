@@ -341,9 +341,10 @@ firewall is on, allow the ports below (Synology: [step by step](#the-synology-fi
 
 An RTSP viewer chooses how the picture and sound reach it:
 
-- **Over TCP** (most NVRs, and VLC by default): everything travels
-  inside the one RTSP connection on port `8554`. No other port is used.
-- **Over UDP**: picture and sound come as separate streams of UDP packets, and each needs **two**
+- **Over TCP** (many NVRs): everything travels inside the one RTSP connection on port `8554`. No
+  other port is used.
+- **Over UDP** (VLC by default, unless *Use RTP over RTSP (TCP)* is ticked in its preferences; it
+  falls back to TCP when no UDP arrives): picture and sound come as separate streams of UDP packets, and each needs **two**
   ports: one for the media itself (RTP) and one for its timing and keep-alive reports (RTCP, which
   players use to keep picture and sound in sync and to tell the gateway they are still watching).
   Picture and sound are two tracks, so that's **2 × 2 = 4 ports per camera**:
