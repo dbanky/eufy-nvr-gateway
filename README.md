@@ -111,6 +111,10 @@ Images for 64-bit x86 (`amd64`) and ARM (`arm64`) are published for every releas
 | `0.4.0`, … | One exact version — pin it to update only when you choose to |
 | `0.4.0-beta.1`, … | Pre-releases for testing; never become `latest` |
 
+**Running a pre-release?** Then update by its exact tag (e.g. `0.4.1-beta.9`), never `latest`:
+`latest` is the newest *stable* release, which can be older than the beta you run and lacks its
+features (e.g. `"audio"`). The web page's footer shows the version that is running.
+
 The container needs **one folder**, mounted at `/data`. It holds your `config.json`, the eufy login
 session and the last frame of every camera, so all of it survives updates.
 
@@ -198,7 +202,8 @@ Then, optionally, [lock it down](#security): a login for the page, one for the s
 
 The web page tells you when a newer version is out. On a Synology, download the tag again in
 *Registry* (it fetches the newest image), then stop the container and use *Action → Reset* to
-recreate it from the new image. Elsewhere: `docker pull dbanky/eufy-nvr-gateway:latest` and recreate
+recreate it from the new image. On a pre-release, download its exact tag instead of `latest`
+(see [tags](#2-run-the-container)); afterwards, check the version in the web page's footer. Elsewhere: `docker pull dbanky/eufy-nvr-gateway:latest` and recreate
 the container (`docker compose up -d`). The folder is kept: config, eufy login and pictures.
 
 ## The eufy account and its two-factor login

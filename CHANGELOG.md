@@ -12,6 +12,9 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 - **Synology in three steps**: the README's setup now says up front that in Container Manager's
   *Run* wizard you only accept the listed ports, mount one folder at `/data` and switch the
   network to `host`, plus the eufy login; everything else works from there.
+- **Updating a pre-release**: use its exact tag, never `latest`, which is the newest stable
+  release and can be older than the beta you run (losing e.g. `"audio"`). Said next to the tags
+  table and in *Updating*.
 
 ## [0.4.1-beta.9] - 2026-11-01
 
