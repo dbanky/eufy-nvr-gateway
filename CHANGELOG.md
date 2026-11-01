@@ -7,6 +7,14 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Changed
+
+- **A sleeping camera's picture opens faster**: the sleeping picture now has a keyframe every
+  second instead of every 4 s, so a viewer (UniFi Protect's live view, VLC, an NVR) that opens a
+  sleeping camera sees it within a second. Still pictures make small keyframes, so the stream
+  grows only slightly; the gateway still encodes the picture just once. The camera's own live
+  video is unchanged: passed through as the camera sends it, never re-encoded.
+
 ## [0.4.1-beta.7] - 2026-11-01
 
 ### Fixed

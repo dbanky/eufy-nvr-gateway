@@ -1,15 +1,21 @@
 // Encoder settings for everything the gateway encodes itself: live video (H.264) and the sleeping
 // loops (H.264, or H.265 for a camera whose own H.265 is passed through).
 //
-// The loops and the live video of one stream must have the same structure (keyframe every 4 s, no
-// B-frames, frame delimiters, parameter sets on every keyframe) so the publisher can splice them.
+// The loops and the live video of one stream must have the same structure (no B-frames, frame
+// delimiters, parameter sets on every keyframe) so the publisher can splice them at keyframes.
+//
+// keyframeSeconds: live video keeps 4 s, like the cameras themselves. The sleeping loops use 1 s
+// (still-loop.mjs): a viewer can only start at a keyframe, so it sees the picture within a second,
+// and a still picture's keyframes are small (10–20 KB), so this costs next to nothing.
 
-export function encoderArgs(cam, codec = 'h264') {
-  return codec === 'hevc' ? x265Args(cam) : x264Args(cam);
+export const KEYFRAME_SECONDS = 4;
+
+export function encoderArgs(cam, codec = 'h264', { keyframeSeconds = KEYFRAME_SECONDS } = {}) {
+  const gop = cam.fps * keyframeSeconds;
+  return codec === 'hevc' ? x265Args(cam, gop) : x264Args(cam, String(gop));
 }
 
-function x264Args({ fps, bitrateKbps }) {
-  const gop = String(fps * 4);   // a keyframe every 4 s: where NVRs can join and the feed can switch
+function x264Args({ bitrateKbps }, gop) {
   return [
     '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
     '-bf', '0', '-g', gop, '-keyint_min', gop, '-sc_threshold', '0',
@@ -27,8 +33,7 @@ function x264Args({ fps, bitrateKbps }) {
 
 // Only used for still pictures, so the fastest preset loses nothing visible. An 8 s 3K loop takes
 // ~2 s on a fast core (H.264: ~0.4 s).
-function x265Args({ fps, bitrateKbps }) {
-  const gop = fps * 4;
+function x265Args({ bitrateKbps }, gop) {
   return [
     '-c:v', 'libx265', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-crf', '22',
     '-x265-params', `keyint=${gop}:min-keyint=${gop}:scenecut=0:bframes=0:open-gop=0:qpmin=19:aud=1:repeat-headers=1:log-level=error`,

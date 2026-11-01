@@ -30,8 +30,10 @@ While asleep the label can also read *low battery*, *didn't wake up* or *offline
 install shows *no picture yet* instead of a black frame.
 
 **Sleeping costs (almost) nothing.** Each state's picture is drawn once and encoded once into an 8 s
-loop (two keyframe intervals), in the stream's format; the publisher replays those encoded frames
-without encoding anything. The switch to live video and back happens at a keyframe, so the stream
+loop with a keyframe every second, in the stream's format; the publisher replays those encoded frames
+without encoding anything. A viewer can only start at a keyframe, so one that opens a sleeping
+camera sees the picture within a second; the camera's own live video keeps its own keyframes
+(every 4 s on eufy cameras) and is never re-encoded for this. The switch to live video and back happens at a keyframe, so the stream
 never breaks.
 
 Events (`motion`, `personDetected`, `doorbellPress`, …) come from the bundled

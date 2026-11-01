@@ -24,6 +24,12 @@ describe('encoder settings (H.264: live video and sleeping loops)', () => {
     assert.equal(value('-maxrate'), '6000k');
   });
 
+  test('the sleeping loop asks for a keyframe every second: a viewer joins (and the loop takes over) sooner', () => {
+    const loop = encoderArgs({ fps: 15, bitrateKbps: 6000 }, 'h264', { keyframeSeconds: 1 });
+    assert.equal(loop[loop.indexOf('-g') + 1], '15');
+    assert.equal(loop[loop.indexOf('-keyint_min') + 1], '15');
+  });
+
   test('one slice per picture: UniFi Protect\'s live view takes each slice for a frame and stalls', () => {
     assert.match(value('-x264-params'), /sliced-threads=0/, 'zerolatency would slice every picture by thread');
   });
@@ -42,6 +48,11 @@ describe('encoder settings (H.265: sleeping loops of a camera passed through as 
     assert.match(params, /keyint=60:min-keyint=60/);
     assert.match(params, /open-gop=0/);
     assert.match(params, /bframes=0/);
+  });
+
+  test('the sleeping loop: a keyframe every second', () => {
+    const loop = encoderArgs({ fps: 15, bitrateKbps: 6000 }, 'hevc', { keyframeSeconds: 1 });
+    assert.match(loop[loop.indexOf('-x265-params') + 1], /keyint=15:min-keyint=15/);
   });
 
   test('frame delimiters and parameter sets on every keyframe, so it can be spliced', () => {
