@@ -11,10 +11,10 @@
 //   ends after the timeout. GET_PARAMETER, SET_PARAMETER and TEARDOWN are answered here: go2rtc
 //   leaves them unanswered once a stream plays.
 
-import { formatMessage, formatFrame, header, withHeader, requestLine, response } from './messages.mjs';
-import { parseTransport, chooseTransport, interleavedTransport, udpTransport } from './transport.mjs';
+import { formatMessage, header, withHeader, requestLine, response } from './messages.mjs';
+import { parseTransport, chooseTransport, interleavedTransport } from './transport.mjs';
 import { sdpTracks, trackFor, fromTheDevice } from './sdp.mjs';
-import { RtpTrackStats, isRtcp } from './sender-report.mjs';
+import { TrackBinding, chooseChannels } from './track-binding.mjs';
 import { RtspReader } from './messages.mjs';
 
 // Ends a client connection after what was written to it (an answer) has gone out.
@@ -44,7 +44,7 @@ export class ProxySession {
     this.pending = new Map();   // CSeq -> { method, uri, setup }
     this.tracks = [];           // from the last DESCRIBE
     this.channels = new Map();  // upstream channel -> { kind: 'rtp' | 'rtcp', binding }
-    this.bindings = [];         // one per SETUP: { channels, udp?, clientPort?, stats }
+    this.bindings = [];         // one TrackBinding per SETUP
     this.playing = false;
     this.closed = false;
     this.lastActivity = deps.now();
@@ -117,26 +117,20 @@ export class ProxySession {
   async prepareSetup(uri, transportHeader) {
     const choice = chooseTransport(parseTransport(transportHeader));
     if (!choice) return null;
-    const used = new Set(this.bindings.flatMap((b) => b.channels));
-    const free = () => { let c = 0; while (used.has(c) || used.has(c + 1)) c += 2; return [c, c + 1]; };
-    const wanted = choice.protocol === 'tcp' ? choice.interleaved : null;
-    const channels = wanted && !used.has(wanted[0]) && !used.has(wanted[1]) ? wanted : free();
+    const channels = chooseChannels(this.bindings.flatMap((b) => b.channels), choice.protocol === 'tcp' ? choice.interleaved : null);
     const track = trackFor(this.tracks, uri);
-    const binding = { channels, stats: new RtpTrackStats(track?.clockRate ?? 90000), clientChannels: channels };
+    const binding = new TrackBinding({ channels, clockRate: track?.clockRate ?? 90000 });
     if (choice.protocol === 'udp') {
-      binding.clientPort = choice.clientPort;
       try {
-        binding.udp = await this.deps.openUdp(this.client?.localAddress, { uri, media: track?.media ?? 'video' });
+        await binding.openUdp({
+          openUdp: this.deps.openUdp, localAddress: this.client?.localAddress, uri, media: track?.media ?? 'video',
+          clientPort: choice.clientPort, clientAddress: () => this.clientAddress(),
+          onAlive: () => { this.lastActivity = this.deps.now(); },
+        });
       } catch (e) {   // 461 makes the client use TCP instead
         this.deps.log?.(`RTSP: no UDP for a viewer (${e.message}), it is told to use TCP`);
         return null;
       }
-      // The camera's ports are shared by all its viewers: only this viewer's RTCP keeps this session alive.
-      binding.udp.onRtcp((packet, from) => {
-        if (from?.port === binding.clientPort?.[1] && from?.address?.replace(/^::ffff:/, '') === this.clientAddress() && isRtcp(packet)) {
-          this.lastActivity = this.deps.now();
-        }
-      });
     }
     return binding;
   }
@@ -179,11 +173,9 @@ export class ProxySession {
         this.upstreamSession = (header(headers, 'session') ?? '').split(';')[0] || this.upstreamSession;
         this.bind(binding);
         out = withHeader(out, 'Session', `${this.id};timeout=${TIMEOUT_S}`);
-        out = withHeader(out, 'Transport', binding.udp
-          ? udpTransport({ clientPort: binding.clientPort, serverPort: binding.udp.ports })
-          : interleavedTransport(binding.channels));
+        out = withHeader(out, 'Transport', binding.transport());
       } else {
-        binding?.udp?.close();
+        binding?.close();
       }
     }
     if (request?.method === 'PLAY' && ok) this.playing = true;
@@ -211,13 +203,11 @@ export class ProxySession {
   }
 
   sendRtp(binding, data) {
-    if (binding.udp) return binding.udp.rtp.send(data, binding.clientPort[0], this.clientAddress());
-    this.writeToClient(formatFrame(binding.channels[0], data));
+    binding.sendRtp(data, this.clientAddress(), (bytes) => this.writeToClient(bytes));
   }
 
   sendRtcp(binding, data) {
-    if (binding.udp) return binding.udp.rtcp.send(data, binding.clientPort[1], this.clientAddress());
-    this.writeToClient(formatFrame(binding.channels[1], data));
+    binding.sendRtcp(data, this.clientAddress(), (bytes) => this.writeToClient(bytes));
   }
 
   clientAddress() {
@@ -256,8 +246,8 @@ export class ProxySession {
     this.closed = true;
     clearInterval(this.timer);
     this.upstream?.destroy();
-    for (const binding of this.bindings) binding.udp?.close();
-    for (const { setup } of this.pending.values()) setup?.udp?.close();
+    for (const binding of this.bindings) binding.close();
+    for (const { setup } of this.pending.values()) setup?.close();
     endPeer(this.client);
     this.client = null;
     this.deps.onClose?.(this);
