@@ -7,6 +7,27 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.4.1-beta.9] - 2026-11-01
+
+### Found: UniFi Protect and passed-through video
+
+- **Protect's recordings of passed-through cameras are broken.** Protect keeps only the first video
+  settings (H.264/H.265 parameter sets) of a stream and removes all later ones from what it
+  records. A passed-through stream changes them during every event: the sleeping picture is made
+  by the gateway, the live video by the camera, and the SoloCam S340 also changes resolution in the
+  first seconds. Protect then decodes the camera's live video with the sleeping picture's settings:
+  measured on a 3K SoloCam (H.265) and a video doorbell (H.264), both recordings full of decode
+  errors, the SoloCam's stored at 2880×1616 throughout. **Suggested: `"transcode": true` for every
+  camera Protect records.** The gateway then makes the whole stream with one set of H.264 settings
+  (checked: identical for the sleeping picture and live video), at a CPU cost while a camera is live
+  (a 3K camera: up to two cores on a small NAS). The UniFi Protect guide, the README and the
+  configuration reference now say so.
+- **Protect's live view spinning on one camera while the stream is fine** can be the Protect
+  console itself: on a heavily loaded Cloud Key Gen2+ (several 4K UniFi cameras, face and
+  licence-plate recognition, a load of 7–65 on 4 cores), Protect stopped taking in one gateway
+  camera at all, and only a restart of the console brought it back. Now in the guide's
+  troubleshooting.
+
 ### Fixed
 
 - **VLC (and other viewers on UDP) dropped the stream after a few minutes**: the internal stream
@@ -16,7 +37,6 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
   now answers those requests itself and keeps its own connection to go2rtc alive. Measured: a
   VLC-style UDP session now plays without end; before, go2rtc dropped it after 60 s once the
   keep-alives stopped reaching it.
-
 - **Long motion was cut off**: a session ended 30 s (`holdMs`) after the camera's first detection,
   even while the motion went on, because eufy cameras send no new detection during continuing
   motion (only after their own re-trigger interval). The gateway now also sees movement in the live
@@ -388,7 +408,8 @@ First release: always-on H.264 RTSP streams for battery-powered eufy cameras, wi
 awake. One container with the eufy bridge, go2rtc and the switcher; frozen last frame while idle,
 live video on motion, person detection or a doorbell press; web page for the eufy login and status.
 
-[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.8...HEAD
+[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.9...HEAD
+[0.4.1-beta.9]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.8...v0.4.1-beta.9
 [0.4.1-beta.8]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.7...v0.4.1-beta.8
 [0.4.1-beta.7]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.6...v0.4.1-beta.7
 [0.4.1-beta.6]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.5...v0.4.1-beta.6
