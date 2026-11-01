@@ -25,10 +25,22 @@ export class RtpTrackStats {
   // A compound RTCP packet (SR + SDES CNAME) for `now`, or null before the first packet.
   report(now) {
     if (this.ssrc == null) return null;
-    const rtpTime = (this.lastRtpTime + Math.round((now - this.lastArrival) * this.clockRate / 1000)) >>> 0;
+    const rtpTime = this.onWallClock()
+      ? wallClockRtpTime(now, this.clockRate)   // the gateway's own stream: exact, whatever arrived when
+      : (this.lastRtpTime + Math.round((now - this.lastArrival) * this.clockRate / 1000)) >>> 0;
     return Buffer.concat([senderReport({ ssrc: this.ssrc, now, rtpTime, packets: this.packets, octets: this.octets }), sdes(this.ssrc)]);
   }
+
+  // The gateway's publisher stamps RTP with the wall clock (video/rtp.mjs). A random timestamp base
+  // (any other source) lands within a few seconds of that by chance only about once in 5000.
+  onWallClock() {
+    const diff = Math.abs(((this.lastRtpTime - wallClockRtpTime(this.lastArrival, this.clockRate)) | 0));
+    return diff < WALL_CLOCK_WINDOW_S * this.clockRate;
+  }
 }
+
+export const WALL_CLOCK_WINDOW_S = 5;
+export const wallClockRtpTime = (ms, rate) => Math.round(ms * rate / 1000) % 4294967296 >>> 0;
 
 export function ntpTime(ms) {
   const seconds = Math.floor(ms / 1000);

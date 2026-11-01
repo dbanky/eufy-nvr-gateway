@@ -13,41 +13,63 @@ async function until(check) {
 // A fetch whose body yields the given chunks, then stays open until aborted.
 const streaming = (chunks) => async (url, { signal }) => ({
   ok: true,
+  status: 200,
   body: (async function* () {
     for (const c of chunks) yield c;
     await new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
   })(),
 });
+const heard = (feed) => {
+  const frames = [];
+  feed.on('frame', (f) => frames.push(f));
+  return frames;
+};
 
 describe('a camera\'s live audio', () => {
-  test('its frames reach the stream; stopping returns to silence', async () => {
-    const audioFeed = new AudioFeed({ silence: SILENCE, prebuffer: 1 });
+  test('its frames reach the stream as they arrive, also split across chunks; stopping ends it', async () => {
+    const audioFeed = new AudioFeed({ silence: SILENCE });
+    const frames = heard(audioFeed);
     const a = adtsFrame(Buffer.alloc(8, 1)), b = adtsFrame(Buffer.alloc(8, 2));
     const both = Buffer.concat([a, b]);
     const audio = openLiveAudio({ name: 'garden', url: 'http://bridge/audio/T81', audioFeed, log: () => {},
       fetchImpl: streaming([both.subarray(0, 10), both.subarray(10)]) });
-    await until(() => audioFeed.queue.length === 2);
-    assert.deepEqual(audioFeed.next(), a);
+    await until(() => frames.length === 2);
+    assert.deepEqual(frames, [a, b]);
     audio.stop();
-    assert.equal(audioFeed.next(), SILENCE);
+    assert.equal(audioFeed.live, false);
   });
 
-  test('asks again while the bridge has no audio yet (the video isn\'t streaming yet)', async () => {
-    const audioFeed = new AudioFeed({ silence: SILENCE, prebuffer: 1 });
+  test('asks again, quickly and quietly, while the camera is still connecting (409)', async () => {
+    const audioFeed = new AudioFeed({ silence: SILENCE });
+    const frames = heard(audioFeed);
     let calls = 0;
     const logs = [];
     const frame = adtsFrame(Buffer.alloc(8, 3));
     const fetchImpl = async (url, opts) => (++calls < 3 ? { ok: false, status: 409 } : streaming([frame])(url, opts));
     const audio = openLiveAudio({ name: 'garden', url: 'x', audioFeed, log: (...m) => logs.push(m.join(' ')), retryMs: 5, fetchImpl });
-    await until(() => audioFeed.queue.length === 1);
+    await until(() => frames.length === 1);
     assert.equal(calls, 3);
-    assert.equal(logs.length, 1, 'said once');
-    assert.match(logs[0], /audio: not available yet \(HTTP 409\)/);
+    assert.deepEqual(logs, [], 'expected while waking: not worth a log line');
     audio.stop();
   });
 
-  test('audio in a format the stream can\'t carry is named once, and the stream stays silent', async () => {
-    const audioFeed = new AudioFeed({ silence: SILENCE, prebuffer: 1 });
+  test('another failure is named once, and it keeps asking', async () => {
+    const audioFeed = new AudioFeed({ silence: SILENCE });
+    const frames = heard(audioFeed);
+    let calls = 0;
+    const logs = [];
+    const frame = adtsFrame(Buffer.alloc(8, 4));
+    const fetchImpl = async (url, opts) => (++calls < 4 ? { ok: false, status: 502 } : streaming([frame])(url, opts));
+    const audio = openLiveAudio({ name: 'garden', url: 'x', audioFeed, log: (...m) => logs.push(m.join(' ')), retryMs: 5, fetchImpl });
+    await until(() => frames.length === 1);
+    assert.equal(logs.length, 1);
+    assert.match(logs[0], /audio: not available yet \(HTTP 502\)/);
+    audio.stop();
+  });
+
+  test('audio in a format the stream can\'t carry is named once, and none of it is passed on', async () => {
+    const audioFeed = new AudioFeed({ silence: SILENCE });
+    const frames = heard(audioFeed);
     const logs = [];
     const wrong = adtsFrame(Buffer.alloc(8), { rateIndex: 3 });
     const audio = openLiveAudio({ name: 'garden', url: 'x', audioFeed, log: (...m) => logs.push(m.join(' ')),
@@ -56,7 +78,7 @@ describe('a camera\'s live audio', () => {
     await wait(20);
     assert.equal(logs.length, 1);
     assert.match(logs[0], /aac-lc 48000 Hz, 1 channel\(s\); the stream carries AAC-LC 16 kHz mono only/);
-    assert.equal(audioFeed.next(), SILENCE);
+    assert.deepEqual(frames, []);
     audio.stop();
   });
 });

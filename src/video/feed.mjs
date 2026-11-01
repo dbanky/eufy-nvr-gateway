@@ -4,7 +4,8 @@
 //   live  frames from the live encoder, in order.
 //
 // Switching is only safe at a keyframe: a loop always starts with one, and live takes over at the
-// first live keyframe after armLive().
+// first live keyframe after armLive(). Every live frame is announced ('live') the moment it arrives,
+// with its arrival time (arrivalOf), so the publisher sends it at once and stamps it with that time.
 //
 // The stream has one codec: 'h264', or 'hevc' for a camera whose own H.265 is passed through.
 // A change emits 'codec': the publisher restarts with the new format.
@@ -13,7 +14,7 @@ import { EventEmitter } from 'node:events';
 import { isKeyframe } from './annexb.mjs';
 
 export class Feed extends EventEmitter {
-  constructor({ maxLiveBacklog = 30 } = {}) {
+  constructor({ maxLiveBacklog = 300, now = Date.now } = {}) {
     super();
     this.codec = 'h264';
     this.mode = 'loop';
@@ -21,7 +22,14 @@ export class Feed extends EventEmitter {
     this.loopIndex = 0;
     this.liveArmed = false;
     this.liveQueue = [];
-    this.maxLiveBacklog = maxLiveBacklog;   // frames; older ones are dropped rather than adding delay
+    this.maxLiveBacklog = maxLiveBacklog;   // frames; only a safety net: the publisher takes each at once
+    this.now = now;
+    this.arrivals = new WeakMap();          // live frame -> arrival time (ms)
+  }
+
+  // When a live frame arrived (ms), or undefined for a loop frame.
+  arrivalOf(frame) {
+    return this.arrivals.get(frame);
   }
 
   // Play this loop from its start, right away. Live, if it was on, ends here.
@@ -44,8 +52,10 @@ export class Feed extends EventEmitter {
       this.mode = 'live';
       this.liveQueue = [];
     }
+    this.arrivals.set(frame, this.now());
     this.liveQueue.push(frame);
     if (this.liveQueue.length > this.maxLiveBacklog) this.liveQueue.splice(0, this.liveQueue.length - this.maxLiveBacklog / 2);
+    this.emit('live');
   }
 
   // The next frame to send, or undefined if there is none yet (live frame not encoded yet).

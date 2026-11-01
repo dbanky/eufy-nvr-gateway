@@ -16,7 +16,8 @@
 //   openPassthrough({ cam, codec, onFrame, onPicture, onClose })  passing through  -> { stop() }
 //   createEncoder({ cam, getFrame, onFrame }) -> { start(), stop() }
 //   saveLastFrame(cam, { raw } | { jpeg }), saveCodec(cam, codec)   kept for after a restart
-//   openLiveAudio(cam) -> { stop() }        only with `audio: true`: the camera's sound while live
+//   openLiveAudio(cam) -> { stop() }        only with `audio: true`: the camera's sound, from the wake-up
+//                                           until the session's live connection closes
 
 import { CAMERA_DEFAULTS, decideTrigger, stopReason, deadlineWhenLive } from '../policy.mjs';
 import { viewFor } from '../labels.mjs';
@@ -74,6 +75,9 @@ export class Camera {
     this.deps.log(this.name, `${kind}: waking camera (${how}, hold until ${this.deps.time.hms(this.deadline)})`);
     this.refresh();
     openLiveFeed(this);
+    // Sound from the start: whatever the camera hears while it wakes is on the stream too, before
+    // the first picture. It ends with the live connection (endLiveFeed), not with the hold time.
+    this.liveAudio = this.deps.openLiveAudio?.(this) ?? null;
   }
 
   goLive() {
@@ -82,7 +86,6 @@ export class Camera {
     this.failedAt = 0;
     this.deadline = deadlineWhenLive(this, this.liveStart);
     cancelRendering(this);
-    this.liveAudio = this.deps.openLiveAudio?.(this) ?? null;
     this.deps.log(this.name, `live after ${((this.liveStart - this.sessionStart) / 1000).toFixed(1)} s`);
   }
 

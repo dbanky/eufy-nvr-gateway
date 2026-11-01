@@ -96,13 +96,17 @@ rather than `motion`.
 
 With `"audio": true` the camera's stream carries an audio track: **AAC-LC, 16 kHz, mono**, the
 format eufy cameras send. While the camera is live it is the camera's own sound; while it sleeps it
-is silence, so the track never comes and goes (NVRs expect it to be there all the time). The sound is
-encoded once more on its way out, which costs next to nothing; the video is untouched.
+is silence, so the track never comes and goes (NVRs expect it to be there all the time). Neither the
+sound nor the video is re-encoded.
 
-- The sound starts when the live picture does and ends with the session.
-- It follows the picture's timeline, so the two stay together. The camera's sound reaches the
-  gateway over the network in bursts; a quarter of a second of buffer smooths that, and a gap is
-  filled with silence.
+- The sound starts the moment the camera sends it, as soon as it wakes and before the first
+  picture, and lasts as long as the camera's live video is on the stream.
+- Picture and sound are independent: each goes out the moment it arrives, neither waits for the
+  other, and nothing is buffered or dropped. Both carry timestamps on one clock, so players keep
+  them together.
+- The camera's sound reaches the gateway over the network in bursts. A burst after a short pause
+  (up to a second) fills that pause, as the camera recorded it, so the sound never drifts behind
+  the picture; a longer silence from the camera is filled with silence.
 - A camera that sends another audio format stays silent; the log says which format it sent.
 - The ONVIF device then reports an audio source and an AAC encoder (16 kHz).
 - UniFi Protect: Ubiquiti lists audio among the features that may not work for third-party cameras.

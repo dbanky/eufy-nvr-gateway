@@ -12,9 +12,12 @@ stream drop, reconnects, and wakes the camera again — all day.
 
 ## The approach: never switch streams, switch pictures
 
-Each camera has **one publisher that runs forever**: an `ffmpeg -c copy` that sends encoded frames to
-go2rtc at exactly 15 fps — the camera's own H.264/H.265, or H.264 with `transcode: true`. The NVR
-connects to go2rtc and sees one unbroken stream at a constant frame rate. What the publisher is fed
+Each camera has **one publisher that runs forever**: it sends encoded frames to go2rtc over RTSP
+itself (no ffmpeg, nothing re-encoded) — the camera's own H.264/H.265, or H.264 with
+`transcode: true`, and with `"audio": true` the camera's AAC sound. The sleeping picture plays at
+exactly 15 fps; every live frame and every sound frame goes out the moment it arrives, stamped with
+its arrival time, so nothing waits, is held back or dropped, and picture and sound never wait for
+each other. The NVR connects to go2rtc and sees one unbroken stream. What the publisher is fed
 depends on the state:
 
 | State | Picture | Camera |

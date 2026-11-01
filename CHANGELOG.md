@@ -7,14 +7,31 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Changed
+
+- **Picture and sound go out the moment they arrive, and nothing is cut.** The gateway now publishes
+  each camera's stream into go2rtc itself, instead of through an ffmpeg:
+  - Every live frame and every sound frame is sent as soon as it arrives, stamped with its arrival
+    time on one clock for both. Picture and sound never wait for each other.
+  - Nothing is held back or dropped: live video is no longer re-paced to 15 fps, and bursts are no
+    longer trimmed. Sound has no quarter-second buffer anymore, and is no longer trimmed either.
+  - The sound starts as soon as the camera sends it, while it is still waking up and before the
+    first picture, and lasts as long as the camera's live video is on the stream (it used to start
+    with the first picture and stop at the end of the hold time).
+  - Sound that arrives in a burst after a network hiccup fills the pause it belongs to, so it no
+    longer drifts behind the picture.
+  - The camera's AAC goes through untouched (it used to be re-encoded), and there is one ffmpeg
+    fewer per camera.
+  - If the connection to go2rtc drops, it is reopened at once and everything since the last
+    keyframe is sent again.
+  - RTCP sender reports for the gateway's own streams are now exact.
+
 ### Fixed
 
 - **Streams with sound stopped for good after a live session** (`"audio": true`): NVRs then got
   *404* / go2rtc logged `streams: unknown error` every few seconds, and only a container restart
-  helped. ffmpeg could stop reading the picture while it waited for sound, and the gateway sent
-  sound only as the picture went out: both waited for each other. Now the gateway sends the sound
-  ffmpeg waits for (and keeps it in step with the picture), and a stream that takes no video for
-  10 s is restarted, with a line in the log.
+  helped. ffmpeg stopped reading the picture while it waited for sound, and the gateway sent sound
+  only as the picture went out, so both waited for each other. The new publisher has no such link.
 
 ## [0.4.1-beta.3] - 2026-11-01
 

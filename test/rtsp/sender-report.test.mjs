@@ -41,3 +41,18 @@ test('the SDES CNAME item fills whole 32-bit words', () => {
   assert.equal(packet.readUInt16BE(2), packet.length / 4 - 1);
   assert.equal(packet.subarray(10, 13).toString(), 'abc');
 });
+
+test('the gateway\'s own stream (RTP stamped with the wall clock): the report is exact, even after a burst stamped ahead', () => {
+  const stats = new RtpTrackStats(16000);
+  const now = 1_762_000_000_000;
+  const at = (ms) => Math.round(ms * 16) % 4294967296;
+  stats.count(rtp({ timestamp: at(now + 1500) }), now);   // a burst: stamped 1.5 s ahead of its arrival
+  const report = stats.report(now + 100);
+  assert.equal(report.readUInt32BE(16), at(now + 100), 'the wall clock, not last packet + elapsed');
+});
+
+test('any other source (random timestamp base): last packet + elapsed time', () => {
+  const stats = new RtpTrackStats(90000);
+  stats.count(rtp({ timestamp: 123456 }), 1_762_000_000_000);
+  assert.equal(stats.report(1_762_000_000_100).readUInt32BE(16), 123456 + 9000);
+});

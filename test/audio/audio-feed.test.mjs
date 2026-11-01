@@ -5,58 +5,51 @@ import { adtsFrame } from '../helpers/aac.mjs';
 
 const SILENCE = adtsFrame(Buffer.alloc(4, 0));
 const sound = (n) => adtsFrame(Buffer.alloc(8, n));
+const listen = (feed) => {
+  const heard = [];
+  feed.on('frame', (f) => heard.push(f));
+  return heard;
+};
 
-describe('the audio a stream plays', () => {
-  test('silence while the camera sleeps, so the audio track never stops', () => {
+describe('the camera sound a stream carries', () => {
+  test('each frame is handed on the moment it arrives: nothing is buffered or held back', () => {
     const feed = new AudioFeed({ silence: SILENCE });
-    assert.deepEqual([feed.next(), feed.next()], [SILENCE, SILENCE]);
-    assert.equal(feed.pushLive(sound(1)), false, 'camera audio is ignored while not live');
-    assert.equal(feed.next(), SILENCE);
-  });
-
-  test('live: the camera\'s audio in order, after a short buffer against network jitter', () => {
-    const feed = new AudioFeed({ silence: SILENCE, prebuffer: 3 });
+    const heard = listen(feed);
     feed.startLive();
-    feed.pushLive(sound(1));
+    assert.equal(feed.pushLive(sound(1)), true);
+    assert.deepEqual(heard, [sound(1)], 'at once, not after a buffer fills');
     feed.pushLive(sound(2));
-    assert.equal(feed.next(), SILENCE, 'still buffering');
     feed.pushLive(sound(3));
-    assert.deepEqual([feed.next(), feed.next(), feed.next()], [sound(1), sound(2), sound(3)]);
+    assert.deepEqual(heard, [sound(1), sound(2), sound(3)]);
   });
 
-  test('a gap in the camera\'s audio is filled with silence, then it buffers again', () => {
-    const feed = new AudioFeed({ silence: SILENCE, prebuffer: 2 });
+  test('a burst is never cut short', () => {
+    const feed = new AudioFeed({ silence: SILENCE });
+    const heard = listen(feed);
     feed.startLive();
-    feed.pushLive(sound(1)); feed.pushLive(sound(2));
-    feed.next(); feed.next();
-    assert.equal(feed.next(), SILENCE);
-    feed.pushLive(sound(3));
-    assert.equal(feed.next(), SILENCE, 'buffering again');
-    feed.pushLive(sound(4));
-    assert.deepEqual([feed.next(), feed.next()], [sound(3), sound(4)]);
+    for (let i = 1; i <= 100; i++) feed.pushLive(sound(i));
+    assert.equal(heard.length, 100);
   });
 
-  test('a backlog is cut short rather than delaying the sound', () => {
-    const feed = new AudioFeed({ silence: SILENCE, prebuffer: 1, maxBacklog: 4 });
+  test('nothing is taken without a session', () => {
+    const feed = new AudioFeed({ silence: SILENCE });
+    const heard = listen(feed);
+    assert.equal(feed.pushLive(sound(1)), false);
     feed.startLive();
-    for (let i = 1; i <= 6; i++) feed.pushLive(sound(i));
-    // the 5th frame overflowed 4: the oldest went, keeping half; then the 6th joined
-    assert.deepEqual(feed.queue, [sound(4), sound(5), sound(6)]);
-    assert.deepEqual(feed.next(), sound(4));
+    feed.stopLive();
+    assert.equal(feed.pushLive(sound(2)), false);
+    assert.deepEqual(heard, []);
   });
 
-  test('audio the stream can\'t carry (not AAC-LC 16 kHz mono) is refused, and silence plays', () => {
-    const feed = new AudioFeed({ silence: SILENCE, prebuffer: 1 });
+  test('audio the stream can\'t carry (not AAC-LC 16 kHz mono) is refused', () => {
+    const feed = new AudioFeed({ silence: SILENCE });
+    const heard = listen(feed);
     feed.startLive();
     assert.equal(feed.pushLive(adtsFrame(undefined, { rateIndex: 3 })), false);
-    assert.equal(feed.next(), SILENCE);
+    assert.deepEqual(heard, []);
   });
 
-  test('when live ends, silence again at once', () => {
-    const feed = new AudioFeed({ silence: SILENCE, prebuffer: 1 });
-    feed.startLive();
-    feed.pushLive(sound(1)); feed.pushLive(sound(2));
-    feed.stopLive();
-    assert.equal(feed.next(), SILENCE);
+  test('keeps the silent frame the publisher fills quiet time with', () => {
+    assert.equal(new AudioFeed({ silence: SILENCE }).silence, SILENCE);
   });
 });
