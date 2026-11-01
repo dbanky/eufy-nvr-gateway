@@ -17,8 +17,7 @@ itself (no ffmpeg, nothing re-encoded) — the camera's own H.264/H.265, or H.26
 `transcode: true`, and with `"audio": true` the camera's AAC sound. The sleeping picture plays at
 exactly 15 fps; every live frame and every sound frame goes out the moment it arrives, stamped with
 its arrival time, so nothing waits, is held back or dropped, and picture and sound never wait for
-each other. The NVR connects to go2rtc and sees one unbroken stream. What the publisher is fed
-depends on the state:
+each other. The NVR sees one unbroken stream. What the publisher is fed depends on the state:
 
 | State | Picture | Camera |
 |---|---|---|
@@ -28,6 +27,14 @@ depends on the state:
 
 While asleep the label can also read *low battery*, *didn't wake up* or *offline*, and a fresh
 install shows *no picture yet* instead of a black frame.
+
+**The RTSP front.** Viewers don't talk to go2rtc directly (it listens on `127.0.0.1` only); they
+connect to the gateway's own RTSP server on `8554`, which relays to go2rtc and adds what go2rtc
+lacks: the login, RTP over UDP from fixed ports per camera, RTCP sender reports, and RTSP over
+HTTP. It also covers two gaps that would otherwise cut viewers off: once a stream plays, go2rtc
+never answers the keep-alive requests `GET_PARAMETER` and `SET_PARAMETER` (nor `TEARDOWN`), so the
+front answers them; and go2rtc drops a connection it hears nothing on for 60 s, which is what a
+viewer on UDP looks like, so the front sends it an `OPTIONS` after 20 s of silence.
 
 **Sleeping costs (almost) nothing.** Each state's picture is drawn once and encoded once into an 8 s
 loop with a keyframe every second, in the stream's format; the publisher replays those encoded frames

@@ -483,12 +483,14 @@ behaviour:
 | Folder | What |
 |---|---|
 | `src/main.mjs`, `src/gateway/` | Container entrypoint: reads `config.json` (`config.mjs`, logins and HTTPS in `access.mjs`), writes the configs for the bundled services, makes the HTTPS certificate, runs and restarts everything |
-| `src/switcher/` | One process for all cameras: when to wake and sleep (`policy.mjs`), what the stream says (`labels.mjs`), the update check (`updates.mjs`), wiring (`main.mjs`, `create-camera.mjs`) |
+| `src/switcher/` | One process for all cameras: when to wake and sleep (`policy.mjs`), movement in the live picture (`picture-motion.mjs`), what the stream says (`labels.mjs`), the update check (`updates.mjs`), wiring (`main.mjs`, `create-camera.mjs`) |
 | `src/switcher/camera/` | One camera's states (`camera.mjs`), its live video (`live-feed.mjs`: converting or passing through) and its picture when not live (`sleeping-picture.mjs`) |
 | `src/switcher/bridge/` | The eufy bridge: the WebSocket (`socket.mjs`) and what it says (`client.mjs`: login, devices, events) |
 | `src/switcher/web/` | The JSON API (`server.mjs`), sign-in (`auth.mjs`, `signin-routes.mjs`), HTTP/HTTPS (`listen.mjs`) and the page (`static/`: pure views with node tests, plus the browser glue) |
 | `src/onvif/` | ONVIF devices: device and media services, motion events (PullPoint), logins |
-| `src/video/` | The never-ending stream: the publisher, what it plays next (`feed.mjs`), live encoder, decoder and pass-through, H.264/H.265 helpers |
+| `src/video/` | The never-ending stream: the publisher into go2rtc (`publisher.mjs`, `rtsp-push.mjs`, `rtp.mjs`), what it plays next (`feed.mjs`), live encoder, decoder and pass-through, H.264/H.265 helpers |
+| `src/audio/` | The camera's sound: AAC frames (`adts.mjs`), the live sound from the bridge (`live-audio.mjs`), silence while asleep |
+| `src/rtsp/` | The RTSP server viewers connect to, in front of go2rtc: login (`client-connection.mjs`), one session (`session.mjs`) and its tracks over TCP or UDP (`track-binding.mjs`), fixed UDP ports, sender reports, RTSP over HTTP |
 | `src/overlay/` | The sleeping-state picture: the design in numbers (`design.mjs`), layout, drawing, encoding it into a loop |
 | `assets/icons/` | State icons (SVG), rasterised when the image is built |
 
