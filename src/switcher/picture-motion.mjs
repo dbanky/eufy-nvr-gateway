@@ -7,6 +7,8 @@
 // Measured on a doorbell standing still: consecutive keyframes differ in 0 of 768 cells. The
 // whole picture shifting together (the camera adjusting its exposure) is taken out first.
 
+import { FixedSizeSplitter } from '../video/fixed-size.mjs';
+
 export const THUMB_WIDTH = 32, THUMB_HEIGHT = 24;
 const CELLS = THUMB_WIDTH * THUMB_HEIGHT;
 export const CELL_CHANGE = 10;          // brightness levels (0–255) a cell must change by
@@ -48,14 +50,10 @@ export function thumbnailFromLuma(frame, width, height) {
 export class ThumbnailSplitter {
   constructor(onThumbnail) {
     this.onThumbnail = onThumbnail;
-    this.buf = Buffer.alloc(0);
+    this.splitter = new FixedSizeSplitter(CELLS);
   }
 
   push(chunk) {
-    this.buf = this.buf.length ? Buffer.concat([this.buf, chunk]) : chunk;
-    while (this.buf.length >= CELLS) {
-      this.onThumbnail(Buffer.from(this.buf.subarray(0, CELLS)));
-      this.buf = this.buf.subarray(CELLS);
-    }
+    for (const thumbnail of this.splitter.push(chunk)) this.onThumbnail(thumbnail);
   }
 }

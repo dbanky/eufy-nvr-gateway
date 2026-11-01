@@ -3,6 +3,7 @@
 // sleep within ~0.1 s. It also reports which codec the camera sends, for passing it through next time.
 
 import { spawnFfmpeg, fitFilter, frameSize } from './ffmpeg.mjs';
+import { FixedSizeSplitter } from './fixed-size.mjs';
 
 // The camera's codec from ffmpeg's description of the input: 'h264', 'hevc', or null.
 export function codecFromLog(line) {
@@ -16,23 +17,12 @@ const worthLogging = (line) => /error|invalid|fail|could not|missing/i.test(line
 // matters: the stream should show "now", not catch up.
 export class RawFrameAssembler {
   constructor(size) {
-    this.size = size;
-    this.pending = [];
-    this.have = 0;
+    this.splitter = new FixedSizeSplitter(size);
   }
 
   // Returns the newest complete frame in what arrived so far, or null.
   push(chunk) {
-    this.pending.push(chunk);
-    this.have += chunk.length;
-    if (this.have < this.size) return null;
-    const all = Buffer.concat(this.pending);
-    const whole = Math.floor(all.length / this.size);
-    const newest = Buffer.from(all.subarray((whole - 1) * this.size, whole * this.size));
-    const rest = all.subarray(whole * this.size);
-    this.pending = rest.length ? [Buffer.from(rest)] : [];
-    this.have = rest.length;
-    return newest;
+    return this.splitter.push(chunk).at(-1) ?? null;
   }
 }
 

@@ -1,7 +1,7 @@
 // Motion seen in the live picture itself: tiny grey thumbnails of consecutive keyframes compared.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { THUMB_WIDTH, THUMB_HEIGHT, changedShare, pictureMoved, thumbnailFromLuma } from '../../src/switcher/picture-motion.mjs';
+import { THUMB_WIDTH, THUMB_HEIGHT, changedShare, pictureMoved, thumbnailFromLuma, ThumbnailSplitter } from '../../src/switcher/picture-motion.mjs';
 
 const CELLS = THUMB_WIDTH * THUMB_HEIGHT;
 const flat = (v) => Buffer.alloc(CELLS, v);
@@ -53,4 +53,13 @@ describe('a thumbnail from a raw picture (when converting)', () => {
     assert.equal(t[0], 0);
     assert.equal(t[THUMB_WIDTH - 1], 200);
   });
+});
+
+test('thumbnails from the decoder come out whole, however the bytes arrive', () => {
+  const got = [];
+  const splitter = new ThumbnailSplitter((t) => got.push(t));
+  const two = Buffer.concat([Buffer.alloc(CELLS, 1), Buffer.alloc(CELLS, 2)]);
+  splitter.push(two.subarray(0, 100));
+  splitter.push(two.subarray(100));
+  assert.deepEqual(got.map((t) => [t.length, t[0]]), [[CELLS, 1], [CELLS, 2]]);
 });
