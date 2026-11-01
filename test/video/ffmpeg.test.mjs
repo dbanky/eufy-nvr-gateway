@@ -1,5 +1,5 @@
 // The ffmpeg helpers every encoder and decoder builds on. The pure ones are tested everywhere; the
-// ones that run ffmpeg only where it is installed (in the image, in CI).
+// ones that run ffmpeg only where it is installed (e.g. inside the image; CI skips them).
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
