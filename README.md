@@ -171,8 +171,8 @@ number. Create `config.json` in the folder from step 2 (e.g. with File Station o
 - **Any NVR or player:** `rtsp://<host>:8554/<camera-name>`, e.g. `rtsp://192.168.1.10:8554/garden`.
   Each tile's *Stream details* has the address to copy.
 - **UniFi Protect:** publish the cameras as ONVIF devices and add them with *Advanced Adoption*
-  (Protect doesn't discover them by itself). For H.265 cameras, set *Stream Compatibility Mode* to
-  *Improved*. Step by step: [docs/unifi-protect.md](docs/unifi-protect.md).
+  (Protect doesn't discover them by itself). With playback issues (especially in a web browser),
+  set the camera's *Stream Compatibility Mode* to *Improved*. Step by step: [docs/unifi-protect.md](docs/unifi-protect.md).
 
 Then, optionally, [lock it down](#security): a login for the page, one for the streams (RTSP and ONVIF), and HTTPS.
 
@@ -387,7 +387,7 @@ Details, measurements and the problems solved along the way:
 | Port already in use | Change it under `"ports"` in `config.json`. |
 | Red banner *ONVIF can't work: switch the container to host networking* | The container is on a bridge network. Synology Container Manager: stop the container → *Edit* → *Network*: `host`; Compose: `network_mode: host`. Port mappings aren't needed then. |
 | UniFi Protect doesn't find the cameras | Expected: add each with *Advanced Adoption* (IP address and the `rtsp` login). See [docs/unifi-protect.md](docs/unifi-protect.md). |
-| H.265 camera flickers or is black in Protect's live view | Set the camera's *Stream Compatibility Mode* to *Improved* in Protect, or `"transcode": true` for it. |
+| Live view or playback flickers, is black or stutters in Protect (especially in a browser) | Set the camera's *Stream Compatibility Mode* to *Improved* in Protect; for an H.265 camera also `"transcode": true`. |
 
 Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[start]`, `[bridge]`, `[go2rtc]`
 or `[switcher]`).

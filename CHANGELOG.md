@@ -36,6 +36,8 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
   `ports.rtsp` (8554) as before. RTP over UDP is sent from ports 40000–49998 (host networking).
 - The ONVIF scopes no longer claim Profile T, and claim Profile S (`Profile/Streaming`) only for
   cameras that stream H.264.
+- Docs: *Stream Compatibility Mode: Improved* in UniFi Protect is now described as the general fix
+  for playback issues with any camera (especially in web browsers), not only for H.265 cameras.
 
 ## [0.4.0] - 2026-10-31
 

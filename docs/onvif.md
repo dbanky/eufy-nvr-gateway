@@ -116,6 +116,8 @@ What that means in practice:
 - **Codec.** A camera passed through as H.265 (the SoloCam S340, for example) is reported as H.265.
   UniFi Protect takes it; if its live view flickers or is black, set the camera's *Stream
   Compatibility Mode* to *Improved* in Protect, or `"transcode": true` for that camera.
+- **Playback issues in UniFi Protect** with any camera, especially in a web browser: *Stream
+  Compatibility Mode* → *Improved* in the camera's settings is the general first fix.
 - **The first seconds of an event are missing** from recordings: the camera needs 3–8 seconds to
   wake (longer from deep sleep), and only then is there live video.
 - **The doorbell is a plain camera** in Protect: no ring event, no chime, no audio.

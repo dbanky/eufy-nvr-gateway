@@ -56,16 +56,20 @@ and in [onvif.md → Troubleshooting](onvif.md#troubleshooting).
 Repeat for every camera. On the gateway's web page, the camera's ONVIF details now show *Last
 request … from* the Protect console's address.
 
-## 3. H.265 cameras: set *Stream Compatibility Mode* to *Improved*
+## 3. Playback issues: set *Stream Compatibility Mode* to *Improved*
 
-Cameras that send H.265, like the SoloCam S340 (3K), are passed through as H.265 by default to save
-CPU. In Protect's live view in the browser, such a camera may **flicker, turn black or behave
-strangely**. Changing the camera's **Stream Compatibility Mode** to **Improved** in its settings in
-Protect fixed this completely in our setup.
+If a camera's live view or playback in Protect **flickers, turns black, stutters or behaves
+strangely** — especially in a web browser — change the camera's **Stream Compatibility Mode** to
+**Improved** in its settings in Protect. This is a general option for any camera, H.264 or H.265,
+and the first thing to try with playback issues.
 
-If your Protect version doesn't have that setting, or it doesn't help, let the gateway convert that
-camera to H.264 instead: `"transcode": true` for the camera in `config.json`. That costs CPU on the
-gateway while the camera is live.
+It matters most for cameras that send H.265, like the SoloCam S340 (3K): the gateway passes their
+H.265 through by default to save CPU, and browsers handle H.265 poorly. *Improved* fixed this
+completely in our setup.
+
+If your Protect version doesn't have that setting, or it doesn't help with an H.265 camera, let the
+gateway convert that camera to H.264 instead: `"transcode": true` for the camera in `config.json`.
+That costs CPU on the gateway while the camera is live.
 
 ## Sound
 
@@ -100,7 +104,7 @@ deep sleep), and only then is there live video.
 | Protect doesn't discover the cameras | Expected: use **Advanced Adoption** (step 2). |
 | Adoption fails with a login error | Use `rtsp.username` / `rtsp.password`, one login for ONVIF and the stream. |
 | Adoption can't reach the camera | Check the camera's ONVIF details on the web page: it must not say *Not on the network yet*. The Protect console must be able to reach that IP and port. Note: the machine running the gateway can't reach its own macvlan addresses, so test from another device. |
-| Live view flickers, is black, or acts strangely (H.265 camera) | *Stream Compatibility Mode*: **Improved** (step 3), or `"transcode": true` for that camera. |
+| Live view or playback flickers, is black, stutters or acts strangely (any camera, especially in a browser) | *Stream Compatibility Mode*: **Improved** (step 3); for an H.265 camera also `"transcode": true`. |
 | Picture only, no live video in Protect when something happens | The camera has to wake up first: check on the gateway's web page that it goes *Live*. Disarmed eufy cameras send no events. |
 | Recordings are all sleeping pictures | Record on motion instead of continuously (step 4). |
 
