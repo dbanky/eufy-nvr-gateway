@@ -7,7 +7,9 @@ import { createRtspFront } from '../../src/rtsp/server.mjs';
 import { RtspReader, formatMessage, formatFrame, header } from '../../src/rtsp/messages.mjs';
 
 // A stand-in for go2rtc: RTSP over TCP only, a new session id per SETUP, recvonly in the SDP, no
-// RTCP; after PLAY it sends an RTP packet on every set-up track every 20 ms.
+// RTCP; after PLAY it sends an RTP packet on every set-up track every 20 ms. Like the real one
+// (1.9.15, measured), once playing it answers OPTIONS but never GET_PARAMETER, SET_PARAMETER or
+// TEARDOWN: a stand-in that answered everything hid exactly that from these tests.
 const SDP = 'v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\ns=go2rtc\r\nt=0 0\r\n'
   + 'm=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\na=recvonly\r\na=control:trackID=0\r\n'
   + 'm=audio 0 RTP/AVP 97\r\na=rtpmap:97 MPEG4-GENERIC/16000\r\na=recvonly\r\na=control:trackID=1\r\n';
@@ -30,7 +32,7 @@ function fakeGo2rtc() {
     upstreamSockets.add(socket);
     const reader = new RtspReader();
     const channels = [];
-    let timer;
+    let timer, playing = false;
     socket.on('data', (chunk) => {
       for (const { message } of reader.push(chunk)) {
         if (!message) continue;
@@ -44,11 +46,12 @@ function fakeGo2rtc() {
           reply([['Transport', transport], ['Session', `${++sessions};timeout=60`]]);
         }
         if (method === 'PLAY') {
+          playing = true;
           reply([['Session', String(sessions)]]);
           let n = 0;
           timer = setInterval(() => { n++; channels.forEach((c, i) => socket.write(formatFrame(c, rtp(0x1000 + i, n)))); }, 20);
         }
-        if (method === 'OPTIONS' || method === 'GET_PARAMETER' || method === 'TEARDOWN') reply([]);
+        if (method === 'OPTIONS' || (!playing && ['GET_PARAMETER', 'SET_PARAMETER', 'TEARDOWN'].includes(method))) reply([]);
       }
     });
     socket.on('close', () => clearInterval(timer));
@@ -196,6 +199,30 @@ describe('the RTSP front', () => {
     assert.match(teardown.startLine, /200/);
     assert.match((await tcpClient().send('GET_PARAMETER', URI, [['Session', 'FFFFFFFFFFFFFFFF'], ['Authorization', auth]])).startLine, /454/);
     again.socket.destroy();
+    rtpSocket.close();
+  });
+
+  test('VLC over UDP: its keep-alives are answered while playing, go2rtc never sees them; TEARDOWN ends it', async () => {
+    const rtpSocket = createSocket('udp4');
+    await new Promise((r) => rtpSocket.bind(0, '127.0.0.1', r));
+    const c = tcpClient();
+    await login(c, URI);
+    const p = rtpSocket.address().port;
+    const setup = await c.send('SETUP', `${URI}/trackID=0`, [['Transport', `RTP/AVP;unicast;client_port=${p}-${p + 1}`]]);
+    const session = [['Session', header(setup.headers, 'session').split(';')[0]]];
+    await c.send('PLAY', URI, session);
+    const before = seen.length;
+    for (const method of ['GET_PARAMETER', 'SET_PARAMETER', 'GET_PARAMETER']) {
+      const answer = await c.send(method, URI, session);
+      assert.match(answer.startLine, /^RTSP\/1\.0 200/, method);
+      assert.match(header(answer.headers, 'session'), /;timeout=60$/);
+    }
+    assert.deepEqual(seen.slice(before).map(([m]) => m), [], 'none of them reached go2rtc');
+    const upstreamBefore = upstreamSockets.size && [...upstreamSockets].filter((s) => !s.destroyed).length;
+    assert.match((await c.send('TEARDOWN', URI, session)).startLine, /^RTSP\/1\.0 200/);
+    await wait(50);
+    assert.equal([...upstreamSockets].filter((s) => !s.destroyed).length, upstreamBefore - 1, 'its go2rtc connection closed');
+    c.socket.destroy();
     rtpSocket.close();
   });
 
