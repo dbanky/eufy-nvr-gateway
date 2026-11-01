@@ -40,6 +40,16 @@ describe('settings', () => {
     assert.equal(resolveSettings({}, { ...login, WEB_PORT: '9099' }).ports.web, 9099);
   });
 
+  test('each camera has four fixed UDP ports, "udpPort" and the next three: 40000, 40004, … unless set', () => {
+    const cam = (name, extra = {}) => ({ name, serial: 'T81XXXXXXXXXXXXX', width: 640, height: 480, ...extra });
+    assert.deepEqual(validateCameras({ cameras: [cam('front-door'), cam('garden')] }).map((c) => c.udpPort), [40000, 40004]);
+    assert.deepEqual(validateCameras({ cameras: [cam('front-door', { udpPort: 41000 }), cam('garden')] }).map((c) => c.udpPort), [41000, 40004]);
+    assert.throws(() => validateCameras({ cameras: [cam('front-door', { udpPort: 40001 })] }), /"udpPort" must be an even port/);
+    assert.throws(() => validateCameras({ cameras: [cam('front-door', { udpPort: 80 })] }), /"udpPort" must be an even port/);
+    assert.throws(() => validateCameras({ cameras: [cam('front-door', { udpPort: 40002 }), cam('garden')] }),
+      /cameras "front-door" and "garden" share UDP port 40004/);
+  });
+
   test('the time zone comes from TZ, then config.json, then UTC', () => {
     assert.equal(resolveSettings({ timezone: 'Europe/London' }, { ...login, TZ: 'UTC' }).timeZone, 'UTC');
     assert.equal(resolveSettings({ timezone: 'Europe/London' }, login).timeZone, 'Europe/London');

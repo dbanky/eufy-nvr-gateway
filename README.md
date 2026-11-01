@@ -124,6 +124,10 @@ session and the last frame of every camera, so all of it survives updates.
    - **Network**: `host` (recommended: nothing to map, and ONVIF needs it). With the default `bridge`
      network instead, map `8099` and `8554` TCP under *Port Settings*, same number on both sides —
      see [Ports](#ports).
+   - **Firewall**: with host networking nothing is mapped, but if DSM's firewall is on, allow the
+     gateway's ports: TCP `8099` (web page) and `8554` (streams), UDP `40000`–`40003` per camera
+     (`40000`–`40007` for two), and each camera's ONVIF port if you use Protect. Which and why:
+     [The Synology firewall](#the-synology-firewall).
    - **Environment**: `EUFY_EMAIL`, `EUFY_PASSWORD`, `EUFY_COUNTRY` (the two-letter code of the
      country the account was registered in, e.g. `GB`, `DE`, `US`) and `TZ` (e.g. `Europe/London`).
 
@@ -165,6 +169,11 @@ number. Create `config.json` in the folder from step 2 (e.g. with File Station o
 `width` and `height` are the camera's native live resolution (see
 [known resolutions](#known-live-resolutions)). Restart the container (Synology: *Container → Action
 → Restart*). Each camera now has a tile on the web page.
+
+Each camera also gets four fixed UDP ports for viewers that use RTP over UDP: `40000`–`40003` for
+the first camera in the list, `40004`–`40007` for the second. To choose them yourself, add
+`"udpPort": 40000` (the first of the four) to a camera. If the NAS's firewall is on, these are the
+UDP ports to allow ([why four](#why-four-udp-ports-per-camera)).
 
 ### 5. Add the streams to your NVR
 
@@ -317,26 +326,76 @@ Notes:
 
 ## Ports
 
-With host networking (recommended) the gateway listens on the host directly and nothing needs to be
-mapped. With a `bridge` network, map these from the host to the same port in the container
-(Synology: *Container → Edit → Port Settings*; Docker: `-p 8099:8099 -p 8554:8554`):
+With host networking (recommended, and needed for ONVIF) the gateway listens on the host directly:
+**nothing is mapped** in Container Manager. What matters then is the **firewall**: if the NAS's
+firewall is on, allow the ports below (Synology: [step by step](#the-synology-firewall)).
 
-| Port | Protocol | What | Map with `bridge` |
+| Port | Protocol | What | Needed for |
 |---|---|---|---|
-| `8099` | TCP | Web page and API (HTTP, or HTTPS with `"web.https": true`) | yes |
-| `8554` | TCP | RTSP streams — `rtsp://<host>:8554/<name>` (also RTSP over HTTP) | yes |
-| `40000`–`49998` | UDP | RTP for NVRs that ask for RTSP over UDP (most use TCP) | — UDP needs host networking |
-| `8000` | TCP | ONVIF, only on the addresses of cameras published as ONVIF devices ([docs/onvif.md](docs/onvif.md)); one port per camera (`onvif.port`) | — ONVIF needs host networking |
+| `8099` | TCP | Web page and API (HTTP, or HTTPS with `"web.https": true`) | you, in a browser |
+| `8554` | TCP | RTSP streams — `rtsp://<host>:8554/<name>`, also RTSP over HTTP | every NVR and player |
+| `udpPort` to `udpPort` + 3 (`40000`–`40003` for the first camera, `40004`–`40007` for the second, …) | UDP | RTP over UDP: picture and sound for viewers that ask for UDP ([why four](#why-four-udp-ports-per-camera)) | viewers that use UDP |
+| `onvif.port` (e.g. `8000`, `8001`) | TCP | ONVIF, on each camera's own address ([docs/onvif.md](docs/onvif.md)) | UniFi Protect and other ONVIF NVRs |
 
-ONVIF works only with host networking: each camera's ONVIF device listens on its own LAN address
-(`onvif.address`), which a container on a `bridge` network doesn't have. Mapping `8000` on a bridge
-network therefore doesn't help,
-so the image doesn't offer them in the NAS's port wizard. If ONVIF cameras are configured on a bridge
-network, the log says so in a `WARNING` framed with `!!!`, and the web page shows a red banner
-until the container is switched to host networking.
+### Why four UDP ports per camera
 
-Change the first two under `"ports"` in `config.json` if something else on the host already uses
-one (and map the new numbers instead); the ONVIF port is set per camera (`onvif.port`).
+An RTSP viewer chooses how the picture and sound reach it:
+
+- **Over TCP** (most NVRs, and VLC by default): everything travels
+  inside the one RTSP connection on port `8554`. No other port is used.
+- **Over UDP**: picture and sound come as separate streams of UDP packets, and each needs **two**
+  ports: one for the media itself (RTP) and one for its timing and keep-alive reports (RTCP, which
+  players use to keep picture and sound in sync and to tell the gateway they are still watching).
+  Picture and sound are two tracks, so that's **2 × 2 = 4 ports per camera**:
+
+  | Port | Carries |
+  |---|---|
+  | `udpPort` (e.g. `40000`) | video (RTP) |
+  | `udpPort` + 1 (`40001`) | video timing reports (RTCP) |
+  | `udpPort` + 2 (`40002`) | sound (RTP), with `"audio": true` |
+  | `udpPort` + 3 (`40003`) | sound timing reports (RTCP) |
+
+The four ports are fixed per camera, set in advance and **shared by every viewer** of that camera:
+an NVR, a phone and VLC watching the same camera all get their packets from the same four ports.
+So the list never grows. Each camera's ports are its `udpPort` setting
+([configuration](docs/configuration.md#cameras)); without it, the first camera in `config.json`
+gets `40000`–`40003`, the second `40004`–`40007`, and so on. The log lists them at startup
+(`garden RTP over UDP from UDP ports 40004–40007`).
+
+Do you need them? Only for viewers that use UDP. A viewer that asks for UDP and gets nothing
+usually falls back to TCP after a few seconds, which delays the picture. Opening them avoids that.
+
+### The Synology firewall
+
+Only if the firewall is on (*Control Panel → Security → Firewall*, *Enable firewall* ticked).
+Example for two cameras published to UniFi Protect, with the defaults:
+
+| Ports | Protocol | Why |
+|---|---|---|
+| `8099` | TCP | the web page |
+| `8554` | TCP | the RTSP streams |
+| `40000`–`40007` | UDP | RTP over UDP for the two cameras: 4 per camera, see above |
+| `8000`, `8001` | TCP | the two cameras' ONVIF ports (`onvif.port`) |
+
+In DSM: *Control Panel → Security → Firewall → Edit Rules → Create*, *Ports*: *Custom*, *Type*:
+*Destination port*, then the protocol and the ports. One rule per protocol is enough (TCP `8099`,
+`8554`, `8000`, `8001`; UDP `40000-40007`). Under *Source IP* you can limit them to your LAN or to
+the NVR's address. Keep the rule above any *Deny all* rule.
+
+No WS-Discovery port (UDP `3702`) is needed: cameras are added by address
+([UniFi Protect guide](docs/unifi-protect.md)).
+
+### With a `bridge` network instead
+
+Map `8099` and `8554` TCP from the host to the same port in the container (Synology: *Container →
+Edit → Port Settings*; Docker: `-p 8099:8099 -p 8554:8554`). RTP over UDP and ONVIF need host
+networking: each camera's ONVIF device listens on its own LAN address (`onvif.address`), which a
+container on a `bridge` network doesn't have, so mapping `8000` doesn't help. If ONVIF cameras are
+configured on a bridge network, the log says so in a `WARNING` framed with `!!!`, and the web page
+shows a red banner until the container is switched to host networking.
+
+Change `8099` or `8554` under `"ports"` in `config.json` if something else on the host already uses
+one; the ONVIF and UDP ports are set per camera (`onvif.port`, `udpPort`).
 
 ## API
 

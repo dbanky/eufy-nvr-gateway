@@ -8,6 +8,12 @@ import { webSettings, rtspSettings } from './access.mjs';
 // go2rtc is the gateway's own, src/rtsp/). Not 18554 for go2rtc: Home Assistant's go2rtc uses it,
 // and with host networking both share the host's 127.0.0.1. main.mjs moves a taken internal port.
 export const DEFAULT_PORTS = { web: 8099, rtsp: 8554, bridge: 3000, go2rtc: 28554 };
+
+// RTP over UDP goes out from four fixed ports per camera (video RTP/RTCP, sound RTP/RTCP), shared by
+// all its viewers: cameras[].udpPort is the first. Unset: 40000 for the first camera, 40004 for the
+// second, and so on.
+export const FIRST_UDP_PORT = 40000;
+export const UDP_PORTS_PER_CAMERA = 4;
 const CAMERA_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;   // becomes the RTSP path
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 const MAC = /^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$/;
@@ -73,8 +79,19 @@ export function validateCameras(cfg) {
     if (!c.width || !c.height) throw new Error(`camera "${name}": set "width" and "height" to the camera's native live resolution`);
     const cam = { ...cfg.defaults, ...c, name, serial };
     if (cam.audio != null && typeof cam.audio !== 'boolean') throw new Error(`camera "${name}": "audio" must be true or false`);
+    cam.udpPort ??= FIRST_UDP_PORT + UDP_PORTS_PER_CAMERA * i;
+    if (!Number.isInteger(cam.udpPort) || cam.udpPort % 2 || cam.udpPort < 1024 || cam.udpPort > 65532) {
+      throw new Error(`camera "${name}": "udpPort" must be an even port number between 1024 and 65532 (it uses that one and the next three)`);
+    }
     return cam;
   });
+  const taken = new Map();
+  for (const cam of cameras) {
+    for (let p = cam.udpPort; p < cam.udpPort + UDP_PORTS_PER_CAMERA; p++) {
+      if (taken.has(p)) throw new Error(`cameras "${taken.get(p)}" and "${cam.name}" share UDP port ${p}: each camera uses "udpPort" and the next three`);
+      taken.set(p, cam.name);
+    }
+  }
   if (new Set(cameras.map((c) => c.name)).size !== cameras.length) throw new Error('camera names must be unique');
   const endpoints = cameras.filter((c) => c.onvif).map(validateOnvif);
   if (new Set(endpoints).size !== endpoints.length) throw new Error('two cameras have the same ONVIF address and port');

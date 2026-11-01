@@ -31,7 +31,8 @@
       "serial": "T81XXXXXXXXXXXXX",
       "width": 2048,
       "height": 1536,
-      "bitrateKbps": 4400
+      "bitrateKbps": 4400,
+      "udpPort": 40000
     },
     {
       "name": "garden",
@@ -39,6 +40,7 @@
       "width": 2880,
       "height": 1616,
       "bitrateKbps": 6600,
+      "udpPort": 40004,
       "onvif": { "address": "192.168.1.51", "port": 8000, "mac": "02:00:00:00:00:01" }
     }
   ],

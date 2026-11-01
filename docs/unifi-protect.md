@@ -14,6 +14,7 @@ This guide is the path that worked on a real Protect console. The general ONVIF 
   ([setup](../README.md#setup-in-five-steps)).
 - **Host networking** for the container (Synology Container Manager: *Network* `host`; Compose:
   `network_mode: host`). On a bridge network ONVIF can't work, and the gateway says so in red.
+- If the NAS's firewall is on: a few ports allowed in it. Which ones, and why: step 1 below.
 - **One IP address on your LAN per camera**, on the machine the gateway runs on. Protect tells
   cameras apart by address. That can be a second network port (a Synology with two ports, each with
   its own IP) or a macvlan address per camera ([onvif.md, step 1](onvif.md#1-give-each-camera-its-own-address)).
@@ -29,17 +30,45 @@ stream, so it is one login for both. Then give every camera an `onvif` section w
 {
   "rtsp": { "username": "protect", "password": "choose-a-password" },
   "cameras": [
-    { "name": "front-door", "serial": "T81XXXXXXXXXXXXX", "width": 1600, "height": 1200,
+    { "name": "front-door", "serial": "T81XXXXXXXXXXXXX", "width": 1600, "height": 1200, "udpPort": 40000,
       "onvif": { "address": "192.168.1.51", "port": 8000 } },
-    { "name": "garden", "serial": "T81XXXXXXXXXXXXX", "width": 2880, "height": 1616,
+    { "name": "garden", "serial": "T81XXXXXXXXXXXXX", "width": 2880, "height": 1616, "udpPort": 40004,
       "onvif": { "address": "192.168.1.52", "port": 8001 } }
   ]
 }
 ```
 
+`udpPort` can be left out: the first camera gets `40000`, the second `40004` anyway. Writing it
+down makes the firewall rule in the next step easy to read off.
+
 Restart the container. Open each camera's *Stream details* on the web page: the ONVIF part shows the
 device address to copy. If it says *Not on the network yet*, the reason and the fix are right there,
 and in [onvif.md → Troubleshooting](onvif.md#troubleshooting).
+
+### Open the ports in the NAS's firewall
+
+With host networking nothing is mapped in Container Manager. But if the NAS's firewall is on
+(Synology: *Control Panel → Security → Firewall*), Protect can only reach what it allows. For the
+two cameras above:
+
+| Ports | Protocol | Why Protect needs it |
+|---|---|---|
+| `8000`, `8001` | TCP | each camera's ONVIF port: adoption, the stream address, motion events, snapshots |
+| `8554` | TCP | the RTSP stream itself |
+| `40000`–`40007` | UDP | picture and sound over UDP, if Protect asks for UDP: four per camera, `udpPort` to `udpPort` + 3 |
+| `8099` | TCP | not for Protect: the gateway's web page, for you |
+
+Why four UDP ports per camera: over UDP, the picture and the sound each come as their own stream of
+packets, and each needs one port for the media (RTP) and one for its timing and keep-alive reports
+(RTCP): 2 tracks × 2 ports. All viewers of a camera share its four, so the list doesn't grow with
+more viewers. Over TCP, everything goes through `8554` and the UDP ports aren't used; opening them
+just avoids a slow start if Protect tries UDP first. More in the
+[README → Ports](../README.md#why-four-udp-ports-per-camera).
+
+In DSM: *Control Panel → Security → Firewall → Edit Rules → Create*, *Ports*: *Custom*, *Type*:
+*Destination port*: one rule for TCP `8000,8001,8554,8099`, one for UDP `40000-40007`. Under
+*Source IP* you can limit both to your LAN, or to the Protect console's address. Keep them above
+any *Deny all* rule.
 
 ## 2. Adopt each camera with *Advanced Adoption*
 

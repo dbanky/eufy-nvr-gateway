@@ -37,9 +37,13 @@ updates.start();
 
 // The RTSP port NVRs connect to, in front of go2rtc: the login, RTP over UDP, RTSP over HTTP and
 // RTCP sender reports (what ONVIF requires and go2rtc lacks).
-const rtspFront = createRtspFront({ upstream: { host: '127.0.0.1', port: config.go2rtcPort ?? 28554 }, credentials: config.onvif ?? null, log });
+const udpPortOf = (name) => cameras.find((c) => c.name === name)?.udpPort ?? null;
+const rtspFront = createRtspFront({ upstream: { host: '127.0.0.1', port: config.go2rtcPort ?? 28554 }, credentials: config.onvif ?? null, log, udpPortOf });
 rtspFront.on('error', (e) => log(`RTSP port ${rtspPort}: ${e.message}`));
-rtspFront.listen(rtspPort, () => log(`RTSP streams on :${rtspPort}${config.onvif ? ', login required' : ', no login'} (TCP, UDP, HTTP tunnel)`));
+rtspFront.listen(rtspPort, () => {
+  log(`RTSP streams on :${rtspPort}${config.onvif ? ', login required' : ', no login'} (TCP, UDP, HTTP tunnel)`);
+  for (const c of cameras) if (c.udpPort) log(c.name, `RTP over UDP from UDP ports ${c.udpPort}–${c.udpPort + 3}, shared by all viewers`);
+});
 
 // ONVIF devices for cameras with an `onvif` section (NVRs such as UniFi Protect adopt only ONVIF).
 const onvifProblem = onvifNetworkProblem(cameras.filter((c) => c.onvif?.address).map((c) => c.onvif.address));   // bridge network

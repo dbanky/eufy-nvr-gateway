@@ -7,6 +7,16 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Changed
+
+- **Fixed UDP ports per camera, set in advance:** RTP over UDP goes out from four ports per camera
+  (`udpPort` to `udpPort` + 3: video and sound, each media plus its timing reports), shared by every
+  viewer. Default: `40000`–`40003` for the first camera, `40004`–`40007` for the second, and so on;
+  set `"udpPort"` per camera to choose. Before, every viewer got a random pair from
+  `40000`–`49998`. If a camera's ports are taken by another program, a viewer asking for UDP is told
+  to use TCP (it no longer fails). The README and the UniFi Protect guide explain which ports to
+  allow in the NAS's firewall, and why.
+
 ## [0.4.1-beta.4] - 2026-11-01
 
 ### Changed

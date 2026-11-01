@@ -27,7 +27,7 @@ export const TIMEOUT_S = 60;
 const REPORT_MS = 5000;
 const MAX_CLIENT_BACKLOG = 8 * 1024 * 1024;   // a client this far behind pauses the stream
 
-// deps: connectUpstream() -> net.Socket, openUdp(localAddress) -> Promise<{ rtp, rtcp, ports }>,
+// deps: connectUpstream() -> net.Socket, openUdp(localAddress, { uri, media }) -> Promise<{ rtp, rtcp, ports, onRtcp, close }>,
 // now() ms, onClose(session), log(...)
 export class ProxySession {
   constructor(id, deps) {
@@ -93,8 +93,18 @@ export class ProxySession {
     const binding = { channels, stats: new RtpTrackStats(track?.clockRate ?? 90000), clientChannels: channels };
     if (choice.protocol === 'udp') {
       binding.clientPort = choice.clientPort;
-      binding.udp = await this.deps.openUdp(this.client?.localAddress);
-      binding.udp.rtcp.on('message', (packet) => { if (isRtcp(packet)) this.lastActivity = this.deps.now(); });
+      try {
+        binding.udp = await this.deps.openUdp(this.client?.localAddress, { uri, media: track?.media ?? 'video' });
+      } catch (e) {   // 461 makes the client use TCP instead
+        this.deps.log?.(`RTSP: no UDP for a viewer (${e.message}), it is told to use TCP`);
+        return null;
+      }
+      // The camera's ports are shared by all its viewers: only this viewer's RTCP keeps this session alive.
+      binding.udp.onRtcp((packet, from) => {
+        if (from?.port === binding.clientPort?.[1] && from?.address?.replace(/^::ffff:/, '') === this.clientAddress() && isRtcp(packet)) {
+          this.lastActivity = this.deps.now();
+        }
+      });
     }
     return binding;
   }

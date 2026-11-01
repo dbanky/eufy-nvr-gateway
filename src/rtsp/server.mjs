@@ -11,8 +11,6 @@ import { ClientConnection } from './client-connection.mjs';
 import { HttpTunnels } from './http-tunnel.mjs';
 import { createHttpAuth } from '../onvif/http-auth.mjs';
 
-export const UDP_PORTS = { first: 40000, last: 49998 };   // RTP on even ports, RTCP on the next one
-
 export class SessionRegistry {
   constructor(deps) {
     this.deps = deps;
@@ -40,37 +38,83 @@ export class SessionRegistry {
   }
 }
 
-// A pair of UDP sockets (RTP even, RTCP the next port) on `address`.
-export async function openUdpPair(address, { first, last } = UDP_PORTS, tries = 30) {
-  const bind = (port) => new Promise((resolve, reject) => {
+// UDP ports are fixed per camera (cameras[].udpPort, config.mjs): video RTP/RTCP on udpPort and
+// udpPort + 1, sound on udpPort + 2 and + 3. Every viewer of a camera shares them (packets go to
+// each viewer's own ports), so a firewall needs exactly four ports per camera, known in advance.
+
+// The camera a SETUP is for: rtsp://host:port/<name>[~variant][?query]/trackID=n -> name.
+export function cameraOf(uri) {
+  const path = String(uri).replace(/^rtsp:\/\/[^/]*\//, '').split('?')[0];
+  return decodeURIComponent(path.split('/')[0]).split('~')[0];
+}
+
+// Shared socket pairs, one per (local address, port), counted by the bindings that use them.
+export class UdpPorts {
+  constructor() {
+    this.pairs = new Map();   // "address port" -> Promise<{ rtp, rtcp, refs }>
+  }
+
+  // A lease of the pair on `port` (RTP) and port + 1 (RTCP). Throws if another program has them.
+  async lease(address, port) {
+    const key = `${address} ${port}`;
+    if (!this.pairs.has(key)) {
+      const opening = bindPair(address, port).then((p) => ({ ...p, refs: 0 }));
+      this.pairs.set(key, opening);
+      opening.catch(() => this.pairs.delete(key));
+    }
+    const pair = await this.pairs.get(key);
+    pair.refs++;
+    const listeners = [];
+    let closed = false;
+    return {
+      rtp: pair.rtp, rtcp: pair.rtcp, ports: [port, port + 1],
+      onRtcp: (fn) => { pair.rtcp.on('message', fn); listeners.push(fn); },
+      close: () => {
+        if (closed) return;
+        closed = true;
+        for (const fn of listeners) pair.rtcp.off('message', fn);
+        if (--pair.refs === 0) {
+          this.pairs.delete(key);
+          pair.rtp.close();
+          pair.rtcp.close();
+        }
+      },
+    };
+  }
+}
+
+async function bindPair(address, port) {
+  const bind = (p) => new Promise((resolve, reject) => {
     const socket = createSocket(address?.includes(':') ? 'udp6' : 'udp4');
     socket.once('error', reject);
-    socket.bind(port, address, () => {
+    socket.bind(p, address, () => {
       socket.off('error', reject);
       socket.on('error', () => {});
       resolve(socket);
     });
   });
-  for (let i = 0; i < tries; i++) {
-    const port = first + 2 * Math.floor(Math.random() * ((last - first) / 2 + 1));
-    let rtp;
-    try {
-      rtp = await bind(port);
-      const rtcp = await bind(port + 1);
-      return { rtp, rtcp, ports: [port, port + 1], close() { rtp.close(); rtcp.close(); } };
-    } catch {
-      rtp?.close();
-    }
+  const rtp = await bind(port).catch((e) => { throw new Error(`UDP port ${port} is in use by another program (${e.code ?? e.message})`); });
+  try {
+    return { rtp, rtcp: await bind(port + 1) };
+  } catch (e) {
+    rtp.close();
+    throw new Error(`UDP port ${port + 1} is in use by another program (${e.code ?? e.message})`);
   }
-  throw new Error('no free UDP ports for RTP');
 }
 
 // upstream: { host, port } of go2rtc. credentials: { username, password } or null.
-export function createRtspFront({ upstream, credentials, log = () => {}, now = Date.now, udpPorts = UDP_PORTS }) {
+// udpPortOf(cameraName): the camera's first UDP port, or null (then viewers are told to use TCP).
+export function createRtspFront({ upstream, credentials, log = () => {}, now = Date.now, udpPortOf = () => null }) {
+  const udp = new UdpPorts();
   const auth = credentials ? createHttpAuth(credentials, { now }) : null;
   const sessions = new SessionRegistry({
     connectUpstream: () => connect(upstream.port, upstream.host),
-    openUdp: (address) => openUdpPair(address?.replace(/^::ffff:/, ''), udpPorts),
+    // video on the camera's first pair, sound on the second
+    openUdp: async (address, { uri, media }) => {
+      const base = udpPortOf(cameraOf(uri));
+      if (base == null) throw new Error(`no UDP ports set for "${cameraOf(uri)}"`);
+      return udp.lease(address?.replace(/^::ffff:/, ''), base + (media === 'audio' ? 2 : 0));
+    },
     now, log,
   });
   const connectionFor = (peer) => new ClientConnection(peer, { sessions, auth, log });

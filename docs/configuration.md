@@ -78,6 +78,7 @@ or names each open part with the setting that closes it, e.g.
 | `audio` | `false` | `true`: an AAC track in the stream (see below) |
 | `triggers` | see below | Bridge events that wake the camera |
 | `onvif` | — | Publish the camera as an ONVIF device: `{ "address", "port", "mac" }`, its own IP on the LAN ([onvif.md](onvif.md)) |
+| `udpPort` | `40000`, `40004`, … | The first of the camera's four UDP ports for RTP over UDP: video on `udpPort` and `udpPort` + 1, sound on + 2 and + 3. Even, and no two cameras may overlap. Unset: `40000` for the first camera in the list, `40004` for the second, and so on. Shared by every viewer of the camera, so these four are all a firewall needs for it ([why four](../README.md#why-four-udp-ports-per-camera)) |
 
 Default `triggers`: `motion`, `personDetected`, `vehicleDetected`, `petDetection`,
 `strangerDetected`, `doorbellPress`. Which ones a camera sends depends on the model and its
@@ -89,7 +90,7 @@ rather than `motion`.
 | Key | Default | Meaning |
 |---|---|---|
 | `ports.web` | `8099` | Web page and API, HTTP or HTTPS (also `WEB_PORT`) |
-| `ports.rtsp` | `8554` | RTSP output: RTSP over TCP, RTP over UDP and RTSP over HTTP all on this port. RTP over UDP is sent from ports 40000–49998 (host networking) |
+| `ports.rtsp` | `8554` | RTSP output: RTSP over TCP and RTSP over HTTP on this port, and the requests of RTP over UDP. The UDP packets themselves go out from each camera's own four UDP ports (`udpPort`, host networking) |
 | `ports.go2rtc` | `28554` | Internal: go2rtc, on `127.0.0.1` only, behind the RTSP port. If another program on the host already uses it (host networking), the gateway takes the next free port and says so in the log |
 
 ## Sound (`audio`)
