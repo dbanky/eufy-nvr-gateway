@@ -7,6 +7,14 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Fixed
+
+- **UniFi Protect's live view stalled for H.264 cameras** (seen with the video doorbell, after
+  ~20 s, without sound): the gateway's own H.264 (the sleeping picture, and live video with
+  `transcode: true`) cut every picture into one slice per CPU thread (x264 `tune=zerolatency`).
+  Protect's live player took each slice for a frame, never closed its fragments and dropped the
+  sound. Every picture is now one slice. H.265 cameras were not affected.
+
 ## [0.4.1-beta.6] - 2026-11-01
 
 ### Fixed

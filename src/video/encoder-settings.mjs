@@ -17,7 +17,9 @@ function x264Args({ fps, bitrateKbps }) {
     // a still picture (~1.6 Mbit/s without it). aud marks frame boundaries for FrameSplitter.
     // me=dia:subme=1: a cheaper motion search, ~30 % less encoder CPU on 3K. The default bitrate
     // limit is 10 % higher to make up for it: same quality (SSIM), slightly larger stream.
-    '-crf', '20', '-x264-params', 'qpmin=19:me=dia:subme=1:aud=1:repeat-headers=1',
+    // sliced-threads=0: one slice per picture. zerolatency would cut every picture into one slice
+    // per thread, and UniFi Protect's live view takes each slice for a frame: its player stalls.
+    '-crf', '20', '-x264-params', 'qpmin=19:me=dia:subme=1:aud=1:repeat-headers=1:sliced-threads=0',
     '-maxrate', `${bitrateKbps}k`, '-bufsize', `${bitrateKbps * 2}k`,
     '-f', 'h264',
   ];

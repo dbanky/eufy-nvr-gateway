@@ -23,6 +23,10 @@ describe('encoder settings (H.264: live video and sleeping loops)', () => {
   test('the bitrate limit follows the camera setting', () => {
     assert.equal(value('-maxrate'), '6000k');
   });
+
+  test('one slice per picture: UniFi Protect\'s live view takes each slice for a frame and stalls', () => {
+    assert.match(value('-x264-params'), /sliced-threads=0/, 'zerolatency would slice every picture by thread');
+  });
 });
 
 describe('encoder settings (H.265: sleeping loops of a camera passed through as H.265)', () => {
