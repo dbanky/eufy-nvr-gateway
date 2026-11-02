@@ -7,6 +7,14 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Changed
+
+- **The live picture comes about 4 s sooner after a wake.** The gateway's readers of the camera's
+  stream threw away the camera's first keyframe and waited for the next one, a whole keyframe
+  interval later (4 s on eufy cameras). They now start from the first one. Measured with a
+  camera-like stream: first picture after 5.4 s before, 0.2 s now (H.264 and H.265, with and without
+  `transcode`). UniFi Protect gets those seconds of the event instead of the sleeping picture.
+
 ## [0.5.0] - 2026-11-01
 
 The first stable release since 0.4.0. It brings everything from the 0.4.1 pre-releases below:

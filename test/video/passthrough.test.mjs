@@ -25,6 +25,11 @@ describe("passing a camera's own video through", () => {
     assert.match(h264, /h264_metadata=aud=insert -f h264 pipe:1/);
   });
 
+  test('reads the stream from its first keyframe: small probe, no nobuffer (it lost that keyframe)', () => {
+    assert.ok(!args.includes('nobuffer'));
+    assert.ok(args.indexOf('-probesize') < args.indexOf('-i') && args.indexOf('-analyzeduration') < args.indexOf('-i'));
+  });
+
   test('also decodes keyframes only, to JPEGs: snapshots and the next sleeping picture', () => {
     assert.ok(args.indexOf('-skip_frame') < args.indexOf('-i'), 'a decoder option, before the input');
     assert.equal(args[args.indexOf('-skip_frame') + 1], 'nokey');

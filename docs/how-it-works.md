@@ -43,6 +43,11 @@ camera sees the picture within a second; the camera's own live video keeps its o
 (every 4 s on eufy cameras) and is never re-encoded for this. The switch to live video and back happens at a keyframe, so the stream
 never breaks.
 
+**The live picture starts at the camera's first keyframe.** Both readers of `/stream/<serial>` (the
+pass-through and the decoder for `transcode: true`) probe only a few kilobytes and keep what they read
+while probing. ffmpeg's `-fflags nobuffer` threw that away, and with it the first keyframe, so the live
+picture waited for the next one: about 4 s longer on every wake.
+
 Events (`motion`, `personDetected`, `doorbellPress`, …) come from the bundled
 [ha-eufy-sdk-bridge](https://github.com/mega-yfue/ha-eufy-sdk-bridge) over its WebSocket. On an
 event the switcher opens the bridge's `/stream/<serial>` and either passes the camera's video through

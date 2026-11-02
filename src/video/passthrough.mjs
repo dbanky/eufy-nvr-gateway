@@ -8,13 +8,13 @@
 //   pipe:4  a 32×24 grey thumbnail of the same keyframes, to see motion in the picture
 
 import { spawn } from 'node:child_process';
-import { fitFilter } from './ffmpeg.mjs';
+import { fitFilter, LIVE_INPUT } from './ffmpeg.mjs';
 import { FrameSplitter } from './annexb.mjs';
 import { ThumbnailSplitter, THUMB_WIDTH, THUMB_HEIGHT } from '../switcher/picture-motion.mjs';
 
 export function passthroughArgs({ cam, url, codec }) {
   return [
-    '-hide_banner', '-loglevel', 'error', '-fflags', 'nobuffer', '-skip_frame', 'nokey', '-i', url, '-an',
+    '-hide_banner', '-loglevel', 'error', ...LIVE_INPUT, '-skip_frame', 'nokey', '-i', url, '-an',
     // Exactly one delimiter per frame, in front: the camera's own delimiters are removed first (a
     // second one would split every frame in two), then parameter sets go in front of every keyframe,
     // then one delimiter in front of every frame. So every keyframe carries its parameter sets and

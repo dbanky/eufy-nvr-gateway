@@ -2,7 +2,7 @@
 // to raw frames of the camera's configured size, for the live encoder. Closing it lets the camera
 // sleep within ~0.1 s. It also reports which codec the camera sends, for passing it through next time.
 
-import { spawnFfmpeg, fitFilter, frameSize } from './ffmpeg.mjs';
+import { spawnFfmpeg, fitFilter, frameSize, LIVE_INPUT } from './ffmpeg.mjs';
 import { FixedSizeSplitter } from './fixed-size.mjs';
 
 // The camera's codec from ffmpeg's description of the input: 'h264', 'hevc', or null.
@@ -26,11 +26,13 @@ export class RawFrameAssembler {
   }
 }
 
+export const liveDecoderArgs = ({ cam, url }) =>
+  [...LIVE_INPUT, '-i', url, '-an', '-vf', fitFilter(cam), '-f', 'rawvideo', 'pipe:1'];
+
 // onFrame(rawFrame) for every decoded picture; onCodec('h264' | 'hevc') once the input is known;
 // onClose(code) once, unless stop() was called.
 export function openLiveDecoder({ cam, url, onFrame, onCodec = () => {}, onClose, log }) {
-  const child = spawnFfmpeg(['-fflags', 'nobuffer', '-i', url, '-an', '-vf', fitFilter(cam), '-f', 'rawvideo', 'pipe:1'],
-    { logLevel: 'info' });
+  const child = spawnFfmpeg(liveDecoderArgs({ cam, url }), { logLevel: 'info' });
   const assembler = new RawFrameAssembler(frameSize(cam));
   let stopped = false;
   child.stdout.on('data', (c) => {

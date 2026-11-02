@@ -27,6 +27,14 @@ export function runFfmpeg(args, input) {
   });
 }
 
+// Input options for a camera's live stream (the bridge's /stream: Annex-B H.264 or H.265), so the first
+// picture comes out as soon as its first keyframe is in. Not `-fflags nobuffer`: that throws away what
+// ffmpeg read while working out the format, which always includes the first keyframe, so the picture
+// waited for the next one, a whole keyframe interval later (4 s on eufy cameras; measured 5.4 s → 0.2 s).
+// A small probe is enough: the format is a plain elementary stream, and the size comes with the
+// keyframe. low_delay: the decoder hands out each picture at once instead of filling its threads first.
+export const LIVE_INPUT = ['-probesize', '32768', '-analyzeduration', '0', '-flags', 'low_delay'];
+
 // ffmpeg input arguments for raw frames of one camera.
 export const rawInput = ({ width, height }) => ['-f', 'rawvideo', '-pix_fmt', 'yuv420p', '-s', `${width}x${height}`];
 export const frameSize = ({ width, height }) => width * height * 3 / 2;   // yuv420p
