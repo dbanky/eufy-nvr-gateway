@@ -22,6 +22,9 @@ ARG GO2RTC_VERSION=1.9.15
 # ha-eufy-sdk-bridge 0.6.0 (Apache-2.0) — eufy login, events and on-demand P2P video
 ARG BRIDGE_REPO=https://github.com/mega-yfue/ha-eufy-sdk-bridge.git
 ARG BRIDGE_COMMIT=6b3ccbc09293da019e6f91db516856644501dbd2
+# The bridge pins @mega-yfue/eufy-sdk 0.4.0; 0.5.0 (Apache-2.0) is installed over it. None of its
+# breaking changes touches what the bridge or our audio patch use.
+ARG EUFY_SDK_VERSION=0.5.0
 
 RUN apk add --no-cache ffmpeg tzdata curl git openssl
 
@@ -37,7 +40,10 @@ RUN case "${TARGETARCH:-amd64}" in \
 COPY patches/bridge-live-audio.patch /tmp/
 RUN git clone "$BRIDGE_REPO" /opt/bridge && cd /opt/bridge && git checkout "$BRIDGE_COMMIT" \
  && git apply /tmp/bridge-live-audio.patch && rm /tmp/bridge-live-audio.patch \
- && npm ci --omit=dev --no-audit --no-fund && rm -rf .git test docs
+ && npm ci --omit=dev --no-audit --no-fund \
+ && npm install --omit=dev --no-audit --no-fund --save-exact "@mega-yfue/eufy-sdk@${EUFY_SDK_VERSION}" \
+ && grep -q "\"version\": \"${EUFY_SDK_VERSION}\"" node_modules/@mega-yfue/eufy-sdk/package.json \
+ && rm -rf .git test docs
 
 # This project
 WORKDIR /app

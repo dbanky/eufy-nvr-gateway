@@ -503,8 +503,9 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 This project is MIT licensed (see [LICENSE](LICENSE)). It builds on, and the Docker image bundles:
 
 - [ha-eufy-sdk-bridge](https://github.com/mega-yfue/ha-eufy-sdk-bridge) and
-  [eufy-sdk](https://github.com/mega-yfue/eufy-sdk) by mega-yfue — Apache-2.0. The image adds one
-  route to the bridge, for live audio ([patches/bridge-live-audio.patch](patches/bridge-live-audio.patch))
+  [eufy-sdk](https://github.com/mega-yfue/eufy-sdk) by mega-yfue — Apache-2.0. The image installs
+  eufy-sdk 0.5.0 over the bridge's own 0.4.0 and adds one route to the bridge, for live audio
+  ([patches/bridge-live-audio.patch](patches/bridge-live-audio.patch))
 - [go2rtc](https://github.com/AlexxIT/go2rtc) by AlexxIT — MIT
 - [FFmpeg](https://ffmpeg.org) with x264 and x265 (Alpine packages) — LGPL/GPL
 - [Inter](https://github.com/rsms/inter) typeface by Rasmus Andersson — SIL Open Font License 1.1

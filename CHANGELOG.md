@@ -14,6 +14,10 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
   interval later (4 s on eufy cameras). They now start from the first one. Measured with a
   camera-like stream: first picture after 5.4 s before, 0.2 s now (H.264 and H.265, with and without
   `transcode`). UniFi Protect gets those seconds of the event instead of the sleeping picture.
+- **eufy-sdk 0.5.0** (was 0.4.0, which the bridge still pins): it falls back to eufy's relay when no
+  direct connection to a camera answers, recovers live video after lost packets, and retries a push
+  connection that failed at startup. The bridge stays at 0.6.0. Sound is unaffected: 0.5.0 makes
+  a late-joining viewer wait for the next video keyframe, but only one that takes video.
 
 ## [0.5.0] - 2026-11-01
 

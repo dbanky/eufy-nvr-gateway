@@ -10,7 +10,7 @@ at image build; it is under the bridge's license (Apache-2.0), and the changed f
 | Component | Version in the image | License | Source |
 |---|---|---|---|
 | ha-eufy-sdk-bridge | 0.6.0 (commit `6b3ccbc`) | Apache-2.0 | https://github.com/mega-yfue/ha-eufy-sdk-bridge |
-| eufy-sdk (dependency of the bridge) | as locked by the bridge | Apache-2.0 | https://github.com/mega-yfue/eufy-sdk |
+| eufy-sdk (dependency of the bridge) | 0.5.0 (installed over the bridge's 0.4.0) | Apache-2.0 | https://github.com/mega-yfue/eufy-sdk |
 | go2rtc | 1.9.15 | MIT | https://github.com/AlexxIT/go2rtc |
 | Node.js | 24 (Alpine image) | MIT | https://nodejs.org |
 | FFmpeg, x264, x265 | Alpine packages | LGPL-2.1+ / GPL-2.0+ | https://ffmpeg.org |
