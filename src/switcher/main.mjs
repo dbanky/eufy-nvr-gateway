@@ -20,13 +20,16 @@ import { encodeJpeg } from '../video/ffmpeg.mjs';
 import { startOnvif } from '../onvif/index.mjs';
 import { onvifNetworkProblem } from '../onvif/network.mjs';
 import { createRtspFront } from '../rtsp/server.mjs';
+import { StreamHub } from '../rtsp/stream-hub.mjs';
 
 const config = JSON.parse(readFileSync(process.argv[2] ?? '/data/switcher/config.json', 'utf8'));
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const time = createTimeFormat(config.timeZone ?? process.env.TZ ?? 'UTC');
 const tmpDir = mkdtempSync(join(tmpdir(), 'switcher-'));
 const bridge = new BridgeClient({ url: config.bridgeWs, log });
-const cameras = (config.cameras ?? []).map((settings) => createCamera(settings, { config, bridge, log, time, tmpDir }));
+// Every camera's stream, served by the RTSP port below (no separate RTSP server).
+const hub = new StreamHub({ cameras: config.cameras ?? [], log });
+const cameras = (config.cameras ?? []).map((settings) => createCamera(settings, { config, bridge, log, time, tmpDir, hub }));
 connectBridgeEvents(bridge, cameras, log);
 
 const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -35,10 +38,10 @@ const snapshot = createSnapshots(encodeJpeg);
 const updates = createUpdateCheck({ current: version, enabled: config.checkForUpdates !== false, log });
 updates.start();
 
-// The RTSP port NVRs connect to, in front of go2rtc: the login, RTP over UDP, RTSP over HTTP and
-// RTCP sender reports (what ONVIF requires and go2rtc lacks).
+// The RTSP port NVRs connect to: the login, RTP over UDP or TCP, RTSP over HTTP and RTCP sender
+// reports (what ONVIF requires).
 const udpPortOf = (name) => cameras.find((c) => c.name === name)?.udpPort ?? null;
-const rtspFront = createRtspFront({ upstream: { host: '127.0.0.1', port: config.go2rtcPort ?? 28554 }, credentials: config.onvif ?? null, log, udpPortOf });
+const rtspFront = createRtspFront({ hub, credentials: config.onvif ?? null, log, udpPortOf });
 rtspFront.on('error', (e) => log(`RTSP port ${rtspPort}: ${e.message}`));
 rtspFront.listen(rtspPort, () => {
   log(`RTSP streams on :${rtspPort}${config.onvif ? ', login required' : ', no login'} (TCP, UDP, HTTP tunnel)`);

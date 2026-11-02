@@ -1,5 +1,5 @@
-// The publisher: picture and sound into go2rtc, each the moment it is there, neither waiting for
-// the other, nothing dropped.
+// The publisher: picture and sound into the stream hub, each the moment it is there, neither waiting
+// for the other, nothing dropped.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
@@ -20,7 +20,9 @@ function rig({ audio = false } = {}) {
   const pushes = [];
   const pushImpl = (opts) => {
     const push = Object.assign(new EventEmitter(), { ...opts, ready: false, sent: [] });
-    push.send = (track, packet) => push.sent.push({ track, ts: packet.readUInt32BE(4), marker: !!(packet[1] & 0x80), packet });
+    push.media = (what, data) => push.media.seen.push({ what, data });
+    push.media.seen = [];
+    push.send = (track, packet, starts) => push.sent.push({ track, ts: packet.readUInt32BE(4), marker: !!(packet[1] & 0x80), packet, starts });
     push.close = (reason) => push.emit('close', reason);
     push.open = () => { push.ready = true; push.emit('ready'); };
     pushes.push(push);
@@ -29,7 +31,7 @@ function rig({ audio = false } = {}) {
   const feed = new Feed({ now: clock });
   const audioFeed = audio ? new AudioFeed({ silence: SILENCE }) : null;
   feed.showLoop([keyframe(1), deltaFrame(2), deltaFrame(3)]);
-  const pub = new Publisher({ name: 'garden', fps: 15, output: 'rtsp://127.0.0.1:28554/garden', feed, audio: audioFeed, log: () => {}, now: clock, pushImpl });
+  const pub = new Publisher({ name: 'garden', fps: 15, feed, audio: audioFeed, log: () => {}, now: clock, publish: pushImpl });
   pub.start();
   clearInterval(pub.timer);   // the test drives the clock
   const at = (ms) => { now = T0 + ms; pub.tick(); };
@@ -162,14 +164,36 @@ describe('sound', () => {
   });
 });
 
-describe('the connection to go2rtc', () => {
-  test('announces H.264 with the loop\'s parameters, and sound when there is some', () => {
+describe('the stream in the hub', () => {
+  test('is described as H.264 with the loop\'s parameters, and sound when there is some', () => {
     assert.match(rig({ audio: true }).pushes[0].sdp, /H264\/90000[\s\S]*MPEG4-GENERIC\/16000\/1/);
-    assert.equal(rig({ audio: true }).pushes[0].tracks, 2);
-    assert.equal(rig().pushes[0].tracks, 1);
+    assert.doesNotMatch(rig().pushes[0].sdp, /m=audio/);
+    assert.equal(rig().pushes[0].codec, 'h264');
   });
 
-  test('when it drops, the new one first gets everything since the last keyframe: nothing lost', () => {
+  test('a keyframe\'s first packet is marked, so a new viewer starts there', () => {
+    const { pushes, at } = rig();
+    pushes[0].open();
+    for (let ms = 0; ms <= 200; ms += 10) at(ms);
+    const v = video(pushes[0]);
+    assert.equal(v[0].starts, true, 'the loop\'s keyframe');
+    assert.ok(v.slice(1).every((p) => !p.starts), 'the pictures after it');
+  });
+
+  test('also hands over each encoded picture and sound frame (for the JPEG and G.711 versions)', () => {
+    const { feed, audioFeed, pushes, at, setNow } = rig({ audio: true });
+    pushes[0].open();
+    at(0);
+    feed.armLive();
+    audioFeed.startLive();
+    setNow(100); feed.pushLive(keyframe(7));
+    setNow(150); audioFeed.pushLive(sound(1));
+    const seen = pushes[0].media.seen;
+    assert.ok(seen.some((m) => m.what === 'video' && m.data.equals(keyframe(7))));
+    assert.ok(seen.some((m) => m.what === 'audio' && m.data.equals(sound(1))));
+  });
+
+  test('when it starts again, the new one first gets everything since the last keyframe: nothing lost', () => {
     const { pub, feed, audioFeed, pushes, at, setNow } = rig({ audio: true });
     pushes[0].open();
     at(0);

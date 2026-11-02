@@ -1,20 +1,16 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer, connect } from 'node:net';
+import { connect } from 'node:net';
 import { createSocket } from 'node:dgram';
 import { createRtspFront } from '../../src/rtsp/server.mjs';
-import { RtspReader, formatMessage, formatFrame, header } from '../../src/rtsp/messages.mjs';
+import { RtspReader, formatMessage, header } from '../../src/rtsp/messages.mjs';
 import { digestAnswer } from '../helpers/logins.mjs';
 
-// A stand-in for go2rtc: RTSP over TCP only, a new session id per SETUP, recvonly in the SDP, no
-// RTCP; after PLAY it sends an RTP packet on every set-up track every 20 ms. Like the real one
-// (1.9.15, measured), once playing it answers OPTIONS but never GET_PARAMETER, SET_PARAMETER or
-// TEARDOWN: a stand-in that answered everything hid exactly that from these tests.
-const SDP = 'v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\ns=go2rtc\r\nt=0 0\r\n'
-  + 'm=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\na=recvonly\r\na=control:trackID=0\r\n'
-  + 'm=audio 0 RTP/AVP 97\r\na=rtpmap:97 MPEG4-GENERIC/16000\r\na=recvonly\r\na=control:trackID=1\r\n';
-const seen = [];   // what go2rtc received: [method, headers]
+import { StreamHub } from '../../src/rtsp/stream-hub.mjs';
+import { publishSdp } from '../../src/video/rtp.mjs';
 
+// The gateway's own streams, with stand-in publishers: every 20 ms an RTP packet on each track,
+// numbered; every 5th video packet starts a keyframe. garden has sound, front-door doesn't.
 function rtp(ssrc, n) {
   const p = Buffer.alloc(40);
   p[0] = 0x80;
@@ -25,53 +21,31 @@ function rtp(ssrc, n) {
   return p;
 }
 
-const upstreamSockets = new Set();
-function fakeGo2rtc() {
-  let sessions = 0;
-  return createServer((socket) => {
-    upstreamSockets.add(socket);
-    const reader = new RtspReader();
-    const channels = [];
-    let timer, playing = false;
-    socket.on('data', (chunk) => {
-      for (const { message } of reader.push(chunk)) {
-        if (!message) continue;
-        const [method] = message.startLine.split(' ');
-        seen.push([method, message.headers]);
-        const reply = (headers, body) => socket.write(formatMessage({ startLine: 'RTSP/1.0 200 OK', headers: [['CSeq', header(message.headers, 'cseq')], ...headers], body }));
-        if (method === 'DESCRIBE') reply([['Content-Type', 'application/sdp']], Buffer.from(SDP));
-        if (method === 'SETUP') {
-          const transport = header(message.headers, 'transport');
-          channels.push(Number(/interleaved=(\d+)/.exec(transport)[1]));
-          reply([['Transport', transport], ['Session', `${++sessions};timeout=60`]]);
-        }
-        if (method === 'PLAY') {
-          playing = true;
-          reply([['Session', String(sessions)]]);
-          let n = 0;
-          timer = setInterval(() => { n++; channels.forEach((c, i) => socket.write(formatFrame(c, rtp(0x1000 + i, n)))); }, 20);
-        }
-        if (method === 'OPTIONS' || (!playing && ['GET_PARAMETER', 'SET_PARAMETER', 'TEARDOWN'].includes(method))) reply([]);
-      }
-    });
-    socket.on('close', () => clearInterval(timer));
-    socket.on('error', () => {});
-  });
+const hub = new StreamHub({ cameras: [{ name: 'garden', width: 1280, height: 720 }, { name: 'front-door', width: 1280, height: 720 }] });
+const timers = [];
+function startPublisher(name, audio) {
+  const publication = hub.publish(name, { sdp: publishSdp({ codec: 'h264', params: {}, audio }), codec: 'h264' });
+  let n = 0;
+  timers.push(setInterval(() => {
+    n++;
+    publication.send(0, rtp(0x1000, n), n % 5 === 0);
+    if (audio) publication.send(1, rtp(0x1001, n));
+  }, 20));
+  return publication;
 }
 
 const credentials = { username: 'protect', password: 'secret' };
-let upstream, front, port;
+let garden, front, port;
 before(async () => {
-  upstream = fakeGo2rtc();
-  await new Promise((r) => upstream.listen(0, '127.0.0.1', r));
-  front = createRtspFront({ upstream: { host: '127.0.0.1', port: upstream.address().port }, credentials, udpPortOf: (name) => (name === 'garden' ? 41000 : null) });
+  garden = startPublisher('garden', true);
+  startPublisher('front-door', false);
+  front = createRtspFront({ hub, credentials, udpPortOf: (name) => (name === 'garden' ? 41000 : null) });
   await new Promise((r) => front.listen(0, '127.0.0.1', r));
   port = front.address().port;
 });
 after(() => {
   front.shutdown();
-  upstream.close();
-  for (const socket of upstreamSockets) socket.destroy();
+  timers.forEach(clearInterval);
 });
 
 // A small RTSP client: send(method, uri, headers) -> the answer; frames collects interleaved data.
@@ -122,25 +96,51 @@ describe('the RTSP front', () => {
     c.socket.destroy();
   });
 
-  test('RTSP over TCP: the stream as go2rtc sends it, plus sender reports; one session id; sendonly', async () => {
+  test('RTSP over TCP: the stream, plus sender reports; one session id; sendonly', async () => {
     const c = tcpClient();
     const described = await login(c, URI);
-    assert.match(described.body.toString(), /a=sendonly\r\n/);
-    assert.doesNotMatch(described.body.toString(), /recvonly/);
+    assert.equal(header(described.headers, 'content-type'), 'application/sdp');
+    assert.equal(header(described.headers, 'content-base'), `${URI}/`);
+    const sdp = described.body.toString();
+    assert.match(sdp, /m=video 0 RTP\/AVP 96\r\na=rtpmap:96 H264\/90000\r\n[\s\S]*a=sendonly\r\na=control:trackID=0\r\n/);
+    assert.match(sdp, /m=audio 0 RTP\/AVP 97\r\na=rtpmap:97 MPEG4-GENERIC\/16000\/1\r\n[\s\S]*a=control:trackID=1\r\n/);
+    assert.doesNotMatch(sdp, /recvonly|127\.0\.0\.1/);
     const video = await c.send('SETUP', `${URI}/trackID=0`, [['Transport', 'RTP/AVP/TCP;unicast;interleaved=0-1']]);
     const session = header(video.headers, 'session');
     assert.match(session, /^[0-9A-F]{16};timeout=60$/);
     const audio = await c.send('SETUP', `${URI}/trackID=1`, [['Transport', 'RTP/AVP/TCP;unicast;interleaved=2-3'], ['Session', session.split(';')[0]]]);
-    assert.equal(header(audio.headers, 'session'), session, 'the same id, although go2rtc gave a new one');
-    assert.equal(header(seen.at(-1)[1], 'session'), '1', 'go2rtc got its own id back');
-    await c.send('PLAY', URI, [['Session', session.split(';')[0]]]);
-    await wait(200);
+    assert.equal(header(audio.headers, 'session'), session, 'the same id for the whole session');
+    const play = await c.send('PLAY', URI, [['Session', session.split(';')[0]]]);
+    assert.equal(header(play.headers, 'range'), 'npt=0.000-');
+    await wait(250);
     const channels = new Set(c.frames.map((f) => f.channel));
     assert.ok(channels.has(0) && channels.has(2), 'RTP on both tracks');
+    assert.equal(c.frames.find((f) => f.channel === 0).data.readUInt16BE(2) % 5, 0, 'the video starts at a keyframe');
     const reports = c.frames.filter((f) => f.channel === 1 || f.channel === 3);
     assert.ok(reports.length >= 2, 'a sender report per track at its first packet');
     assert.equal(reports[0].data[1], 200);
     assert.ok([0x1000, 0x1001].includes(reports[0].data.readUInt32BE(4)), 'about the track\'s SSRC');
+    c.socket.destroy();
+  });
+
+  test('a stream that doesn\'t exist: 404', async () => {
+    const c = tcpClient();
+    assert.match((await login(c, 'rtsp://127.0.0.1/nobody')).startLine, /^RTSP\/1\.0 404/);
+    c.socket.destroy();
+  });
+
+  test('?video: the video track only', async () => {
+    const c = tcpClient();
+    const sdp = (await login(c, `${URI}?video`)).body.toString();
+    assert.match(sdp, /m=video/);
+    assert.doesNotMatch(sdp, /m=audio/);
+    c.socket.destroy();
+  });
+
+  test('PLAY before any SETUP: 455', async () => {
+    const c = tcpClient();
+    await login(c, URI);
+    assert.match((await c.send('PLAY', URI)).startLine, /^RTSP\/1\.0 455/);
     c.socket.destroy();
   });
 
@@ -160,7 +160,6 @@ describe('the RTSP front', () => {
     const [, a, b] = /server_port=(\d+)-(\d+)/.exec(transport);
     assert.equal(Number(a) % 2, 0);
     assert.equal(Number(b), Number(a) + 1);
-    assert.match(header(seen.at(-1)[1], 'transport'), /^RTP\/AVP\/TCP;unicast;interleaved=0-1$/, 'go2rtc got an interleaved SETUP');
     await c.send('PLAY', URI, [['Session', header(setup.headers, 'session').split(';')[0]]]);
     await wait(250);
     assert.ok(got.rtp >= 5, `RTP over UDP (${got.rtp})`);
@@ -197,7 +196,7 @@ describe('the RTSP front', () => {
     rtpSocket.close();
   });
 
-  test('VLC over UDP: its keep-alives are answered while playing, go2rtc never sees them; TEARDOWN ends it', async () => {
+  test('VLC over UDP: its keep-alives are answered while playing; TEARDOWN ends it and its subscription', async () => {
     const rtpSocket = createSocket('udp4');
     await new Promise((r) => rtpSocket.bind(0, '127.0.0.1', r));
     const c = tcpClient();
@@ -205,20 +204,28 @@ describe('the RTSP front', () => {
     const p = rtpSocket.address().port;
     const setup = await c.send('SETUP', `${URI}/trackID=0`, [['Transport', `RTP/AVP;unicast;client_port=${p}-${p + 1}`]]);
     const session = [['Session', header(setup.headers, 'session').split(';')[0]]];
+    const viewersBefore = garden.listenerCount('packet');
     await c.send('PLAY', URI, session);
-    const before = seen.length;
-    for (const method of ['GET_PARAMETER', 'SET_PARAMETER', 'GET_PARAMETER']) {
+    assert.equal(garden.listenerCount('packet'), viewersBefore + 1);
+    for (const method of ['GET_PARAMETER', 'SET_PARAMETER', 'OPTIONS', 'GET_PARAMETER']) {
       const answer = await c.send(method, URI, session);
       assert.match(answer.startLine, /^RTSP\/1\.0 200/, method);
       assert.match(header(answer.headers, 'session'), /;timeout=60$/);
     }
-    assert.deepEqual(seen.slice(before).map(([m]) => m), [], 'none of them reached go2rtc');
-    const upstreamBefore = upstreamSockets.size && [...upstreamSockets].filter((s) => !s.destroyed).length;
     assert.match((await c.send('TEARDOWN', URI, session)).startLine, /^RTSP\/1\.0 200/);
-    await wait(50);
-    assert.equal([...upstreamSockets].filter((s) => !s.destroyed).length, upstreamBefore - 1, 'its go2rtc connection closed');
+    assert.equal(garden.listenerCount('packet'), viewersBefore, 'no longer subscribed');
     c.socket.destroy();
     rtpSocket.close();
+  });
+
+  test('when the camera\'s stream starts again (a new codec), its viewers are let go, to come back', async () => {
+    const c = tcpClient();
+    await login(c, 'rtsp://127.0.0.1/front-door');
+    const setup = await c.send('SETUP', 'rtsp://127.0.0.1/front-door/trackID=0', [['Transport', 'RTP/AVP/TCP;unicast;interleaved=0-1']]);
+    await c.send('PLAY', 'rtsp://127.0.0.1/front-door', [['Session', header(setup.headers, 'session').split(';')[0]]]);
+    const closed = new Promise((r) => c.socket.on('close', r));
+    startPublisher('front-door', false);   // replaces the stream
+    await closed;
   });
 
   test('RTSP over HTTP: requests base64 in a POST, everything back on the GET', async () => {

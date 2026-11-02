@@ -1,12 +1,11 @@
-// The RTSP port NVRs connect to. It sits in front of go2rtc (which listens on 127.0.0.1 only) and
-// adds what ONVIF's streaming specification asks for and go2rtc lacks: RTP over UDP, RTSP over
-// HTTP on the same port, RTCP sender reports, and the login (RTSP Digest or Basic).
-// Video and audio pass through untouched.
+// The RTSP port NVRs connect to. It serves the gateway's own streams (stream-hub.mjs) with what
+// ONVIF's streaming specification asks for: RTP over UDP or TCP, RTSP over HTTP on the same port,
+// RTCP sender reports, and the login (RTSP Digest or Basic).
 
-import { createServer, connect } from 'node:net';
+import { createServer } from 'node:net';
 import { createSocket } from 'node:dgram';
 import { randomBytes } from 'node:crypto';
-import { ProxySession } from './session.mjs';
+import { RtspSession } from './session.mjs';
 import { ClientConnection } from './client-connection.mjs';
 import { HttpTunnels } from './http-tunnel.mjs';
 import { createHttpAuth } from '../onvif/http-auth.mjs';
@@ -20,7 +19,7 @@ export class SessionRegistry {
   create() {
     let id;
     do id = randomBytes(8).toString('hex').toUpperCase(); while (this.sessions.has(id));
-    const session = new ProxySession(id, { ...this.deps, onClose: (s) => this.sessions.delete(s.id) });
+    const session = new RtspSession(id, { ...this.deps, onClose: (s) => this.sessions.delete(s.id) });
     this.sessions.set(id, session);
     return session;
   }
@@ -102,13 +101,13 @@ async function bindPair(address, port) {
   }
 }
 
-// upstream: { host, port } of go2rtc. credentials: { username, password } or null.
+// hub: the StreamHub the publishers send into. credentials: { username, password } or null.
 // udpPortOf(cameraName): the camera's first UDP port, or null (then viewers are told to use TCP).
-export function createRtspFront({ upstream, credentials, log = () => {}, now = Date.now, udpPortOf = () => null }) {
+export function createRtspFront({ hub, credentials, log = () => {}, now = Date.now, udpPortOf = () => null }) {
   const udp = new UdpPorts();
   const auth = credentials ? createHttpAuth(credentials, { now }) : null;
   const sessions = new SessionRegistry({
-    connectUpstream: () => connect(upstream.port, upstream.host),
+    hub,
     // video on the camera's first pair, sound on the second
     openUdp: async (address, { uri, media }) => {
       const base = udpPortOf(cameraOf(uri));

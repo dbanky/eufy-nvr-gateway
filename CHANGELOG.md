@@ -14,6 +14,12 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
   interval later (4 s on eufy cameras). They now start from the first one. Measured with a
   camera-like stream: first picture after 5.4 s before, 0.2 s now (H.264 and H.265, with and without
   `transcode`). UniFi Protect gets those seconds of the event instead of the sleeping picture.
+- **The gateway serves its RTSP streams itself; go2rtc is gone.** The streams went from the
+  gateway into go2rtc and back out through the gateway's own RTSP front. Now the front serves them
+  straight from memory: one process and one network hop fewer, and none of go2rtc's keep-alive
+  gaps to work around. A new viewer's video starts at the next keyframe, as before. The JPEG
+  (`~mjpeg`) and G.711 (`~g711`) versions for ONVIF still run an ffmpeg only while someone watches.
+  The internal port `28554` is no longer used.
 - **eufy-sdk 0.5.0** (was 0.4.0, which the bridge still pins): it falls back to eufy's relay when no
   direct connection to a camera answers, recovers live video after lost packets, and retries a push
   connection that failed at startup. The bridge stays at 0.6.0. Sound is unaffected: 0.5.0 makes

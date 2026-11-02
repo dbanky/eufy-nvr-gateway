@@ -1,5 +1,6 @@
-// The one never-ending stream per camera, published into go2rtc over RTSP (rtsp-push.mjs): the
-// Feed's video (loop or live) and, with sound, the AudioFeed's AAC. No ffmpeg, nothing re-encoded.
+// The one never-ending stream per camera, as RTP packets handed to the gateway's stream hub
+// (rtsp/stream-hub.mjs), which serves them to every viewer: the Feed's video (loop or live) and, with
+// sound, the AudioFeed's AAC. No ffmpeg, nothing re-encoded.
 //
 // Picture and sound are independent, and neither ever waits for the other:
 // - every live frame and every camera audio frame goes out the moment it arrives, stamped with its
@@ -14,13 +15,12 @@
 // Both tracks are stamped on the one wall clock (rtp.mjs), which is all a player needs to keep
 // them in sync.
 //
-// If the connection to go2rtc drops, it is opened again at once and everything since the last
-// keyframe (picture and sound) is sent again first, so a viewer loses nothing it could decode.
+// When the stream has to start again (the camera's codec changed), it is opened again at once with
+// the new description, and everything since the last keyframe (picture and sound) is sent first.
 
 import { randomBytes } from 'node:crypto';
 import { isKeyframe } from './annexb.mjs';
 import { SAMPLES_PER_FRAME, STREAM_FORMAT } from '../audio/adts.mjs';
-import { RtspPush } from './rtsp-push.mjs';
 import { VIDEO_PT, AUDIO_PT, VIDEO_RATE, rtpTime, framePayloads, aacPayload, parameterSets, publishSdp, rtpPacket } from './rtp.mjs';
 
 export const AUDIO_FRAME_MS = SAMPLES_PER_FRAME * 1000 / STREAM_FORMAT.sampleRate;   // 64 ms
@@ -48,9 +48,10 @@ export function silenceDue(now, audioEnd, lag = SILENCE_AFTER_MS) {
 }
 
 export class Publisher {
-  // audio: an AudioFeed, or null for a stream without sound.
-  constructor({ name, fps, output, feed, audio = null, log, now = Date.now, pushImpl = (o) => new RtspPush(o) }) {
-    Object.assign(this, { name, fps, output, feed, audio, log, now, pushImpl });
+  // audio: an AudioFeed, or null for a stream without sound. publish({ sdp, codec }): opens the stream
+  // (StreamHub.publish) and returns its Publication: send(track, packet, startsKeyframe), media(), close().
+  constructor({ name, fps, feed, audio = null, log, now = Date.now, publish }) {
+    Object.assign(this, { name, fps, feed, audio, log, now, publish });
     this.interval = 1000 / fps;
     this.push = null;
     this.replay = [];             // { track, ts, payloads } since the last keyframe, in order
@@ -128,11 +129,13 @@ export class Publisher {
       if (!this.push) this.connect();
     }
     this.lastVideoMs = ms;
-    this.emitGroup({ track: 0, ts: rtpTime(ms, VIDEO_RATE), payloads: framePayloads(frame, this.feed.codec) });
+    this.push?.media('video', frame);
+    this.emitGroup({ track: 0, ts: rtpTime(ms, VIDEO_RATE), payloads: framePayloads(frame, this.feed.codec), key });
   }
 
   sendAudio(frame, ms) {
     this.audioEnd = ms + AUDIO_FRAME_MS;
+    this.push?.media('audio', frame);
     const payload = aacPayload(frame);
     if (payload) this.emitGroup({ track: 1, ts: rtpTime(ms, STREAM_FORMAT.sampleRate), payloads: [payload] });
   }
@@ -142,15 +145,15 @@ export class Publisher {
     if (this.push?.ready) this.sendGroup(group);
   }
 
-  sendGroup({ track, ts, payloads }) {
+  sendGroup({ track, ts, payloads, key = false }) {
     const t = this.tracks[track];
     payloads.forEach((payload, i) => {
       const packet = rtpPacket({ pt: track ? AUDIO_PT : VIDEO_PT, seq: t.seq++, ts, ssrc: t.ssrc, marker: i === payloads.length - 1, payload });
-      this.push.send(track, packet);
+      this.push.send(track, packet, key && i === 0);
     });
   }
 
-  // Opens the connection once there is a keyframe to describe the stream with.
+  // Opens the stream once there is a keyframe to describe it with.
   connect() {
     if (this.stopped || this.push) return;
     const keyframe = this.keyframe ?? this.feed.loop?.[0];
@@ -158,17 +161,17 @@ export class Publisher {
     const codec = this.feed.codec, audio = !!this.audio;
     const sdp = publishSdp({ codec, params: parameterSets(keyframe, codec), audio });
     this.tracks = [0, 1].map(() => ({ ssrc: randomBytes(4).readUInt32BE(0), seq: randomBytes(2).readUInt16BE(0) }));
-    const push = this.pushImpl({ url: this.output, sdp, tracks: audio ? 2 : 1 });
+    const push = this.publish({ sdp, codec });
     this.push = push;
     push.on('ready', () => {
-      this.log(this.name, `stream → ${this.output} (${codec}${audio ? ', AAC audio' : ''})`);
+      this.log(this.name, `stream ready (${codec}${audio ? ', AAC audio' : ''})`);
       for (const group of this.replay) this.sendGroup(group);   // since the last keyframe: nothing lost
     });
     push.on('close', (reason) => {
       if (this.push !== push) return;
       this.push = null;
       if (this.stopped) return;
-      this.log(this.name, `stream to go2rtc ended (${reason}), reconnecting`);
+      this.log(this.name, `stream ended (${reason}), starting it again`);
       setTimeout(() => this.connect(), RECONNECT_MS).unref?.();
     });
   }

@@ -15,7 +15,7 @@ import { renderStateLoop } from '../overlay/index.mjs';
 import { AudioFeed } from '../audio/audio-feed.mjs';
 import { openLiveAudio } from '../audio/live-audio.mjs';
 
-export function createCamera(settings, { config, bridge, log, time, tmpDir }) {
+export function createCamera(settings, { config, bridge, log, time, tmpDir, hub }) {
   const streamUrl = (cam) => `${config.bridgeHttp}/stream/${cam.serial}`;
   const feed = new Feed({ maxLiveBacklog: (settings.fps ?? 15) * 2 });
   const camera = new Camera(settings, {
@@ -40,7 +40,7 @@ export function createCamera(settings, { config, bridge, log, time, tmpDir }) {
   if (audio) {
     camera.deps.openLiveAudio = (cam) => openLiveAudio({ name: cam.name, url: `${config.bridgeHttp}/audio/${cam.serial}`, audioFeed: audio, log });
   }
-  camera.publisher = new Publisher({ name: camera.name, fps: camera.fps, output: config.output.replace('{name}', camera.name), feed, audio, log });
+  camera.publisher = new Publisher({ name: camera.name, fps: camera.fps, feed, audio, log, publish: (o) => hub.publish(camera.name, o) });
   return camera;
 }
 
