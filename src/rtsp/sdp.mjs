@@ -22,6 +22,3 @@ export function trackFor(tracks, uri) {
   return tracks.find((t) => t.control && (uri === t.control || uri.endsWith(`/${t.control}`) || path.endsWith(`/${t.control}`)))
     ?? (tracks.length === 1 ? tracks[0] : null);
 }
-
-// The streams flow from the device: "sendonly" seen from the device, as cameras describe them.
-export const fromTheDevice = (sdp) => String(sdp).replace(/^a=recvonly(?=\r?$)/gm, 'a=sendonly');

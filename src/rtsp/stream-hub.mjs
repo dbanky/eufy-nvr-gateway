@@ -1,6 +1,5 @@
 // The gateway's streams, kept in memory: each camera's publisher (video/publisher.mjs) hands its RTP
-// packets in, and every RTSP viewer of the camera takes them out (session.mjs). go2rtc used to sit in
-// between as a separate program.
+// packets in, and every RTSP viewer of the camera takes them out (session.mjs).
 //
 // Paths (rtsp://host:port/<path>):
 //   <name>               the camera's stream: its video and, with sound, AAC

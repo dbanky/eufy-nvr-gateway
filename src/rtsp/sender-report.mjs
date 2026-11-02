@@ -1,5 +1,5 @@
 // RTCP sender reports (RFC 3550 section 6.4.1), which ONVIF requires for audio/video sync: they tie
-// each track's RTP clock to the wall clock. go2rtc sends none, so the RTSP front makes them from the
+// each track's RTP clock to the wall clock. The RTSP port makes them from the
 // packets it forwards. Pure except for the clock passed in.
 
 const NTP_EPOCH_OFFSET = 2208988800;   // seconds from 1900 to 1970

@@ -93,7 +93,6 @@ rather than `motion`.
 |---|---|---|
 | `ports.web` | `8099` | Web page and API, HTTP or HTTPS (also `WEB_PORT`) |
 | `ports.rtsp` | `8554` | RTSP output: RTSP over TCP and RTSP over HTTP on this port, and the requests of RTP over UDP. The UDP packets themselves go out from each camera's own four UDP ports (`udpPort`, host networking) |
-| `ports.go2rtc` | `28554` | Internal: go2rtc, on `127.0.0.1` only, behind the RTSP port. If another program on the host already uses it (host networking), the gateway takes the next free port and says so in the log |
 
 ## Sound (`audio`)
 
@@ -151,4 +150,4 @@ two CPU cores on a small NAS.
 | `switcher/last-<name>.jpg` | Last live frame per camera, shown after a restart |
 | `switcher/codec-<name>.txt` | The format a camera sends (`h264` / `hevc`), learned in its first live session for passing it through |
 | `web/cert.pem`, `web/key.pem` | The self-signed HTTPS certificate, made once when `web.https` is on without own files — delete both to make a new one |
-| `go2rtc/go2rtc.yaml`, `switcher/config.json` | Generated at every start from `config.json` — don't edit (they contain the logins) |
+| `switcher/config.json` | Generated at every start from `config.json` — don't edit (they contain the logins) |

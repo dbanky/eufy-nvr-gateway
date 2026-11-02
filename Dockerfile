@@ -17,8 +17,6 @@ RUN mkdir -p /out/icons /out/fonts \
 
 FROM node:24-alpine
 
-ARG TARGETARCH
-ARG GO2RTC_VERSION=1.9.15
 # ha-eufy-sdk-bridge 0.6.0 (Apache-2.0) — eufy login, events and on-demand P2P video
 ARG BRIDGE_REPO=https://github.com/mega-yfue/ha-eufy-sdk-bridge.git
 ARG BRIDGE_COMMIT=6b3ccbc09293da019e6f91db516856644501dbd2
@@ -27,14 +25,6 @@ ARG BRIDGE_COMMIT=6b3ccbc09293da019e6f91db516856644501dbd2
 ARG EUFY_SDK_VERSION=0.5.0
 
 RUN apk add --no-cache ffmpeg tzdata curl git openssl
-
-# go2rtc (MIT): a single static binary
-RUN case "${TARGETARCH:-amd64}" in \
-      amd64) g2=go2rtc_linux_amd64 ;; arm64) g2=go2rtc_linux_arm64 ;; arm) g2=go2rtc_linux_arm ;; \
-      *) echo "unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
-    esac \
- && curl -fsSL -o /usr/local/bin/go2rtc "https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/${g2}" \
- && chmod +x /usr/local/bin/go2rtc
 
 # eufy bridge, with one addition: /audio/<serial>, the live audio of a camera that is streaming
 COPY patches/bridge-live-audio.patch /tmp/

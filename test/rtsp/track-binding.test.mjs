@@ -1,4 +1,4 @@
-// One SETUP: its channels towards go2rtc, and how its packets reach the client.
+// One SETUP: its channels, and how its packets reach the client.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { TrackBinding, chooseChannels } from '../../src/rtsp/track-binding.mjs';

@@ -1,4 +1,4 @@
-// One SETUP of a session: a track, the interleaved channels it has towards go2rtc, and how its
+// One SETUP of a session: a track, its interleaved channels, and how its
 // packets reach the client: interleaved on the RTSP connection, or over UDP from the camera's
 // shared port pair. Also its sender-report statistics.
 
@@ -20,7 +20,7 @@ export function chooseChannels(taken, wanted) {
 
 export class TrackBinding {
   constructor({ channels, clockRate = 90000 }) {
-    this.channels = channels;   // towards go2rtc (and the client, when interleaved)
+    this.channels = channels;   // its RTP and RTCP channels, when interleaved
     this.stats = new RtpTrackStats(clockRate);
     this.udp = null;            // { rtp, rtcp, ports, onRtcp, close } when over UDP
     this.clientPort = null;     // [rtp, rtcp] on the client, when over UDP

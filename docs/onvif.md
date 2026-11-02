@@ -106,7 +106,7 @@ What that means in practice:
   users over ONVIF is refused.
 - **Encoders** offer only what the stream really is: the camera's resolution, frame rate and
   bitrate (H.264), or MJPEG at 640 pixels wide; AAC 16 kHz or G711 8 kHz. Other values are refused.
-- **RTSP** goes through the gateway's own RTSP port in front of go2rtc: RTSP over TCP, RTP over UDP
+- **RTSP** is the gateway's own RTSP port: RTSP over TCP, RTP over UDP
   (from the camera's four fixed UDP ports, `udpPort`, which needs host networking) and RTSP over HTTP
   on the same port, RTCP sender reports for audio/video sync, RTSP Digest or Basic login. No
   multicast (conditional in Profile S).

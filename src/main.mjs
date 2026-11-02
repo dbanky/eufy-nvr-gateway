@@ -1,15 +1,15 @@
 // Container entrypoint. Reads config.json (+ environment), writes the configs for the bundled
 // services, then runs and supervises them:
 //   bridge    eufy cloud login, events and on-demand P2P video   (ha-eufy-sdk-bridge)
-//   go2rtc    serves the always-on RTSP streams to NVRs
-//   switcher  sleeping picture while idle, live video on events (src/switcher)
+//   switcher  sleeping picture while idle, live video on events, and the RTSP, ONVIF and web
+//             servers (src/switcher)
 
 import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { configPath, readConfigFile, resolveSettings } from './gateway/config.mjs';
 import { openToTheLan, configWarnings } from './gateway/access.mjs';
 import { ensureCertificate } from './gateway/certificate.mjs';
 import { onvifNetworkProblem } from './onvif/network.mjs';
-import { go2rtcYaml, switcherConfig, bridgeEnv } from './gateway/service-configs.mjs';
+import { switcherConfig, bridgeEnv } from './gateway/service-configs.mjs';
 import { Supervisor } from './gateway/supervisor.mjs';
 import { waitForPort } from './gateway/wait-for-port.mjs';
 import { freePort } from './gateway/free-port.mjs';
@@ -30,9 +30,9 @@ try {
   die(e.message);
 }
 
-// The internal ports (127.0.0.1) are shared with the host under host networking: another program
-// may already use one, and then our streams would go to it. Take the next free port instead.
-for (const [key, what] of [['go2rtc', 'go2rtc'], ['bridge', 'eufy bridge']]) {
+// The internal port (127.0.0.1) is shared with the host under host networking: another program may
+// already use it, and then our requests would go to it. Take the next free port instead.
+for (const [key, what] of [['bridge', 'eufy bridge']]) {
   const wanted = settings.ports[key];
   const port = await freePort(wanted);
   if (port === null) die(`internal port ${wanted} (${what}) and the 100 after it are in use by other programs on this machine: set "ports.${key}" in config.json to a free port.`);
@@ -42,8 +42,7 @@ for (const [key, what] of [['go2rtc', 'go2rtc'], ['bridge', 'eufy bridge']]) {
   }
 }
 
-for (const dir of ['bridge', 'go2rtc', 'switcher']) mkdirSync(`${DATA}/${dir}`, { recursive: true });
-writeFileSync(`${DATA}/go2rtc/go2rtc.yaml`, go2rtcYaml(settings));
+for (const dir of ['bridge', 'switcher']) mkdirSync(`${DATA}/${dir}`, { recursive: true });
 const generated = switcherConfig(settings, DATA);
 writeFileSync(`${DATA}/switcher/config.json`, JSON.stringify(generated, null, 2));
 
@@ -69,8 +68,7 @@ else log('Every web page, API, stream and ONVIF camera asks for a login.');
 const { ports, cameras, timeZone } = settings;
 const services = [
   { name: 'bridge', cmd: 'node', args: ['/opt/bridge/server.mjs'], cwd: `${DATA}/bridge`, env: bridgeEnv(settings, DATA, process.env) },
-  { name: 'go2rtc', cmd: '/usr/local/bin/go2rtc', args: ['-config', `${DATA}/go2rtc/go2rtc.yaml`], cwd: `${DATA}/go2rtc` },
-  { name: 'switcher', waitFor: [ports.go2rtc, ports.bridge], cmd: 'node',
+  { name: 'switcher', waitFor: [ports.bridge], cmd: 'node',
     args: [new URL('./switcher/main.mjs', import.meta.url).pathname, `${DATA}/switcher/config.json`], cwd: '/app', env: { TZ: timeZone } },
 ];
 

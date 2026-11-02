@@ -1,5 +1,5 @@
 // One client connection: the login, then each request to its session. Sessions are fakes here; the
-// whole front (with a go2rtc stand-in) is in server.test.mjs.
+// whole RTSP port (with stand-in publishers) is in server.test.mjs.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { ClientConnection } from '../../src/rtsp/client-connection.mjs';

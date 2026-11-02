@@ -12,8 +12,8 @@ stream drop, reconnects, and wakes the camera again — all day.
 
 ## The approach: never switch streams, switch pictures
 
-Each camera has **one publisher that runs forever**: it sends encoded frames to go2rtc over RTSP
-itself (no ffmpeg, nothing re-encoded) — the camera's own H.264/H.265, or H.264 with
+Each camera has **one publisher that runs forever**: it hands encoded frames, as RTP, to the
+gateway's RTSP server in memory (no ffmpeg, nothing re-encoded) — the camera's own H.264/H.265, or H.264 with
 `transcode: true`, and with `"audio": true` the camera's AAC sound. The sleeping picture plays at
 exactly 15 fps; every live frame and every sound frame goes out the moment it arrives, stamped with
 its arrival time, so nothing waits, is held back or dropped, and picture and sound never wait for
@@ -28,13 +28,14 @@ each other. The NVR sees one unbroken stream. What the publisher is fed depends 
 While asleep the label can also read *low battery*, *didn't wake up* or *offline*, and a fresh
 install shows *no picture yet* instead of a black frame.
 
-**The RTSP front.** Viewers don't talk to go2rtc directly (it listens on `127.0.0.1` only); they
-connect to the gateway's own RTSP server on `8554`, which relays to go2rtc and adds what go2rtc
-lacks: the login, RTP over UDP from fixed ports per camera, RTCP sender reports, and RTSP over
-HTTP. It also covers two gaps that would otherwise cut viewers off: once a stream plays, go2rtc
-never answers the keep-alive requests `GET_PARAMETER` and `SET_PARAMETER` (nor `TEARDOWN`), so the
-front answers them; and go2rtc drops a connection it hears nothing on for 60 s, which is what a
-viewer on UDP looks like, so the front sends it an `OPTIONS` after 20 s of silence.
+**The RTSP server.** Viewers connect to the gateway's own RTSP server on `8554`. It keeps each
+camera's stream in memory and serves it with the login, RTP over TCP or over UDP from fixed ports
+per camera, RTCP sender reports, RTSP over HTTP, and answers to every keep-alive (`OPTIONS`,
+`GET_PARAMETER`, `SET_PARAMETER`). A new viewer's video starts at the next keyframe. The JPEG
+(`<name>~mjpeg`) and G.711 (`<name>~g711`) versions ONVIF asks for come from an ffmpeg that runs
+only while someone watches them. Until 0.5.0 a separate go2rtc served the streams; it never answered
+`GET_PARAMETER`/`SET_PARAMETER` while playing and dropped viewers it heard nothing from for 60 s,
+which cut VLC and other UDP viewers off until the gateway worked around it.
 
 **Sleeping costs (almost) nothing.** Each state's picture is drawn once and encoded once into an 8 s
 loop with a keyframe every second, in the stream's format; the publisher replays those encoded frames

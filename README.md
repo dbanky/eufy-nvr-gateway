@@ -29,13 +29,13 @@ flowchart LR
   cloud["eufy cloud<br>(push events)"] -- "motion · person · ring" --> bridge
   subgraph container ["eufy-nvr-gateway (one container)"]
     bridge["eufy bridge"] -- "events + live video" --> switcher["switcher<br>sleeping picture ⇄ live"]
-    switcher -- "one unbroken stream" --> go2rtc["go2rtc<br>RTSP server"]
+    switcher -- "one unbroken stream" --> rtsp["RTSP server"]
     switcher -- "motion on / off" --> onvif["ONVIF device<br>per camera"]
     web["web page + API"]
   end
-  go2rtc -- "RTSP :8554" --> nvr["NVR · VLC · Home Assistant"]
+  rtsp -- "RTSP :8554" --> nvr["NVR · VLC · Home Assistant"]
   onvif -- "ONVIF :8000<br>motion events" --> protect["UniFi Protect"]
-  protect -- "RTSP :8554" --> go2rtc
+  protect -- "RTSP :8554" --> rtsp
   browser["your browser"] -- "HTTP(S) :8099" --> web
 ```
 
@@ -50,8 +50,8 @@ flowchart LR
 
 ## Features
 
-- **One image, one config file.** The eufy bridge, go2rtc and the switcher run together under a
-  small supervisor that restarts anything that crashes.
+- **One image, one config file.** The eufy bridge and the switcher (with its own RTSP, ONVIF and web
+  servers) run together under a small supervisor that restarts anything that crashes.
 - **Battery-friendly by design.** A camera only streams during an event; the raw camera stream is
   never reachable from the network, so nothing can keep a camera awake by accident.
 - **RTSP and ONVIF.** Any NVR reads the RTSP streams; NVRs that only adopt ONVIF cameras (UniFi
@@ -331,7 +331,7 @@ Notes:
 - At startup the log either confirms *Every web page, API, stream and ONVIF camera asks for a login*
   or names what is still open, with the setting that closes it.
 - Always closed: the eufy bridge listens inside the container only (its raw camera streams would keep
-  cameras awake), and go2rtc's web UI, API, WebRTC and RTMP are off.
+  cameras awake).
 - `/api/health` stays open (it says `{ "ok": true }` and nothing else) for Docker's health check.
 - Keep the gateway on your LAN; never forward its ports to the internet. To reach it from outside,
   use a VPN.
@@ -432,7 +432,7 @@ With a `web` login, send it as HTTP Basic, e.g.
 
 ## How it works
 
-The short version: per camera, one never-ending stream feeds go2rtc. While the camera sleeps it
+The short version: per camera, one never-ending stream, served by the gateway's own RTSP server. While the camera sleeps it
 replays a picture that was encoded once; during an event the camera's own video takes over (or, with
 `"transcode": true`, a live encoder), spliced in at a keyframe, so the NVR sees one unbroken stream.
 Details, measurements and the problems solved along the way:
@@ -466,8 +466,8 @@ Details, measurements and the problems solved along the way:
 | Protect's recordings are broken (smeared or frozen blocks, wrong size), or its live view stalls during events | Set `"transcode": true` for the camera. Protect keeps only the first video settings of a stream, and a passed-through stream changes them during every event ([details](docs/unifi-protect.md#1-publish-the-cameras-as-onvif-devices)). |
 | Live view or playback flickers, is black or stutters in Protect (especially in a browser) | `"transcode": true` for the camera, and its *Stream Compatibility Mode* set to *Improved* in Protect. |
 
-Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[start]`, `[bridge]`, `[go2rtc]`
-or `[switcher]`).
+Logs: `docker logs eufy-nvr-gateway` (every line is prefixed with `[start]`, `[bridge]` or
+`[switcher]`).
 
 ## Development
 
@@ -488,9 +488,9 @@ behaviour:
 | `src/switcher/bridge/` | The eufy bridge: the WebSocket (`socket.mjs`) and what it says (`client.mjs`: login, devices, events) |
 | `src/switcher/web/` | The JSON API (`server.mjs`), sign-in (`auth.mjs`, `signin-routes.mjs`), HTTP/HTTPS (`listen.mjs`) and the page (`static/`: pure views with node tests, plus the browser glue) |
 | `src/onvif/` | ONVIF devices: device and media services, motion events (PullPoint), logins |
-| `src/video/` | The never-ending stream: the publisher into go2rtc (`publisher.mjs`, `rtsp-push.mjs`, `rtp.mjs`), what it plays next (`feed.mjs`), live encoder, decoder and pass-through, H.264/H.265 helpers |
+| `src/video/` | The never-ending stream: the publisher (`publisher.mjs`, `rtp.mjs`), what it plays next (`feed.mjs`), live encoder, decoder and pass-through, H.264/H.265 helpers |
 | `src/audio/` | The camera's sound: AAC frames (`adts.mjs`), the live sound from the bridge (`live-audio.mjs`), silence while asleep |
-| `src/rtsp/` | The RTSP server viewers connect to, in front of go2rtc: login (`client-connection.mjs`), one session (`session.mjs`) and its tracks over TCP or UDP (`track-binding.mjs`), fixed UDP ports, sender reports, RTSP over HTTP |
+| `src/rtsp/` | The RTSP server viewers connect to: the streams in memory (`stream-hub.mjs`), the JPEG and G.711 versions (`transcoder.mjs`), login (`client-connection.mjs`), one session (`session.mjs`) and its tracks over TCP or UDP (`track-binding.mjs`), fixed UDP ports, sender reports, RTSP over HTTP |
 | `src/overlay/` | The sleeping-state picture: the design in numbers (`design.mjs`), layout, drawing, encoding it into a loop |
 | `assets/icons/` | State icons (SVG), rasterised when the image is built |
 
@@ -506,7 +506,6 @@ This project is MIT licensed (see [LICENSE](LICENSE)). It builds on, and the Doc
   [eufy-sdk](https://github.com/mega-yfue/eufy-sdk) by mega-yfue — Apache-2.0. The image installs
   eufy-sdk 0.5.0 over the bridge's own 0.4.0 and adds one route to the bridge, for live audio
   ([patches/bridge-live-audio.patch](patches/bridge-live-audio.patch))
-- [go2rtc](https://github.com/AlexxIT/go2rtc) by AlexxIT — MIT
 - [FFmpeg](https://ffmpeg.org) with x264 and x265 (Alpine packages) — LGPL/GPL
 - [Inter](https://github.com/rsms/inter) typeface by Rasmus Andersson — SIL Open Font License 1.1
 

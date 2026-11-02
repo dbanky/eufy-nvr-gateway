@@ -1,49 +1,14 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { go2rtcYaml, switcherConfig, bridgeEnv, streamVariants } from '../../src/gateway/service-configs.mjs';
+import { switcherConfig, bridgeEnv } from '../../src/gateway/service-configs.mjs';
 
 const settings = {
   eufy: { email: 'you@example.com', password: 'secret', country: 'GB' },
-  ports: { web: 8099, rtsp: 8554, bridge: 3000, go2rtc: 28554 },
+  ports: { web: 8099, rtsp: 8554, bridge: 3000 },
   timeZone: 'Europe/London',
   cameras: [{ name: 'garden' }, { name: 'front-door' }],
   bridgeEnv: {},
 };
-
-describe('go2rtc', () => {
-  test('serves one RTSP stream per camera on localhost only: NVRs go through the RTSP front', () => {
-    const yaml = go2rtcYaml(settings);
-    assert.match(yaml, /rtsp:\n {2}listen: "127\.0\.0\.1:28554"/);
-    assert.match(yaml, /streams:\n {2}"garden":\n/);
-    assert.match(yaml, /\n {2}"front-door":\n/);
-  });
-
-  test('has no login of its own: the front checks it, and only localhost reaches go2rtc', () => {
-    const yaml = go2rtcYaml({ ...settings, rtsp: { login: { username: 'nvr', password: 'secret' } } });
-    assert.doesNotMatch(yaml, /username|password|secret/);
-  });
-
-  test('variants ONVIF clients may pick: MJPEG (RTP-ready JPEG) and, with sound, G711', () => {
-    const yaml = go2rtcYaml({ ...settings, cameras: [{ name: 'garden', width: 2880, height: 1616, audio: true }] });
-    assert.match(yaml, /"garden~mjpeg": "ffmpeg:garden#video=mjpeg#width=640#height=360#raw=-huffman default -force_duplicated_matrix 1 -q:v 5#audio=copy"/);
-    assert.match(yaml, /"garden~g711": "ffmpeg:garden#video=copy#audio=pcmu"/);
-    assert.match(yaml, /"garden~mjpeg~g711": "ffmpeg:garden#video=mjpeg/);
-  });
-
-  test('a camera without sound gets only the MJPEG variant', () => {
-    assert.deepEqual(Object.keys(streamVariants({ name: 'garden', width: 1600, height: 1200 })), ['garden~mjpeg']);
-    assert.match(streamVariants({ name: 'garden', width: 1600, height: 1200 })['garden~mjpeg'], /#height=480#/);
-  });
-
-  test('opens nothing but RTSP: web UI/API, WebRTC, SRTP and RTMP stay closed', () => {
-    const yaml = go2rtcYaml(settings);
-    for (const module of ['api', 'webrtc', 'srtp', 'rtmp']) assert.match(yaml, new RegExp(`${module}:\\n {2}listen: ""`));
-  });
-
-  test('an empty stream list is still valid YAML', () => {
-    assert.match(go2rtcYaml({ ...settings, cameras: [] }), /streams: \{\}/);
-  });
-});
 
 describe('eufy bridge', () => {
   const env = bridgeEnv(settings, '/data', {});
@@ -93,11 +58,9 @@ describe('switcher', () => {
     assert.deepEqual(config.rtsp, { login: true });
   });
 
-  test('reaches the bridge and go2rtc on localhost; NVRs use the RTSP port', () => {
+  test('reaches the bridge on localhost; NVRs use the RTSP port', () => {
     const config = switcherConfig(settings, '/data');
     assert.equal(config.bridgeWs, 'ws://127.0.0.1:3000/ws');
-    assert.equal(config.output, 'rtsp://127.0.0.1:28554/{name}');
-    assert.equal(config.go2rtcPort, 28554);
     assert.equal(config.rtspPort, 8554);
     assert.equal(config.dataDir, '/data/switcher');
   });

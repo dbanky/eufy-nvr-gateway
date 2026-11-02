@@ -2,7 +2,7 @@
 // Media2. NVRs may create profiles, move configurations between them and change encoder settings
 // (Profile S requires it); the model only allows what the gateway can really stream.
 //
-// What can be streamed (each a go2rtc stream; the variants run ffmpeg only while someone watches):
+// What can be streamed (paths of the RTSP port, rtsp/stream-hub.mjs; the variants run ffmpeg only while someone watches):
 //   video: the camera's stream as it is (H.264, or the camera's own H.265 passed through), or MJPEG
 //          at 640 pixels wide (Profile S requires JPEG)
 //   audio: AAC 16 kHz mono as it is, or G711 µ-law 8 kHz (ONVIF requires G711 when there is audio),
@@ -26,11 +26,11 @@ export function jpegSize({ width, height }) {
   return { width: JPEG_WIDTH, height: Math.max(8, Math.round((JPEG_WIDTH * height) / width / 8) * 8) };
 }
 
-// The go2rtc stream for a video and audio choice (the RTSP path). Camera names can't contain "~".
+// The RTSP path for a video and audio choice. Camera names can't contain "~".
 // video: 'native' | 'JPEG'   audio: 'AAC' | 'G711' | null   hasAudio: the camera stream has sound
 export function streamPath(name, { video, audio, hasAudio }) {
   const path = name + (video === 'JPEG' ? '~mjpeg' : '') + (hasAudio && audio === 'G711' ? '~g711' : '');
-  return hasAudio && !audio ? `${path}?video` : path;   // go2rtc: only the video track
+  return hasAudio && !audio ? `${path}?video` : path;   // only the video track
 }
 
 const multicast = () => ({ address: '0.0.0.0', port: 0, ttl: 0, autoStart: false });

@@ -4,10 +4,10 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { webSettings, rtspSettings } from './access.mjs';
 
-// web and rtsp face the LAN; bridge and go2rtc listen on 127.0.0.1 only (the RTSP port in front of
-// go2rtc is the gateway's own, src/rtsp/). Not 18554 for go2rtc: Home Assistant's go2rtc uses it,
-// and with host networking both share the host's 127.0.0.1. main.mjs moves a taken internal port.
-export const DEFAULT_PORTS = { web: 8099, rtsp: 8554, bridge: 3000, go2rtc: 28554 };
+// web and rtsp face the LAN; the bridge listens on 127.0.0.1 only (with host networking that is the
+// host's 127.0.0.1: main.mjs moves to the next port if another program has it). An old
+// "ports.go2rtc" is ignored: the gateway serves its streams itself.
+export const DEFAULT_PORTS = { web: 8099, rtsp: 8554, bridge: 3000 };
 
 // RTP over UDP goes out from four fixed ports per camera (video RTP/RTCP, sound RTP/RTCP), shared by
 // all its viewers: cameras[].udpPort is the first. Unset: 40000 for the first camera, 40004 for the

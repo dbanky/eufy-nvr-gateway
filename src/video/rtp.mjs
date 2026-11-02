@@ -1,4 +1,4 @@
-// RTP for the stream the gateway publishes into go2rtc: H.264 (RFC 6184) or H.265 (RFC 7798)
+// RTP for the stream the gateway publishes (into its stream hub): H.264 (RFC 6184) or H.265 (RFC 7798)
 // video and AAC audio (RFC 3640, mpeg4-generic), plus the SDP that announces them. Pure.
 //
 // RTP timestamps are the wall clock in each track's clock rate (milliseconds × rate / 1000, modulo
