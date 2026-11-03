@@ -259,13 +259,6 @@ describe('the RTSP front', () => {
     post.destroy();
   });
 
-  test('the camera of a SETUP, from its path (variants and queries included)', async () => {
-    const { cameraOf } = await import('../../src/rtsp/server.mjs');
-    assert.equal(cameraOf('rtsp://192.168.1.10:8554/garden/trackID=0'), 'garden');
-    assert.equal(cameraOf('rtsp://192.168.1.10:8554/garden~mjpeg~g711/trackID=1'), 'garden');
-    assert.equal(cameraOf('rtsp://192.168.1.10:8554/garden?video/trackID=0'), 'garden');
-  });
-
   test('a camera\'s UDP port pair is shared by all its viewers, and closed with the last one', async () => {
     const { UdpPorts } = await import('../../src/rtsp/server.mjs');
     const udp = new UdpPorts();

@@ -11,6 +11,12 @@ import { createSocket } from 'node:dgram';
 import { isKeyframe } from '../video/annexb.mjs';
 
 export const PAYLOAD_TYPE = { mjpeg: 26, pcmu: 0 };
+
+// The SDP media section a viewer is told for each kind (static payload types: no fmtp needed).
+export const SDP_SECTION = {
+  mjpeg: [`m=video 0 RTP/AVP ${PAYLOAD_TYPE.mjpeg}`, `a=rtpmap:${PAYLOAD_TYPE.mjpeg} JPEG/90000`],
+  pcmu: [`m=audio 0 RTP/AVP ${PAYLOAD_TYPE.pcmu}`, `a=rtpmap:${PAYLOAD_TYPE.pcmu} PCMU/8000`],
+};
 const MAX_STDIN_BACKLOG = 8 * 1024 * 1024;   // ffmpeg this far behind: skip to the next keyframe
 const RESTART_MS = 1000;
 

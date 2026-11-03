@@ -490,7 +490,7 @@ behaviour:
 | `src/onvif/` | ONVIF devices: device and media services, motion events (PullPoint), logins |
 | `src/video/` | The never-ending stream: the publisher (`publisher.mjs`, `rtp.mjs`), what it plays next (`feed.mjs`), live encoder, decoder and pass-through, H.264/H.265 helpers |
 | `src/audio/` | The camera's sound: AAC frames (`adts.mjs`), the live sound from the bridge (`live-audio.mjs`), silence while asleep |
-| `src/rtsp/` | The RTSP server viewers connect to: the streams in memory (`stream-hub.mjs`), the JPEG and G.711 versions (`transcoder.mjs`), login (`client-connection.mjs`), one session (`session.mjs`) and its tracks over TCP or UDP (`track-binding.mjs`), fixed UDP ports, sender reports, RTSP over HTTP |
+| `src/rtsp/` | The RTSP server viewers connect to: the streams in memory (`stream-hub.mjs`, `publication.mjs`) and the addresses that name them (`stream-path.mjs`), the JPEG and G.711 versions (`transcoder.mjs`, `transcoder-pool.mjs`), login (`client-connection.mjs`), one session (`session.mjs`) and its tracks over TCP or UDP (`track-binding.mjs`), fixed UDP ports, sender reports, RTSP over HTTP |
 | `src/overlay/` | The sleeping-state picture: the design in numbers (`design.mjs`), layout, drawing, encoding it into a loop |
 | `assets/icons/` | State icons (SVG), rasterised when the image is built |
 

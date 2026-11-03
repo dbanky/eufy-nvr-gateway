@@ -9,6 +9,7 @@ import { RtspSession } from './session.mjs';
 import { ClientConnection } from './client-connection.mjs';
 import { HttpTunnels } from './http-tunnel.mjs';
 import { createHttpAuth } from '../onvif/http-auth.mjs';
+import { parseStreamPath } from './stream-path.mjs';
 
 export class SessionRegistry {
   constructor(deps) {
@@ -40,12 +41,6 @@ export class SessionRegistry {
 // UDP ports are fixed per camera (cameras[].udpPort, config.mjs): video RTP/RTCP on udpPort and
 // udpPort + 1, sound on udpPort + 2 and + 3. Every viewer of a camera shares them (packets go to
 // each viewer's own ports), so a firewall needs exactly four ports per camera, known in advance.
-
-// The camera a SETUP is for: rtsp://host:port/<name>[~variant][?query]/trackID=n -> name.
-export function cameraOf(uri) {
-  const path = String(uri).replace(/^rtsp:\/\/[^/]*\//, '').split('?')[0];
-  return decodeURIComponent(path.split('/')[0]).split('~')[0];
-}
 
 // Shared socket pairs, one per (local address, port), counted by the bindings that use them.
 export class UdpPorts {
@@ -110,8 +105,9 @@ export function createRtspFront({ hub, credentials, log = () => {}, now = Date.n
     hub,
     // video on the camera's first pair, sound on the second
     openUdp: async (address, { uri, media }) => {
-      const base = udpPortOf(cameraOf(uri));
-      if (base == null) throw new Error(`no UDP ports set for "${cameraOf(uri)}"`);
+      const camera = parseStreamPath(uri)?.name;
+      const base = udpPortOf(camera);
+      if (base == null) throw new Error(`no UDP ports set for "${camera}"`);
       return udp.lease(address?.replace(/^::ffff:/, ''), base + (media === 'audio' ? 2 : 0));
     },
     now, log,

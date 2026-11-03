@@ -14,6 +14,7 @@ import { header, requestLine, response, formatMessage } from './messages.mjs';
 import { parseTransport, chooseTransport } from './transport.mjs';
 import { sdpTracks, trackFor } from './sdp.mjs';
 import { TrackBinding, chooseChannels } from './track-binding.mjs';
+import { streamUri } from './stream-path.mjs';
 
 // Ends a client connection after what was written to it (an answer) has gone out.
 export function endPeer(peer) {
@@ -26,9 +27,6 @@ export const TIMEOUT_S = 60;
 export const PUBLIC = 'OPTIONS, DESCRIBE, SETUP, PLAY, PAUSE, TEARDOWN, GET_PARAMETER, SET_PARAMETER';
 const REPORT_MS = 5000;
 const MAX_CLIENT_BACKLOG = 8 * 1024 * 1024;   // a viewer this far behind skips to the next keyframe
-
-// The URI without a track's control: rtsp://host/garden/trackID=1 -> rtsp://host/garden
-const streamUri = (uri) => String(uri).replace(/\/trackID=\d+$/, '');
 
 // deps: hub (StreamHub), openUdp(localAddress, { uri, media }) -> Promise<{ rtp, rtcp, ports, onRtcp, close }>,
 // now() ms, onClose(session), log(...)
