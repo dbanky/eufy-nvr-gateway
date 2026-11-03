@@ -1,9 +1,10 @@
 // The publisher: picture and sound into the stream hub, each the moment it is there, neither waiting
-// for the other, nothing dropped.
+// for the other, nothing dropped. (Where each sound frame goes: audio-timeline.test.mjs.)
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { Publisher, liveFrameTime, liveAudioTime, silenceDue, SILENCE_AFTER_MS, LIVE_GAP_MS, AUDIO_FRAME_MS } from '../../src/video/publisher.mjs';
+import { Publisher, liveFrameTime } from '../../src/video/publisher.mjs';
+import { AUDIO_FRAME_MS } from '../../src/video/audio-timeline.mjs';
 import { Feed } from '../../src/video/feed.mjs';
 import { AudioFeed } from '../../src/audio/audio-feed.mjs';
 import { rtpTime } from '../../src/video/rtp.mjs';
@@ -115,7 +116,6 @@ describe('sound', () => {
   });
 
   test('a burst of sound stays one continuous track: each frame right after the one before', () => {
-    assert.equal(liveAudioTime(T0, T0 + 64, false), T0 + 64);
     const { audioFeed, pushes, at, setNow } = rig({ audio: true });
     pushes[0].open();
     at(0);
@@ -129,9 +129,6 @@ describe('sound', () => {
   });
 
   test('after a network hiccup, the late burst fills the gap it belongs to: the sound doesn\'t fall behind the picture', () => {
-    assert.equal(liveAudioTime(T0 + 900, T0 + 64, false), T0 + 64, 'a 0.8 s pause: back to back, as recorded');
-    assert.equal(liveAudioTime(T0 + 3000, T0 + 64, false), T0 + 3000 - LIVE_GAP_MS, 'a real gap: no further behind than that');
-    assert.equal(liveAudioTime(T0 + 900, T0 + 64, true), T0 + 900, 'after silence: at its arrival, with the picture');
     const { audioFeed, pushes, at, setNow } = rig({ audio: true });
     pushes[0].open();
     at(0);
@@ -149,8 +146,6 @@ describe('sound', () => {
   });
 
   test('silence fills only the time the camera sends none, so the track never stops', () => {
-    assert.equal(silenceDue(T0 + 1000, T0 + 1000 - SILENCE_AFTER_MS), 0);
-    assert.equal(silenceDue(T0 + 1000, T0 + 1000 - SILENCE_AFTER_MS - 1), 1);
     const { audioFeed, pushes, at, setNow } = rig({ audio: true });
     pushes[0].open();
     for (let ms = 0; ms <= 2000; ms += 10) at(ms);
@@ -204,7 +199,7 @@ describe('the stream in the hub', () => {
     setNow(166); feed.pushLive(deltaFrame(8));
     pushes[0].close('connection closed');
     setNow(200); feed.pushLive(deltaFrame(9));   // while it is down
-    pub.connect();
+    pub.openStream();
     pushes[1].open();
     const v = video(pushes[1]).map((p) => p.ts);
     assert.deepEqual(v.slice(0, 3), [rtpTime(T0 + 100, 90000), rtpTime(T0 + 166, 90000), rtpTime(T0 + 200, 90000)]);
