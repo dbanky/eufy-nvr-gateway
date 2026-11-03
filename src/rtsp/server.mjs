@@ -3,14 +3,15 @@
 // RTCP sender reports, and the login (RTSP Digest or Basic).
 
 import { createServer } from 'node:net';
-import { createSocket } from 'node:dgram';
 import { randomBytes } from 'node:crypto';
 import { RtspSession } from './session.mjs';
 import { ClientConnection } from './client-connection.mjs';
 import { HttpTunnels } from './http-tunnel.mjs';
 import { createHttpAuth } from '../onvif/http-auth.mjs';
 import { parseStreamPath } from './stream-path.mjs';
+import { UdpPorts, trackPort } from './udp-ports.mjs';
 
+// The open sessions by id, each with a fresh random one.
 export class SessionRegistry {
   constructor(deps) {
     this.deps = deps;
@@ -38,63 +39,7 @@ export class SessionRegistry {
   }
 }
 
-// UDP ports are fixed per camera (cameras[].udpPort, config.mjs): video RTP/RTCP on udpPort and
-// udpPort + 1, sound on udpPort + 2 and + 3. Every viewer of a camera shares them (packets go to
-// each viewer's own ports), so a firewall needs exactly four ports per camera, known in advance.
-
-// Shared socket pairs, one per (local address, port), counted by the bindings that use them.
-export class UdpPorts {
-  constructor() {
-    this.pairs = new Map();   // "address port" -> Promise<{ rtp, rtcp, refs }>
-  }
-
-  // A lease of the pair on `port` (RTP) and port + 1 (RTCP). Throws if another program has them.
-  async lease(address, port) {
-    const key = `${address} ${port}`;
-    if (!this.pairs.has(key)) {
-      const opening = bindPair(address, port).then((p) => ({ ...p, refs: 0 }));
-      this.pairs.set(key, opening);
-      opening.catch(() => this.pairs.delete(key));
-    }
-    const pair = await this.pairs.get(key);
-    pair.refs++;
-    const listeners = [];
-    let closed = false;
-    return {
-      rtp: pair.rtp, rtcp: pair.rtcp, ports: [port, port + 1],
-      onRtcp: (fn) => { pair.rtcp.on('message', fn); listeners.push(fn); },
-      close: () => {
-        if (closed) return;
-        closed = true;
-        for (const fn of listeners) pair.rtcp.off('message', fn);
-        if (--pair.refs === 0) {
-          this.pairs.delete(key);
-          pair.rtp.close();
-          pair.rtcp.close();
-        }
-      },
-    };
-  }
-}
-
-async function bindPair(address, port) {
-  const bind = (p) => new Promise((resolve, reject) => {
-    const socket = createSocket(address?.includes(':') ? 'udp6' : 'udp4');
-    socket.once('error', reject);
-    socket.bind(p, address, () => {
-      socket.off('error', reject);
-      socket.on('error', () => {});
-      resolve(socket);
-    });
-  });
-  const rtp = await bind(port).catch((e) => { throw new Error(`UDP port ${port} is in use by another program (${e.code ?? e.message})`); });
-  try {
-    return { rtp, rtcp: await bind(port + 1) };
-  } catch (e) {
-    rtp.close();
-    throw new Error(`UDP port ${port + 1} is in use by another program (${e.code ?? e.message})`);
-  }
-}
+const isHttp = (firstBytes) => /^(GET|POST) /.test(firstBytes.subarray(0, 5).toString('latin1'));
 
 // hub: the StreamHub the publishers send into. credentials: { username, password } or null.
 // udpPortOf(cameraName): the camera's first UDP port, or null (then viewers are told to use TCP).
@@ -103,14 +48,14 @@ export function createRtspFront({ hub, credentials, log = () => {}, now = Date.n
   const auth = credentials ? createHttpAuth(credentials, { now }) : null;
   const sessions = new SessionRegistry({
     hub,
-    // video on the camera's first pair, sound on the second
     openUdp: async (address, { uri, media }) => {
       const camera = parseStreamPath(uri)?.name;
-      const base = udpPortOf(camera);
-      if (base == null) throw new Error(`no UDP ports set for "${camera}"`);
-      return udp.lease(address?.replace(/^::ffff:/, ''), base + (media === 'audio' ? 2 : 0));
+      const udpPort = udpPortOf(camera);
+      if (udpPort == null) throw new Error(`no UDP ports set for "${camera}"`);
+      return udp.lease(address?.replace(/^::ffff:/, ''), trackPort(udpPort, media));
     },
-    now, log,
+    now,
+    log,
   });
   const connectionFor = (peer) => new ClientConnection(peer, { sessions, auth, log });
   const tunnels = new HttpTunnels({ connectionFor, log });
@@ -121,8 +66,9 @@ export function createRtspFront({ hub, credentials, log = () => {}, now = Date.n
     socket.on('close', () => sockets.delete(socket));
     socket.setNoDelay(true);
     socket.on('error', () => {});
+    // RTSP and RTSP over HTTP share the port: the first bytes tell them apart.
     socket.once('data', (first) => {
-      if (/^(GET|POST) /.test(first.subarray(0, 5).toString('latin1'))) return tunnels.accept(socket, first);
+      if (isHttp(first)) return tunnels.accept(socket, first);
       const connection = connectionFor(socket);
       connection.push(first);
       socket.on('data', (chunk) => connection.push(chunk));

@@ -259,22 +259,6 @@ describe('the RTSP front', () => {
     post.destroy();
   });
 
-  test('a camera\'s UDP port pair is shared by all its viewers, and closed with the last one', async () => {
-    const { UdpPorts } = await import('../../src/rtsp/server.mjs');
-    const udp = new UdpPorts();
-    const [a, b] = await Promise.all([udp.lease('127.0.0.1', 42100), udp.lease('127.0.0.1', 42100)]);
-    assert.equal(a.rtp, b.rtp, 'the same socket: no new port per viewer');
-    assert.deepEqual(a.ports, [42100, 42101]);
-    a.close();
-    assert.equal(udp.pairs.size, 1, 'still in use by the other viewer');
-    b.close();
-    assert.equal(udp.pairs.size, 0);
-    const other = createSocket('udp4');
-    await new Promise((r) => other.bind(42102, '127.0.0.1', r));
-    await assert.rejects(udp.lease('127.0.0.1', 42102), /UDP port 42102 is in use by another program/);
-    other.close();
-  });
-
   test('a camera without UDP ports: viewers asking for UDP are told to use TCP (461)', async () => {
     const c = tcpClient();
     await login(c, URI.replace('garden', 'front-door'));
