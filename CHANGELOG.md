@@ -7,6 +7,38 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-08
+
+Logins get harder to break and easier to share: password guessing and browser attacks on the LAN are
+stopped, and clients such as the [Homebridge plugin](https://github.com/dbanky/homebridge-eufy-nvr-gateway)
+need only the stream login. **Check before updating:** without a web login, a reverse proxy name now
+needs `web.allowedHosts`; an NVR set up with a wrong password locks itself out for 5 minutes.
+
+### Security
+
+- **Password guessing is stopped.** 10 wrong logins from one address within 5 minutes, counted
+  together for the web page, RTSP and ONVIF, block that address's logins for 5 minutes. HTTP Basic
+  on the API had no limit at all before; only the sign-in page waited a second after a wrong
+  password. Requests without a login, expired Digest nonces and an NVR whose clock is off never
+  count, so a working NVR is never locked out (checked with the ONVIF client UniFi Protect uses).
+- **Websites can no longer use a browser against the gateway.** Browser requests from other sites
+  that change something (waking a camera, sending a 2FA code) are refused. Without a web login, the
+  page also answers only to IP addresses and local host names (new `web.allowedHosts` for others),
+  which stops DNS rebinding. Scripts, NVRs and the Homebridge plugin are not affected.
+- The web page can no longer be shown inside another site, and its answers forbid type sniffing.
+
+### Added
+
+- **The stream login opens the API's camera routes.** With a web login, clients that have the
+  stream login (`rtsp.username` / `rtsp.password`), such as NVRs and the
+  [Homebridge plugin](https://github.com/dbanky/homebridge-eufy-nvr-gateway), can read the camera
+  list, fetch snapshots, and wake a camera or let it sleep, as HTTP Basic. They no longer need the
+  web page's login, which keeps the eufy login, its 2FA and the device list to itself.
+- `model` for each camera in `/api/status` (from the eufy account, e.g. "SoloCam S340"), and
+  `gateway.streamLoginForApi`: whether the stream login opens the camera routes.
+- `video.transcode` in `/api/status`: whether a camera's stream is always converted to H.264, for
+  API clients such as a HomeKit plugin.
+
 ## [0.5.1] - 2026-11-03
 
 The changes of 0.5.1-beta.1 as a stable release: the live picture comes about 4 s sooner after a
