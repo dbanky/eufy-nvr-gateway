@@ -323,15 +323,27 @@ and the web page can use HTTPS:
 |---|---|---|
 | **Web page and API** (8099) | Anyone on the LAN | `web.username` / `web.password`: browsers get a sign-in page and a 30-day session; scripts send HTTP Basic (`curl -u admin:…`). Changing the password signs everybody out |
 | **HTTPS** for the web page | Plain HTTP | `"web.https": true`: the gateway makes a self-signed certificate once (in `/data/web/`; browsers warn about it the first time), or uses yours (`web.certFile`, `web.keyFile`). Plain `http://` on the same port redirects to `https://` |
-| **RTSP streams** (8554) and **ONVIF cameras** (8000) | Anyone on the LAN can watch and adopt them | `rtsp.username` / `rtsp.password`, one login for both: players and NVRs need `rtsp://user:password@host:8554/<name>`; ONVIF uses WS-UsernameToken, the snapshot HTTP Digest/Basic. |
+| **RTSP streams** (8554) and **ONVIF cameras** (8000) | Anyone on the LAN can watch and adopt them | `rtsp.username` / `rtsp.password`, one login for both: players and NVRs need `rtsp://user:password@host:8554/<name>`; ONVIF uses WS-UsernameToken, the snapshot HTTP Digest/Basic. The same login opens the API's camera routes (camera list, snapshots, wake/sleep) for clients such as the [Homebridge plugin](https://github.com/dbanky/homebridge-eufy-nvr-gateway), so they never need the web login, which keeps the eufy login, its 2FA and the device list. |
 
 Notes:
 
 - **One login for the streams**, because UniFi Protect opens the RTSP stream with the ONVIF login.
 - At startup the log either confirms *Every web page, API, stream and ONVIF camera asks for a login*
   or names what is still open, with the setting that closes it.
-- Always closed: the eufy bridge listens inside the container only (its raw camera streams would keep
-  cameras awake).
+- **Password guessing is stopped.** 10 wrong logins from one address within 5 minutes, on the web
+  page, RTSP or ONVIF together, and that address can't log in anywhere for 5 minutes, not even with
+  the right password (the log says so). A request without a login doesn't count: players and NVRs
+  ask without one first. An NVR set up with a wrong password locks itself out the same way; after
+  fixing its password, it gets in at most 5 minutes later.
+- **Websites can't use your browser against the gateway.** A browser request from another website
+  that changes something (wake a camera, send a 2FA code) is refused, signed in or not. Without a web
+  login the page also answers only to its IP address or a local name (`nas`, `nas.local`, …), so a
+  website can't point a host name of its own at it and read the API (DNS rebinding). Behind a
+  reverse proxy with its own name, set a web login, or list the name in `web.allowedHosts`.
+  Scripts, NVRs and the Homebridge plugin send no browser headers and are not affected.
+- Always closed: the eufy bridge listens on `127.0.0.1` only (its raw camera streams would keep
+  cameras awake). With host networking that is the NAS's own loopback: programs on the NAS itself
+  can reach it, nothing on the LAN.
 - `/api/health` stays open (it says `{ "ok": true }` and nothing else) for Docker's health check.
 - Keep the gateway on your LAN; never forward its ports to the internet. To reach it from outside,
   use a VPN.

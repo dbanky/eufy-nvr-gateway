@@ -17,33 +17,75 @@
 
 import { createServer } from 'node:http';
 import { serveStatic, sendJson, readJson, forward } from './http.mjs';
-import { signIn, signOut, refuse } from './signin-routes.mjs';
+import { signIn, signOut, refuse, tooManyLogins } from './signin-routes.mjs';
+import { noGuard } from '../../security/login-guard.mjs';
+import { crossSite, allowedHost, hostName } from '../../security/web-requests.mjs';
+
+// On every answer: the page may not be shown inside another site (so no one can trick a click on
+// its buttons), types are not guessed, and no address of it leaks to other sites.
+const SECURITY_HEADERS = [
+  ['x-frame-options', 'DENY'],
+  ['content-security-policy', "frame-ancestors 'none'"],
+  ['x-content-type-options', 'nosniff'],
+  ['referrer-policy', 'no-referrer'],
+];
 
 // cameras: [Camera]   bridge: BridgeClient   snapshot(camera) -> Promise<jpeg Buffer>
 // auth: createAuth(...) or null   gateway() -> { version, update }   onvif(name) -> ONVIF status or null
 // rtsp: { login } (whether one is required)   theme: 'auto' | 'light' | 'dark'
+// guard: the login guard shared with RTSP and ONVIF   allowedHosts: "web.allowedHosts" (see
+// security/web-requests.mjs; only used without a login)   log(...)
+// clientLogin: createClientLogin(the stream login) or null: with a web login, the stream login also
+// opens the client routes (clientRoute), so NVRs and Homebridge never need the web page's login.
 export const createWebServer = (options) => createServer(webHandler(options));
 
 export function webHandler({ cameras, bridge, rtspPort, snapshot, auth = null, gateway = () => ({}), onvif = () => null,
-  rtsp = { login: false }, theme = 'auto' }) {
+  rtsp = { login: false }, theme = 'auto', guard = noGuard, allowedHosts = [], log = () => {}, clientLogin = null }) {
   const byName = new Map(cameras.map((c) => [c.name, c]));
   const configured = new Set(cameras.map((c) => c.serial));
   const page = { theme };
 
+  const refusedHosts = new Set();   // logged once each
+
   return async (req, res) => {
+    for (const [name, value] of SECURITY_HEADERS) res.setHeader(name, value);
     const path = req.url.split('?')[0];
     const route = `${req.method} ${path}`;
     if (route === 'GET /api/health') return sendJson(res, 200, { ok: true });
+    if (!auth && !allowedHost(req.headers.host, allowedHosts)) {
+      const name = hostName(req.headers.host);
+      if (!refusedHosts.has(name)) {
+        refusedHosts.add(name);
+        log(`Security: refused web requests for "${name}": without a web login the page only answers to its IP address or a local name. Set "web.username"/"web.password", or add "${name}" to "web.allowedHosts".`);
+      }
+      return sendJson(res, 403, { error: `"${name}" is not an address of this gateway: set a web login, or add it to "web.allowedHosts"` });
+    }
+    if (crossSite(req)) return sendJson(res, 403, { error: 'refused: the request comes from another website' });
     if (route === 'GET /api/session') return sendJson(res, 200, { login: !!auth, signedIn: !auth || auth.allows(req) });
-    if (route === 'POST /api/signin') return signIn(req, res, auth);
+    if (route === 'POST /api/signin') return signIn(req, res, auth, guard);
     if (route === 'POST /api/signout') return signOut(res);
-    if (auth && !auth.allows(req)) return refuse(req, res, path, page);
+    if (auth) {
+      let how = auth.check(req);
+      if (how === 'wrong' && clientLogin?.matches(req)) {
+        // The right stream login: never a wrong password, but only for the client routes.
+        if (!clientRoute(req.method, path, byName)) {
+          return sendJson(res, 403, { error: 'the stream login can read the cameras, fetch snapshots and wake them; for this, use the web login' });
+        }
+        how = 'client';
+      }
+      if (how === 'login' || how === 'client' || how === 'wrong') {
+        const address = req.socket.remoteAddress;
+        if (guard.blocked(address)) return tooManyLogins(res, guard.retryAfterS(address));
+        if (how === 'wrong') guard.failed(address, 'web page (HTTP Basic)');
+      }
+      if (how !== 'session' && how !== 'login' && how !== 'client') return refuse(req, res, path, page);
+    }
 
     if (req.method === 'GET' && serveStatic(res, path, page)) return;
     if (route === 'GET /api/status' || route === 'GET /status') {
       return sendJson(res, 200, {
-        bridge: bridge.status(), rtspPort, rtsp, gateway: { ...gateway(), login: !!auth, theme },
-        cameras: cameras.map((c) => ({ ...c.status(), onvif: onvif(c.name) })),
+        bridge: bridge.status(), rtspPort, rtsp, gateway: { ...gateway(), login: !!auth, theme, streamLoginForApi: !!(auth && clientLogin) },
+        cameras: cameras.map((c) => ({ ...c.status(), model: modelOf(bridge.devices, c.serial), onvif: onvif(c.name) })),
       });
     }
     if (route === 'GET /api/devices') {
@@ -62,6 +104,22 @@ export function webHandler({ cameras, bridge, rtspPort, snapshot, auth = null, g
     sendJson(res, 404, { error: 'not found' });
   };
 }
+
+// What the stream login may do on the API: read the cameras (GET /api/status), fetch a snapshot, wake
+// a camera or let it sleep, in both URL forms. Not the eufy login, its 2FA, or the account's device
+// list. byName: the configured cameras by name.
+export function clientRoute(method, path, byName) {
+  if (method === 'GET' && (path === '/api/status' || path === '/status')) return true;
+  const [name, action, ...more] = cameraRoute(path);
+  if (more.length || !byName.has(name)) return false;
+  return (method === 'GET' && action === 'snapshot.jpg') || (method === 'POST' && (action === 'live' || action === 'idle'));
+}
+
+// The camera's model from the eufy account ("SoloCam S340"), or null while the device list is unknown.
+const modelOf = (devices, serial) => {
+  const device = devices.find((d) => d.serial === serial);
+  return device?.modelName || device?.model || null;
+};
 
 // "/api/cameras/garden/live" and "/garden/live" -> ["garden", "live"]
 export function cameraRoute(path) {

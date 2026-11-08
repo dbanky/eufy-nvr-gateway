@@ -3,14 +3,17 @@
 // media go to `peer` (the RTSP connection, or the tunnel's GET connection).
 //
 // The login is RTSP Digest (or Basic) with the RTSP/ONVIF login. OPTIONS is open; once a request on
-// a connection has logged in, the connection stays logged in.
+// a connection has logged in, the connection stays logged in. Wrong logins count towards the
+// gateway's login guard (security/login-guard.mjs); a blocked address gets 403 for any login.
 
 import { RtspReader, header, requestLine, response } from './messages.mjs';
+import { noGuard } from '../security/login-guard.mjs';
 
 export class ClientConnection {
-  // sessions: SessionRegistry   auth: { allows(req), challenges() } | null   log(...)
-  constructor(peer, { sessions, auth, log }) {
-    Object.assign(this, { peer, sessions, auth, log });
+  // sessions: SessionRegistry   auth: { check(req), challenges() } | null   log(...)
+  // guard: the login guard (createLoginGuard), shared with the web page and ONVIF
+  constructor(peer, { sessions, auth, log, guard = noGuard }) {
+    Object.assign(this, { peer, sessions, auth, log, guard });
     this.reader = new RtspReader();
     this.session = null;
     this.loggedIn = !auth;
@@ -36,7 +39,11 @@ export class ClientConnection {
     if (!line) return;   // a response from the client: nothing asks for one
     const cseq = header(message.headers, 'cseq');
     if (!this.loggedIn && line.method !== 'OPTIONS') {
-      if (!this.auth.allows({ method: line.method, headers: { authorization: header(message.headers, 'authorization') ?? '' } })) {
+      const verdict = this.auth.check({ method: line.method, headers: { authorization: header(message.headers, 'authorization') ?? '' } });
+      const address = this.peer.remoteAddress;
+      if (verdict !== 'none' && this.guard.blocked(address)) return this.peer.write(response(403, 'Forbidden', cseq));
+      if (verdict !== 'ok') {
+        if (verdict === 'wrong') this.guard.failed(address, 'RTSP');
         return this.peer.write(response(401, 'Unauthorized', cseq, this.auth.challenges().map((c) => ['WWW-Authenticate', c])));
       }
       this.loggedIn = true;

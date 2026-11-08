@@ -15,6 +15,7 @@ export function switcherConfig({ ports, timeZone, cameras, onvif = null, web = {
       login: web.login ?? null,
       theme: web.theme ?? 'auto',
       tls: web.https ? { cert: web.certFile ?? `${dataDir}/web/cert.pem`, key: web.keyFile ?? `${dataDir}/web/key.pem` } : null,
+      allowedHosts: web.allowedHosts ?? [],
     },
     rtsp: { login: !!rtsp.login },   // for the web page: never the password
     checkForUpdates,

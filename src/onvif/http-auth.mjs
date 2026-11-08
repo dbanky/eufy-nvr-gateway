@@ -18,29 +18,40 @@ export function createHttpAuth(credentials, { now = Date.now, secret = randomByt
     return !!signature && same(signature, sign(t)) && now() - t >= 0 && now() - t < NONCE_MS;
   };
 
-  function digestOk(header, method) {
+  // 'ok', 'wrong' (a wrong login), or 'stale' (a nonce from us that has expired: not a guess).
+  function digest(header, method) {
     const p = Object.fromEntries([...header.matchAll(/(\w+)=(?:"([^"]*)"|([^,\s]*))/g)].map((m) => [m[1], m[2] ?? m[3]]));
-    if (p.username !== credentials.username || p.realm !== REALM || !freshNonce(p.nonce) || !p.uri || !p.response) return false;
+    if (!p.uri || !p.response || p.realm !== REALM) return 'wrong';
+    if (!freshNonce(p.nonce)) return 'stale';
     const ha1 = md5(`${credentials.username}:${REALM}:${credentials.password}`);
     const ha2 = md5(`${method}:${p.uri}`);
     const expected = p.qop ? md5(`${ha1}:${p.nonce}:${p.nc}:${p.cnonce}:${p.qop}:${ha2}`) : md5(`${ha1}:${p.nonce}:${ha2}`);
-    return same(expected, p.response);
+    const user = same(p.username ?? '', credentials.username);
+    const pass = same(expected, p.response);   // both compared, whatever the first says
+    return user && pass ? 'ok' : 'wrong';
   }
 
-  function basicOk(value) {
+  function basic(value) {
     const decoded = Buffer.from(value, 'base64').toString('utf8');
     const colon = decoded.indexOf(':');
-    return colon > 0 && same(decoded.slice(0, colon), credentials.username) && same(decoded.slice(colon + 1), credentials.password);
+    if (colon <= 0) return 'wrong';
+    const user = same(decoded.slice(0, colon), credentials.username);
+    const pass = same(decoded.slice(colon + 1), credentials.password);
+    return user && pass ? 'ok' : 'wrong';
+  }
+
+  // 'ok' | 'none' (no login sent) | 'stale' (an expired nonce) | 'wrong' (a wrong login: counts as a guess)
+  function check(req) {
+    if (!credentials) return 'ok';
+    const header = req.headers.authorization ?? '';
+    if (/^Digest\s/i.test(header)) return digest(header.slice(7), req.method);
+    if (/^Basic\s/i.test(header)) return basic(header.slice(6).trim());
+    return 'none';
   }
 
   return {
-    allows(req) {
-      if (!credentials) return true;
-      const header = req.headers.authorization ?? '';
-      if (/^Digest\s/i.test(header)) return digestOk(header.slice(7), req.method);
-      if (/^Basic\s/i.test(header)) return basicOk(header.slice(6).trim());
-      return false;
-    },
+    check,
+    allows: (req) => check(req) === 'ok',
     // The challenges for a 401: Digest first (preferred), Basic as a fallback.
     // realm and nonce first, in that order: VLC (live555) reads the challenge with a fixed pattern,
     // `Digest realm="…", nonce="…"`, and keeps asking for the password if anything sits in between.

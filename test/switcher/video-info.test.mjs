@@ -7,7 +7,7 @@ const info = (cam) => videoInfo({ transcode: true, codec: null, streamCodec: 'h2
 
 describe('the web page says which codec the stream uses, and whether it is converted', () => {
   test('converting a camera whose format is not known yet', () => {
-    assert.deepEqual(info({}), { codec: 'h264', cameraCodec: null, converted: true, text: 'H.264 · converted' });
+    assert.deepEqual(info({}), { codec: 'h264', cameraCodec: null, converted: true, transcode: true, text: 'H.264 · converted' });
   });
 
   test('converting an H.265 camera to H.264', () => {
@@ -20,7 +20,7 @@ describe('the web page says which codec the stream uses, and whether it is conve
 
   test('passing the camera\'s own H.265 through', () => {
     assert.deepEqual(info({ transcode: false, codec: 'hevc', streamCodec: 'hevc' }),
-      { codec: 'hevc', cameraCodec: 'hevc', converted: false, text: 'H.265 · passed through, no conversion' });
+      { codec: 'hevc', cameraCodec: 'hevc', converted: false, transcode: false, text: 'H.265 · passed through, no conversion' });
   });
 
   test('conversion turned off, but the first session has not told the camera\'s format yet', () => {

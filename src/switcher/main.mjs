@@ -2,6 +2,7 @@
 // bridge connection for events, and the web page. Started by src/main.mjs with the generated
 // /data/switcher/config.json as its argument.
 
+import { createLoginGuard } from '../security/login-guard.mjs';
 import { readFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -14,7 +15,7 @@ import { createTimeFormat } from './time-format.mjs';
 import { loadInitialPicture } from './initial-picture.mjs';
 import { webHandler } from './web/server.mjs';
 import { listenWeb } from './web/listen.mjs';
-import { createAuth } from './web/auth.mjs';
+import { createAuth, createClientLogin } from './web/auth.mjs';
 import { createUpdateCheck } from './updates.mjs';
 import { encodeJpeg } from '../video/ffmpeg.mjs';
 import { startOnvif } from '../onvif/index.mjs';
@@ -41,7 +42,9 @@ updates.start();
 // The RTSP port NVRs connect to: the login, RTP over UDP or TCP, RTSP over HTTP and RTCP sender
 // reports (what ONVIF requires).
 const udpPortOf = (name) => cameras.find((c) => c.name === name)?.udpPort ?? null;
-const rtspFront = createRtspFront({ hub, credentials: config.onvif ?? null, log, udpPortOf });
+// One guard against password guessing for every login: web page, RTSP and ONVIF.
+const guard = createLoginGuard({ log });
+const rtspFront = createRtspFront({ hub, credentials: config.onvif ?? null, log, udpPortOf, guard });
 rtspFront.on('error', (e) => log(`RTSP port ${rtspPort}: ${e.message}`));
 rtspFront.listen(rtspPort, () => {
   log(`RTSP streams on :${rtspPort}${config.onvif ? ', login required' : ', no login'} (TCP, UDP, HTTP tunnel)`);
@@ -50,12 +53,13 @@ rtspFront.listen(rtspPort, () => {
 
 // ONVIF devices for cameras with an `onvif` section (NVRs such as UniFi Protect adopt only ONVIF).
 const onvifProblem = onvifNetworkProblem(cameras.filter((c) => c.onvif?.address).map((c) => c.onvif.address));   // bridge network
-const onvif = startOnvif({ cameras, credentials: config.onvif ?? null, rtspPort, version, snapshot, log });
+const onvif = startOnvif({ cameras, credentials: config.onvif ?? null, rtspPort, version, snapshot, log, guard });
 
 const webPort = config.webPort ?? 8099;
 const web = config.web ?? {};
 const auth = createAuth(web.login ?? null, { secure: !!web.tls });
 const handler = webHandler({ cameras, bridge, rtspPort, snapshot, auth, onvif, rtsp: config.rtsp, theme: web.theme,
+  guard, allowedHosts: web.allowedHosts ?? [], log, clientLogin: createClientLogin(config.onvif ?? null),
   gateway: () => ({ version, update: updates.status(), onvifProblem }) });
 listenWeb(handler, { port: webPort, tls: web.tls ?? null },
   () => log(`web page on ${web.tls ? 'https' : 'http'} :${webPort}${auth ? ', login required' : ', no login'}`));

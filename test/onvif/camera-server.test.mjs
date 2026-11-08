@@ -93,3 +93,38 @@ describe('an ONVIF camera endpoint', () => {
     assert.match(pulled, /IsMotion/);
   });
 });
+
+describe('guessing the ONVIF login', () => {
+  let guarded, url, guard;
+  before(async () => {
+    const { createLoginGuard } = await import('../../src/security/login-guard.mjs');
+    guard = createLoginGuard({ maxFailures: 3 });
+    guarded = createCameraServer({ camera: onvifCamera(), credentials, log: () => {}, guard, snapshot: async () => Buffer.from('jpeg') });
+    await new Promise((resolve) => guarded.listen(0, '127.0.0.1', resolve));
+    url = `http://127.0.0.1:${guarded.address().port}`;
+  });
+  after(() => guarded.close());
+  const ask = (path, body, header = '') => fetch(url + path, { method: 'POST', headers: { 'content-type': 'application/soap+xml' },
+    body: `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">${header}<s:Body>${body}</s:Body></s:Envelope>` });
+  const uri = '<GetStreamUri><ProfileToken>main</ProfileToken></GetStreamUri>';
+
+  test('requests without a login, and the pre-login operations, never count (how Protect starts)', async () => {
+    for (let i = 0; i < 5; i++) {
+      await ask('/onvif/media_service', uri);
+      await ask('/onvif/device_service', '<GetSystemDateAndTime/>');
+      await fetch(`${url}/onvif/snapshot.jpg`);
+    }
+    assert.equal(guard.blocked('127.0.0.1'), false);
+    assert.match(await (await ask('/onvif/media_service', uri, security())).text(), /rtsp:\/\//);
+  });
+
+  test('wrong passwords count; then even the right one is refused, but the time is still told', async () => {
+    for (let i = 0; i < 3; i++) await ask('/onvif/media_service', uri, security('guess'));
+    assert.equal(guard.blocked('127.0.0.1'), true);
+    const refused = await (await ask('/onvif/media_service', uri, security())).text();
+    assert.match(refused, /too many wrong logins/);
+    const snapshot = await fetch(`${url}/onvif/snapshot.jpg`, { headers: { authorization: 'Basic ' + Buffer.from('protect:secret').toString('base64') } });
+    assert.equal(snapshot.status, 403);
+    assert.match(await (await ask('/onvif/device_service', '<GetSystemDateAndTime/>')).text(), /GetSystemDateAndTimeResponse/);
+  });
+});

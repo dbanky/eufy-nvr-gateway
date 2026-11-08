@@ -42,7 +42,7 @@ describe('switcher', () => {
     const web = { login: { username: 'admin', password: 'secret' }, theme: 'light', https: true, certFile: null, keyFile: null };
     const config = switcherConfig({ ...settings, web, checkForUpdates: false }, '/data');
     assert.deepEqual(config.web, { login: { username: 'admin', password: 'secret' }, theme: 'light',
-      tls: { cert: '/data/web/cert.pem', key: '/data/web/key.pem' } });
+      tls: { cert: '/data/web/cert.pem', key: '/data/web/key.pem' }, allowedHosts: [] });
     assert.equal(config.checkForUpdates, false);
     assert.equal(switcherConfig(settings, '/data').web.tls, null);
     assert.equal(switcherConfig(settings, '/data').checkForUpdates, true);

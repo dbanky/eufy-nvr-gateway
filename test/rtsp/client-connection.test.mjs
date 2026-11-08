@@ -4,10 +4,11 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { ClientConnection } from '../../src/rtsp/client-connection.mjs';
 import { formatMessage, formatFrame } from '../../src/rtsp/messages.mjs';
+import { createLoginGuard } from '../../src/security/login-guard.mjs';
 
 // A login that accepts "Authorization: good".
 const auth = {
-  allows: (req) => req.headers.authorization === 'good',
+  check: (req) => (req.headers.authorization === 'good' ? 'ok' : req.headers.authorization === 'stale' ? 'stale' : req.headers.authorization ? 'wrong' : 'none'),
   challenges: () => ['Digest realm="x", nonce="n"', 'Basic realm="x"'],
 };
 
@@ -21,7 +22,7 @@ function fakeSession(id) {
   };
 }
 
-function setup({ withAuth = true } = {}) {
+function setup({ withAuth = true, guard } = {}) {
   const sessions = new Map();
   let n = 0;
   const registry = {
@@ -29,7 +30,7 @@ function setup({ withAuth = true } = {}) {
     get: (id) => sessions.get(id),
   };
   const peer = () => ({ written: [], destroyed: false, remoteAddress: '192.168.1.20', write(b) { this.written.push(b.toString()); }, destroy() { this.destroyed = true; } });
-  const connect = (p = peer()) => ({ peer: p, conn: new ClientConnection(p, { sessions: registry, auth: withAuth ? auth : null, log: () => {} }) });
+  const connect = (p = peer()) => ({ peer: p, conn: new ClientConnection(p, { sessions: registry, auth: withAuth ? auth : null, log: () => {}, guard }) });
   const ask = async ({ conn }, method, headers = []) => {
     conn.push(formatMessage({ startLine: `${method} rtsp://x/garden RTSP/1.0`, headers: [['CSeq', '1'], ...headers] }));
     await conn.queue;
@@ -130,4 +131,42 @@ test('bytes that aren\'t RTSP close the connection', () => {
   const c = connect();
   c.conn.push(Buffer.from('X'.repeat(70000)));
   assert.equal(c.peer.destroyed, true);
+});
+
+describe('guessing the RTSP login', () => {
+  const guarded = () => {
+    const guard = createLoginGuard({ maxFailures: 3 });
+    return { guard, ...setup({ guard }) };
+  };
+
+  test('wrong logins count; after too many, even the right login gets 403 from that address', async () => {
+    const { connect, ask, guard } = guarded();
+    for (let i = 0; i < 3; i++) await ask(connect(), 'DESCRIBE', [['Authorization', 'guess']]);
+    assert.equal(guard.blocked('192.168.1.20'), true);
+    const c = connect();
+    await ask(c, 'DESCRIBE', [['Authorization', 'good']]);
+    assert.match(last(c), /^RTSP\/1\.0 403 Forbidden/);
+  });
+
+  test('asking without a login (to get the challenge) and an expired nonce never count', async () => {
+    const { connect, ask, guard } = guarded();
+    for (let i = 0; i < 5; i++) {
+      await ask(connect(), 'DESCRIBE');
+      await ask(connect(), 'DESCRIBE', [['Authorization', 'stale']]);
+    }
+    assert.equal(guard.blocked('192.168.1.20'), false);
+    const c = connect();
+    await ask(c, 'DESCRIBE');
+    assert.match(last(c), /^RTSP\/1\.0 401 Unauthorized/);   // still challenged, not refused
+  });
+
+  test('another address is not affected', async () => {
+    const { connect, ask, guard, sessions } = guarded();
+    for (let i = 0; i < 3; i++) await ask(connect(), 'DESCRIBE', [['Authorization', 'guess']]);
+    const other = { written: [], remoteAddress: '192.168.1.30', write(b) { this.written.push(b.toString()); }, destroy() {} };
+    const c = connect(other);
+    await ask(c, 'DESCRIBE', [['Authorization', 'good']]);
+    assert.equal(guard.blocked('192.168.1.30'), false);
+    assert.deepEqual([...sessions.values()].at(-1).requests, ['DESCRIBE']);
+  });
 });

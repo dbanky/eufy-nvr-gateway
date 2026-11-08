@@ -1,5 +1,5 @@
 import { test, describe, before, after } from 'node:test';
-import { get } from 'node:http';
+import { get, request } from 'node:http';
 import assert from 'node:assert/strict';
 import { createWebServer, cameraRoute } from '../../../src/switcher/web/server.mjs';
 import { createAuth } from '../../../src/switcher/web/auth.mjs';
@@ -32,8 +32,8 @@ describe('the API', () => {
   test('status: the eufy login, the RTSP port, the gateway and every camera with its ONVIF side', async () => {
     const body = await (await fetch(`${base}/api/status`)).json();
     assert.deepEqual(body, { bridge: { connected: true, login: 'ok' }, rtspPort: 8554, rtsp: { login: false },
-      gateway: { version: '0.4.0', login: false, theme: 'auto' },
-      cameras: [{ name: 'garden', state: 'IDLE', onvif: { address: '192.168.1.51' } }] });
+      gateway: { version: '0.4.0', login: false, theme: 'auto', streamLoginForApi: false },
+      cameras: [{ name: 'garden', state: 'IDLE', model: null, onvif: { address: '192.168.1.51' } }] });
   });
 
   test('health: always open, for Docker\'s health check', async () => {
@@ -176,4 +176,164 @@ test('a theme set in config.json is written into the pages, which then show no s
 test('with HTTPS, the session cookie is never sent over plain HTTP', () => {
   assert.match(createAuth({ username: 'a', password: 'b' }, { secure: true }).sessionCookie(), /; Secure$/);
   assert.doesNotMatch(createAuth({ username: 'a', password: 'b' }).sessionCookie(), /Secure/);
+});
+
+// A request with any headers, Host included (fetch can't set Host).
+function raw(base, path, { method = 'GET', headers = {}, body } = {}) {
+  const { hostname, port } = new URL(base);
+  return new Promise((resolve, reject) => {
+    const req = request({ hostname, port, path, method, headers }, (res) => {
+      let text = '';
+      res.on('data', (c) => { text += c; });
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, text }));
+    });
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
+describe('security', () => {
+  const basic = (user, password) => `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`;
+  let open, openUrl, locked, lockedUrl, guard, logged;
+
+  before(async () => {
+    const { createLoginGuard } = await import('../../../src/security/login-guard.mjs');
+    guard = createLoginGuard({ maxFailures: 3 });
+    logged = [];
+    const common = { cameras: [garden], bridge, rtspPort: 8554, snapshot: async () => Buffer.from('jpeg'), log: (m) => logged.push(m) };
+    open = createWebServer({ ...common, allowedHosts: ['nvr.example.com'] });
+    locked = createWebServer({ ...common, auth: createAuth({ username: 'admin', password: 'secret' }), guard });
+    for (const s of [open, locked]) await new Promise((resolve) => s.listen(0, '127.0.0.1', resolve));
+    openUrl = `http://127.0.0.1:${open.address().port}`;
+    lockedUrl = `http://127.0.0.1:${locked.address().port}`;
+  });
+  after(() => { open.close(); locked.close(); });
+
+  test('with a login, every API route (discovery included) is refused without it, and nothing happens', async () => {
+    calls.length = 0;
+    const routes = [['GET', '/api/status'], ['GET', '/status'], ['GET', '/api/devices'], ['GET', '/api/cameras/garden/snapshot.jpg'],
+      ['GET', '/garden/snapshot.jpg'], ['POST', '/api/cameras/garden/live'], ['POST', '/api/cameras/garden/idle'], ['POST', '/garden/live'],
+      ['POST', '/api/login'], ['POST', '/api/login/retrigger'], ['GET', '/app.js'], ['GET', '/tiles.js']];
+    for (const [method, path] of routes) {
+      const res = await raw(lockedUrl, path, { method });
+      assert.equal(res.status, 401, `${method} ${path}`);
+    }
+    assert.equal((await raw(lockedUrl, '/')).status, 302);
+    assert.deepEqual(calls, []);
+  });
+
+  test('a browser POST from another website is refused, even when signed in; the page itself and scripts are not', async () => {
+    calls.length = 0;
+    const login = { authorization: basic('admin', 'secret') };
+    assert.equal((await raw(lockedUrl, '/api/cameras/garden/live', { method: 'POST', headers: { ...login, 'sec-fetch-site': 'cross-site' } })).status, 403);
+    assert.equal((await raw(openUrl, '/api/cameras/garden/live', { method: 'POST', headers: { origin: 'http://evil.example' } })).status, 403);
+    assert.equal((await raw(openUrl, '/api/login', { method: 'POST', headers: { origin: 'null' } })).status, 403);
+    assert.deepEqual(calls, []);
+
+    assert.equal((await raw(lockedUrl, '/api/cameras/garden/live', { method: 'POST', headers: { ...login, 'sec-fetch-site': 'same-origin' } })).status, 200);
+    assert.equal((await raw(lockedUrl, '/api/cameras/garden/live', { method: 'POST', headers: login })).status, 200);   // the Homebridge plugin, curl
+    const sameHost = new URL(openUrl).host;
+    assert.equal((await raw(openUrl, '/api/cameras/garden/live', { method: 'POST', headers: { origin: `http://${sameHost}` } })).status, 200);
+    assert.deepEqual(calls, [['trigger', 'manual'], ['trigger', 'manual'], ['trigger', 'manual']]);
+  });
+
+  test('without a login, only addresses and local names are answered (no DNS rebinding)', async () => {
+    for (const host of ['192.168.1.10:8099', '[fd00::10]:8099', 'nas.local:8099', 'diskstation:8099', 'gateway.home.arpa', 'nvr.example.com', 'localhost:8099']) {
+      assert.equal((await raw(openUrl, '/api/status', { headers: { host } })).status, 200, host);
+    }
+    const refused = await raw(openUrl, '/api/status', { headers: { host: 'rebind.attacker.example:8099' } });
+    assert.equal(refused.status, 403);
+    assert.match(refused.text, /web.allowedHosts/);
+    assert.equal((await raw(openUrl, '/api/health', { headers: { host: 'rebind.attacker.example' } })).status, 200);   // Docker's check
+    assert.equal(logged.filter((m) => m.includes('rebind.attacker.example')).length, 1);
+  });
+
+  test('with a login, any host name works (a reverse proxy, say): it can\'t sign in for a rebinding site', async () => {
+    assert.equal((await raw(lockedUrl, '/api/status', { headers: { host: 'nvr.mydomain.example', authorization: basic('admin', 'secret') } })).status, 200);
+  });
+
+  test('every answer forbids framing and type sniffing', async () => {
+    const res = await raw(openUrl, '/');
+    assert.equal(res.headers['x-frame-options'], 'DENY');
+    assert.equal(res.headers['content-security-policy'], "frame-ancestors 'none'");
+    assert.equal(res.headers['x-content-type-options'], 'nosniff');
+  });
+
+  test('guessing the login over HTTP Basic or the sign-in page gets the address blocked; a session keeps working', async () => {
+    const session = (await raw(lockedUrl, '/api/signin', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'secret' }) })).headers['set-cookie'][0].split(';')[0];
+    for (let i = 0; i < 2; i++) assert.equal((await raw(lockedUrl, '/api/status', { headers: { authorization: basic('admin', `guess${i}`) } })).status, 401);
+    assert.equal((await raw(lockedUrl, '/api/signin', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'guess' }) })).status, 401);
+    assert.equal(guard.blocked('127.0.0.1'), true);
+
+    const right = await raw(lockedUrl, '/api/status', { headers: { authorization: basic('admin', 'secret') } });
+    assert.equal(right.status, 429);
+    assert.ok(Number(right.headers['retry-after']) > 0);
+    assert.match((await raw(lockedUrl, '/api/signin', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'secret' }) })).text, /Too many wrong logins/);
+    assert.equal((await raw(lockedUrl, '/api/status', { headers: { cookie: session } })).status, 200);
+  });
+});
+
+describe('the stream login on the API (for NVRs and the Homebridge plugin)', () => {
+  const basic = (user, password) => `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`;
+  let server, url, guard;
+  before(async () => {
+    const { createLoginGuard } = await import('../../../src/security/login-guard.mjs');
+    const { createClientLogin } = await import('../../../src/switcher/web/auth.mjs');
+    guard = createLoginGuard({ maxFailures: 3 });
+    const devices = { ...bridge, devices: [{ serial: 'T81XXXXXXXXXXXXX', model: 'T8170', modelName: 'SoloCam S340' }] };
+    server = createWebServer({ cameras: [garden], bridge: devices, rtspPort: 8554, snapshot: async () => Buffer.from('jpeg'), guard,
+      auth: createAuth({ username: 'admin', password: 'secret' }), clientLogin: createClientLogin({ username: 'nvr', password: 'stream' }) });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    url = `http://127.0.0.1:${server.address().port}`;
+  });
+  after(() => server.close());
+  const stream = { authorization: basic('nvr', 'stream') };
+
+  test('reads the cameras (with their model), fetches snapshots, wakes a camera and lets it sleep', async () => {
+    calls.length = 0;
+    const status = await (await fetch(`${url}/api/status`, { headers: stream })).json();
+    assert.equal(status.cameras[0].model, 'SoloCam S340');
+    assert.equal(status.gateway.streamLoginForApi, true);
+    assert.equal((await fetch(`${url}/api/cameras/garden/snapshot.jpg`, { headers: stream })).status, 200);
+    assert.equal((await fetch(`${url}/garden/snapshot.jpg`, { headers: stream })).status, 200);
+    assert.equal((await fetch(`${url}/api/cameras/garden/live`, { method: 'POST', headers: stream })).status, 200);
+    assert.equal((await fetch(`${url}/api/cameras/garden/idle`, { method: 'POST', headers: stream })).status, 200);
+    assert.deepEqual(calls, [['trigger', 'manual'], ['stop', 'manual']]);
+  });
+
+  test('can\'t do what only the web login may: the eufy login, its 2FA, the device list, the page', async () => {
+    calls.length = 0;
+    for (const [method, path] of [['GET', '/api/devices'], ['POST', '/api/login'], ['POST', '/api/login/retrigger'], ['GET', '/app.js'], ['GET', '/api/cameras/shed/snapshot.jpg']]) {
+      const res = await fetch(`${url}${path}`, { method, headers: stream });
+      assert.equal(res.status, 403, `${method} ${path}`);
+      assert.match((await res.json()).error, /use the web login/);
+    }
+    assert.deepEqual(calls, []);
+    assert.equal(guard.blocked('127.0.0.1'), false);   // the right stream login is never a wrong password
+  });
+
+  test('the web login still opens everything', async () => {
+    assert.equal((await fetch(`${url}/api/devices`, { headers: { authorization: basic('admin', 'secret') } })).status, 200);
+  });
+
+  test('a wrong stream login counts as a wrong login', async () => {
+    for (let i = 0; i < 3; i++) assert.equal((await fetch(`${url}/api/status`, { headers: { authorization: basic('nvr', `guess${i}`) } })).status, 401);
+    assert.equal(guard.blocked('127.0.0.1'), true);
+    assert.equal((await fetch(`${url}/api/status`, { headers: stream })).status, 429);
+  });
+});
+
+test('the stream login opens only the client routes', async () => {
+  const { clientRoute } = await import('../../../src/switcher/web/server.mjs');
+  const byName = new Map([['garden', {}]]);
+  assert.equal(clientRoute('GET', '/api/status', byName), true);
+  assert.equal(clientRoute('GET', '/status', byName), true);
+  assert.equal(clientRoute('POST', '/api/cameras/garden/live', byName), true);
+  assert.equal(clientRoute('POST', '/garden/idle', byName), true);
+  assert.equal(clientRoute('GET', '/api/cameras/garden/snapshot.jpg', byName), true);
+  assert.equal(clientRoute('GET', '/api/cameras/garden/live', byName), false);
+  assert.equal(clientRoute('POST', '/api/cameras/garden/live/extra', byName), false);
+  assert.equal(clientRoute('POST', '/api/login', byName), false);
+  assert.equal(clientRoute('GET', '/api/devices', byName), false);
+  assert.equal(clientRoute('GET', '/api/cameras/shed/snapshot.jpg', byName), false);
 });

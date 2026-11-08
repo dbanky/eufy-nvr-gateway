@@ -37,14 +37,39 @@ export function createAuth(credentials, { now = Date.now, secure = false } = {})
       const expires = now() + MAX_AGE_S * 1000;
       return `${COOKIE}=${expires}.${sign(expires)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${MAX_AGE_S}${secure ? '; Secure' : ''}`;
     },
+    // How this request is signed in: 'session' (cookie), 'login' (the right HTTP Basic login),
+    // 'wrong' (a wrong one: counts as a guess) or 'none'.
+    check(req) {
+      if (validToken(cookies(req)[COOKIE])) return 'session';
+      const basic = /^Basic\s+(\S+)$/i.exec(req.headers.authorization ?? '');
+      if (!basic) return 'none';
+      const decoded = Buffer.from(basic[1], 'base64').toString('utf8');
+      const colon = decoded.indexOf(':');
+      return colon > 0 && matches(decoded.slice(0, colon), decoded.slice(colon + 1)) ? 'login' : 'wrong';
+    },
     // Is this request signed in (session cookie) or does it carry the login (HTTP Basic)?
     allows(req) {
-      if (validToken(cookies(req)[COOKIE])) return true;
+      const how = this.check(req);
+      return how === 'session' || how === 'login';
+    },
+  };
+}
+
+// The stream login ("rtsp" in config.json), which NVRs and the Homebridge plugin already have, as
+// HTTP Basic on the API. It may only do what such a client needs (server.mjs: clientRoute).
+// credentials: { username, password } or null (then null: no stream login).
+export function createClientLogin(credentials) {
+  if (!credentials) return null;
+  return {
+    matches(req) {
       const basic = /^Basic\s+(\S+)$/i.exec(req.headers.authorization ?? '');
       if (!basic) return false;
       const decoded = Buffer.from(basic[1], 'base64').toString('utf8');
       const colon = decoded.indexOf(':');
-      return colon > 0 && matches(decoded.slice(0, colon), decoded.slice(colon + 1));
+      if (colon <= 0) return false;
+      const user = same(decoded.slice(0, colon), credentials.username);
+      const pass = same(decoded.slice(colon + 1), credentials.password);   // both compared, whatever the first says
+      return user && pass;
     },
   };
 }

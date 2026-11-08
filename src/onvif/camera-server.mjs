@@ -5,7 +5,8 @@
 
 import { createServer } from 'node:http';
 import { operation, envelope, fault, isReceiverFault } from './xml.mjs';
-import { checkUsernameToken } from './auth.mjs';
+import { checkUsernameToken, hasUsernameToken, WRONG_LOGIN } from './auth.mjs';
+import { noGuard } from '../security/login-guard.mjs';
 import { deviceResponse } from './device.mjs';
 import { mediaResponse } from './media.mjs';
 import { media2Response } from './media2.mjs';
@@ -17,12 +18,22 @@ const OPEN = new Set(['GetSystemDateAndTime', 'GetCapabilities', 'GetServices', 
 
 // camera: { device, settings, model, events } (index.mjs)   credentials: { username, password } | null
 // snapshot() -> Promise<jpeg Buffer>   contact: filled with { at, from, op } of the last SOAP request
-export function createCameraServer({ camera, credentials, log, snapshot, contact = {}, now = Date.now }) {
+// guard: the login guard shared with the web page and RTSP (security/login-guard.mjs). Only wrong
+// passwords count, never a request without a login or a clock that is off, so a working NVR is
+// never locked out.
+export function createCameraServer({ camera, credentials, log, snapshot, contact = {}, now = Date.now, guard = noGuard }) {
   const { device, settings, events } = camera;
   const httpAuth = createHttpAuth(credentials, { now });
   const server = createServer(async (req, res) => {
+    const address = req.socket.remoteAddress;
     if (req.method === 'GET' && req.url.split('?')[0] === '/onvif/snapshot.jpg') {
-      if (httpAuth.allows(req)) return sendSnapshot(res, snapshot);
+      const verdict = httpAuth.check(req);
+      if (credentials && verdict !== 'none' && guard.blocked(address)) {
+        res.writeHead(403);
+        return res.end();
+      }
+      if (verdict === 'ok') return sendSnapshot(res, snapshot);
+      if (verdict === 'wrong') guard.failed(address, 'ONVIF snapshot');
       res.writeHead(401, { 'www-authenticate': httpAuth.challenges() });
       return res.end();
     }
@@ -39,9 +50,15 @@ export function createCameraServer({ camera, credentials, log, snapshot, contact
 
     // WS-UsernameToken (what ONVIF clients send), or HTTP Digest/Basic on the request. The token's
     // time is checked against the device's clock, which an NVR may have set.
-    if (!(path === '/onvif/device_service' && OPEN.has(op)) && !(req.headers.authorization && httpAuth.allows(req))) {
-      const problem = checkUsernameToken(xml, credentials, settings.clock());
+    if (credentials && !(path === '/onvif/device_service' && OPEN.has(op))) {
+      const http = req.headers.authorization ? httpAuth.check(req) : 'none';
+      if ((http !== 'none' || hasUsernameToken(xml)) && guard.blocked(address)) {
+        log(device.name, `ONVIF: ${op} refused: too many wrong logins from ${String(address).replace(/^::ffff:/, '')}`);
+        return sendFault('ter:NotAuthorized', 'Sender not authorized: too many wrong logins, try again later');
+      }
+      const problem = http === 'ok' ? null : checkUsernameToken(xml, credentials, settings.clock());
       if (problem) {
+        if (problem === WRONG_LOGIN || http === 'wrong') guard.failed(address, 'ONVIF');
         log(device.name, `ONVIF: ${op} refused: ${problem}`);
         return sendFault('ter:NotAuthorized', `Sender not authorized: ${problem}`);
       }

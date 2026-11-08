@@ -8,6 +8,7 @@ import { RtspSession } from './session.mjs';
 import { ClientConnection } from './client-connection.mjs';
 import { HttpTunnels } from './http-tunnel.mjs';
 import { createHttpAuth } from '../onvif/http-auth.mjs';
+import { noGuard } from '../security/login-guard.mjs';
 import { parseStreamPath } from './stream-path.mjs';
 import { UdpPorts, trackPort } from './udp-ports.mjs';
 
@@ -43,7 +44,8 @@ const isHttp = (firstBytes) => /^(GET|POST) /.test(firstBytes.subarray(0, 5).toS
 
 // hub: the StreamHub the publishers send into. credentials: { username, password } or null.
 // udpPortOf(cameraName): the camera's first UDP port, or null (then viewers are told to use TCP).
-export function createRtspFront({ hub, credentials, log = () => {}, now = Date.now, udpPortOf = () => null }) {
+// guard: the login guard shared with the web page and ONVIF (security/login-guard.mjs).
+export function createRtspFront({ hub, credentials, log = () => {}, now = Date.now, udpPortOf = () => null, guard = noGuard }) {
   const udp = new UdpPorts();
   const auth = credentials ? createHttpAuth(credentials, { now }) : null;
   const sessions = new SessionRegistry({
@@ -57,7 +59,7 @@ export function createRtspFront({ hub, credentials, log = () => {}, now = Date.n
     now,
     log,
   });
-  const connectionFor = (peer) => new ClientConnection(peer, { sessions, auth, log });
+  const connectionFor = (peer) => new ClientConnection(peer, { sessions, auth, log, guard });
   const tunnels = new HttpTunnels({ connectionFor, log });
 
   const sockets = new Set();

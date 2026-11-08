@@ -75,7 +75,8 @@ export function keepListening(server, device, log, retryMs = RETRY_MS) {
 
 // cameras: [Camera]; only those with an `onvif` section are published. snapshot(camera) -> jpeg.
 // Returns status(name) -> onvifStatus or null (camera not published).
-export function startOnvif({ cameras, credentials, rtspPort, version, snapshot, log }) {
+// guard: the login guard shared with the web page and RTSP (security/login-guard.mjs).
+export function startOnvif({ cameras, credentials, rtspPort, version, snapshot, log, guard }) {
   const published = cameras.filter((c) => c.onvif?.address);
   if (!published.length) return () => null;
   if (!credentials) log('ONVIF: no "rtsp.username"/"rtsp.password" in config.json: anyone on the LAN can use the ONVIF cameras');
@@ -84,7 +85,7 @@ export function startOnvif({ cameras, credentials, rtspPort, version, snapshot, 
     const events = new MotionEvents({ baseUrl: baseUrl(device), log: (...m) => log(camera.name, ...m) });
     const contact = {};
     const onvifCamera = { device, events, settings: new DeviceSettings(device), model: new MediaModel(device) };
-    const server = createCameraServer({ camera: onvifCamera, credentials, log, contact, snapshot: () => snapshot(camera) });
+    const server = createCameraServer({ camera: onvifCamera, credentials, log, contact, guard, snapshot: () => snapshot(camera) });
     const listening = keepListening(server, device, (...m) => log(camera.name, ...m));
     // motion = the camera is waking up or live
     setInterval(() => events.setMotion(camera.state !== 'IDLE'), 500).unref();

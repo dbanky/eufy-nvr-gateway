@@ -56,13 +56,19 @@ test('a camera\'s "audio" is true or false, also through "defaults"', () => {
 
 describe('the web page', () => {
   test('defaults: no login, the theme follows the system, plain HTTP', () => {
-    assert.deepEqual(resolveSettings({}, login).web, { login: null, theme: 'auto', https: false, certFile: null, keyFile: null });
+    assert.deepEqual(resolveSettings({}, login).web, { login: null, theme: 'auto', https: false, certFile: null, keyFile: null, allowedHosts: [] });
   });
 
   test('the login is optional; when set, both username and password', () => {
     assert.deepEqual(resolveSettings({ web: { username: 'admin', password: 'secret' } }, login).web.login, { username: 'admin', password: 'secret' });
     assert.throws(() => resolveSettings({ web: { username: 'admin' } }, login), /"web.password" is missing/);
     assert.throws(() => resolveSettings({ web: { password: 'secret' } }, login), /"web.username" is missing/);
+  });
+
+  test('host names for the page without a login can be listed', () => {
+    assert.deepEqual(resolveSettings({ web: { allowedHosts: ['nvr.example.com', '*.example.org'] } }, login).web.allowedHosts, ['nvr.example.com', '*.example.org']);
+    assert.throws(() => resolveSettings({ web: { allowedHosts: 'nvr.example.com' } }, login), /"web.allowedHosts" must be a list/);
+    assert.throws(() => resolveSettings({ web: { allowedHosts: [''] } }, login), /"web.allowedHosts" must be a list/);
   });
 
   test('the theme can be fixed to light or dark', () => {
@@ -73,7 +79,7 @@ describe('the web page', () => {
   test('HTTPS is optional, with an own certificate or a generated one', () => {
     assert.equal(resolveSettings({ web: { https: true } }, login).web.https, true);
     assert.deepEqual(resolveSettings({ web: { https: true, certFile: '/data/c.pem', keyFile: '/data/k.pem' } }, login).web,
-      { login: null, theme: 'auto', https: true, certFile: '/data/c.pem', keyFile: '/data/k.pem' });
+      { login: null, theme: 'auto', https: true, certFile: '/data/c.pem', keyFile: '/data/k.pem', allowedHosts: [] });
     assert.throws(() => resolveSettings({ web: { https: 'yes' } }, login), /"web.https" must be true or false/);
     assert.throws(() => resolveSettings({ web: { https: true, certFile: '/data/c.pem' } }, login), /go together/);
   });

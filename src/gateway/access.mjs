@@ -9,12 +9,17 @@ export function webSettings(web = {}) {
   if (!THEMES.includes(theme)) throw new Error(`"web.theme" must be ${THEMES.map((t) => `"${t}"`).join(', ')}`);
   if (web.https != null && typeof web.https !== 'boolean') throw new Error('"web.https" must be true or false');
   if (!web.certFile !== !web.keyFile) throw new Error('"web.certFile" and "web.keyFile" go together (your own HTTPS certificate and its key)');
+  const allowedHosts = web.allowedHosts ?? [];
+  if (!Array.isArray(allowedHosts) || allowedHosts.some((h) => typeof h !== 'string' || !h.trim())) {
+    throw new Error('"web.allowedHosts" must be a list of host names, e.g. ["nvr.example.com", "*.example.com"]');
+  }
   return {
     login: login(web, 'web', 'the login for the web page'),
     theme,
     https: web.https === true,
     certFile: web.certFile ?? null,
     keyFile: web.keyFile ?? null,
+    allowedHosts,   // without a login: host names besides addresses and local names (security/web-requests.mjs)
   };
 }
 

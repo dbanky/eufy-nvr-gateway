@@ -36,6 +36,7 @@ Environment variables win over `config.json`.
 | `web.username`, `web.password` | — | A login for the web page and API (both or neither). Browsers get a sign-in page and a 30-day session cookie; scripts and NVRs send HTTP Basic. Changing the password ends every session. Without it, anyone on the LAN can use the page |
 | `web.theme` | `"auto"` | `"auto"`: the system's light or dark setting, with a switch in the header (remembered per browser). `"light"` or `"dark"`: always that, no switch |
 | `web.https` | `false` | `true`: the page and API over HTTPS on the same port; plain `http://` redirects to `https://`, and the session cookie is never sent unencrypted |
+| `web.allowedHosts` | `[]` | Only matters without a web login: host names the page answers to besides IP addresses and local names (`nas`, `*.local`, `*.lan`, `*.home.arpa`, …), e.g. `["nvr.example.com"]` or `["*.example.com"]` behind a reverse proxy. Other names get 403, against DNS rebinding (see [Security](../README.md#security)) |
 | `web.certFile`, `web.keyFile` | — | Your own certificate and key (PEM, paths inside the container, e.g. `/data/web/my-cert.pem`). Without them, `https` makes a self-signed certificate once (`/data/web/cert.pem`, `key.pem`, valid 10 years, for the host's name and addresses); browsers warn about it the first time |
 
 ```json
@@ -46,7 +47,7 @@ Environment variables win over `config.json`.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `rtsp.username`, `rtsp.password` | — | The login for the streams (both or neither): RTSP (`rtsp://user:password@host:8554/<name>`) and the ONVIF cameras. The gateway's own publishing inside the container needs none |
+| `rtsp.username`, `rtsp.password` | — | The login for the streams (both or neither): RTSP (`rtsp://user:password@host:8554/<name>`) and the ONVIF cameras. With a web login, it also opens the API's camera routes as HTTP Basic: the camera list (`GET /api/status`), snapshots, and waking a camera or letting it sleep (`POST /api/cameras/<name>/live`, `…/idle`), so NVRs and the Homebridge plugin never need the web login. The eufy login, its 2FA and the device list stay with the web login. The gateway's own publishing inside the container needs none |
 
 **One login for RTSP and ONVIF.** An NVR that adopts an ONVIF camera (UniFi Protect) opens its
 RTSP stream with the ONVIF login, so the two can't differ: `rtsp.username` / `rtsp.password` is
@@ -57,6 +58,9 @@ both.
 At every start the log says either *Every web page, API, stream and ONVIF camera asks for a login*,
 or names each open part with the setting that closes it, e.g.
 `Open to anyone on your LAN: RTSP streams without login (set "rtsp.username" / "rtsp.password")`.
+
+Whatever is set, too many wrong logins from one address block its logins for 5 minutes, and browser
+requests from other websites are refused; see [Security](../README.md#security).
 
 ## Cameras
 
