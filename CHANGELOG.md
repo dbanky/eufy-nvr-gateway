@@ -23,7 +23,7 @@ its exact tag, `0.7.0-beta.1`; `latest` stays 0.6.0.
 
 - **The waking picture says who asked for it.** Every wake-up that wasn't an eufy event said
   *Requested on the web page*, also one from HomeKit's live view. It now says *Live view in HomeKit*
-  (the Homebridge plugin says so, from 0.4.0-alpha.3), *Requested on the web page* (from a browser)
+  (the Homebridge plugin says so, from 0.4.0-beta.1), *Requested on the web page* (from a browser)
   or *Requested over the API* (any other program). The log names it too.
 
 ## [0.7.0-alpha.2] - 2026-11-09
