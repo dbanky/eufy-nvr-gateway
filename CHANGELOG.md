@@ -7,6 +7,24 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.7.0-alpha.1] - 2026-11-09
+
+A pre-release for testing: switching a camera's eufy mode over the API (and from HomeKit with the
+[Homebridge plugin](https://github.com/dbanky/homebridge-eufy-nvr-gateway) 0.4.0-alpha.1). Not yet
+tried on real cameras: please report how switching modes works on yours. Update by its exact tag,
+`0.7.0-alpha.1`; `latest` stays 0.6.0.
+
+### Added
+
+- **Switch a camera's eufy mode** (Home, Away, Disarmed, Schedule, Custom 1–3, Off, Geofencing)
+  over the API: `GET` / `POST /api/cameras/<name>/eufy-mode`, through the bundled eufy SDK, as the
+  eufy app would. The mode belongs to the camera's station, so a camera behind a HomeBase or chime
+  shares it. The gateway only switches it; what each mode does stays set in the eufy app. The stream
+  login may use it, so the [Homebridge plugin](https://github.com/dbanky/homebridge-eufy-nvr-gateway)
+  can switch it from HomeKit. `/api/status` and the camera details on the web page show it, and a
+  mode switched in the eufy app shows up too.
+- The bundled bridge reports each device's station (a one-line patch, `patches/bridge-station.patch`).
+
 ## [0.6.0] - 2026-11-08
 
 Logins get harder to break and easier to share: password guessing and browser attacks on the LAN are
