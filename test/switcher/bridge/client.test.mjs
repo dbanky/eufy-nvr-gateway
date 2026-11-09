@@ -49,7 +49,8 @@ describe('offline', () => {
   });
 });
 
-test('device records are reduced to what the web page shows', () => {
+test('device records are reduced to what the gateway uses', () => {
   const raw = { sn: 'T81XXXXXXXXXXXXX', name: 'Garden', model: 'T8170', modelName: 'SoloCam S340', decodedState: { battery: { level: 77 } } };
-  assert.deepEqual(toDevice(raw), { serial: 'T81XXXXXXXXXXXXX', name: 'Garden', model: 'T8170', modelName: 'SoloCam S340', battery: 77, error: undefined });
+  assert.deepEqual(toDevice(raw), { serial: 'T81XXXXXXXXXXXXX', name: 'Garden', model: 'T8170', modelName: 'SoloCam S340', battery: 77, error: undefined,
+    station: 'T81XXXXXXXXXXXXX', arming: false, eufyMode: null });   // a bridge without the station patch: its own station
 });

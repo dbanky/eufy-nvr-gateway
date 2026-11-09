@@ -33,7 +33,7 @@ describe('the API', () => {
     const body = await (await fetch(`${base}/api/status`)).json();
     assert.deepEqual(body, { bridge: { connected: true, login: 'ok' }, rtspPort: 8554, rtsp: { login: false },
       gateway: { version: '0.4.0', login: false, theme: 'auto', streamLoginForApi: false },
-      cameras: [{ name: 'garden', state: 'IDLE', model: null, onvif: { address: '192.168.1.51' } }] });
+      cameras: [{ name: 'garden', state: 'IDLE', model: null, onvif: { address: '192.168.1.51' }, eufyMode: null }] });
   });
 
   test('health: always open, for Docker\'s health check', async () => {
@@ -331,9 +331,68 @@ test('the stream login opens only the client routes', async () => {
   assert.equal(clientRoute('POST', '/api/cameras/garden/live', byName), true);
   assert.equal(clientRoute('POST', '/garden/idle', byName), true);
   assert.equal(clientRoute('GET', '/api/cameras/garden/snapshot.jpg', byName), true);
+  assert.equal(clientRoute('GET', '/api/cameras/garden/eufy-mode', byName), true);
+  assert.equal(clientRoute('POST', '/garden/eufy-mode', byName), true);
   assert.equal(clientRoute('GET', '/api/cameras/garden/live', byName), false);
   assert.equal(clientRoute('POST', '/api/cameras/garden/live/extra', byName), false);
   assert.equal(clientRoute('POST', '/api/login', byName), false);
   assert.equal(clientRoute('GET', '/api/devices', byName), false);
   assert.equal(clientRoute('GET', '/api/cameras/shed/snapshot.jpg', byName), false);
+});
+
+describe('a camera\'s eufy mode (Home, Away, Disarmed, …)', () => {
+  const basic = (user, password) => `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`;
+  let server, url, sent, answer;
+  const stations = {
+    ...bridge,
+    devices: [
+      { serial: 'T81XXXXXXXXXXXXX', name: 'Garden', station: 'T81XXXXXXXXXXXXX', arming: true, eufyMode: 'home' },
+    ],
+    request: async (message) => { sent.push(message); return answer; },
+    refreshDevices: () => {},
+  };
+  before(async () => {
+    const { createClientLogin } = await import('../../../src/switcher/web/auth.mjs');
+    server = createWebServer({ cameras: [garden], bridge: stations, rtspPort: 8554, snapshot: async () => Buffer.from('jpeg'),
+      auth: createAuth({ username: 'admin', password: 'secret' }), clientLogin: createClientLogin({ username: 'nvr', password: 'stream' }) });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    url = `http://127.0.0.1:${server.address().port}`;
+  });
+  after(() => server.close());
+  const stream = { authorization: basic('nvr', 'stream') };
+  const set = (mode) => fetch(`${url}/api/cameras/garden/eufy-mode`, { method: 'POST', headers: stream, body: JSON.stringify({ mode }) });
+
+  test('is read with the stream login, and shown in the status', async () => {
+    const mode = await (await fetch(`${url}/api/cameras/garden/eufy-mode`, { headers: stream })).json();
+    assert.equal(mode.mode, 'home');
+    assert.equal(mode.label, 'Home');
+    assert.deepEqual(mode.station, { serial: 'T81XXXXXXXXXXXXX', name: 'Garden' });
+    assert.equal(mode.shared, false);
+    assert.ok(mode.modes.includes('disarmed'));
+    const status = await (await fetch(`${url}/api/status`, { headers: stream })).json();
+    assert.equal(status.cameras[0].eufyMode.mode, 'home');
+  });
+
+  test('is switched through the SDK, on the camera\'s station', async () => {
+    sent = []; answer = { ok: true };
+    const res = await set('disarmed');
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).mode, 'disarmed');
+    assert.deepEqual(sent, [{ cmd: 'device.set', sn: 'T81XXXXXXXXXXXXX', name: 'armingMode', value: 'disarmed' }]);
+  });
+
+  test('an unknown mode is refused before eufy is asked', async () => {
+    sent = [];
+    const res = await set('party');
+    assert.equal(res.status, 400);
+    assert.match((await res.json()).error, /must be one of "away", "home"/);
+    assert.deepEqual(sent, []);
+  });
+
+  test('says when eufy refuses', async () => {
+    answer = { ok: false, error: 'station offline' };
+    const res = await set('away');
+    assert.equal(res.status, 502);
+    assert.equal((await res.json()).error, 'garden: station offline');
+  });
 });

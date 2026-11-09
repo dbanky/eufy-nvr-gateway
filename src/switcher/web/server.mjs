@@ -13,6 +13,8 @@
 //   GET  /api/cameras/<name>/snapshot.jpg   what the stream shows right now
 //   POST /api/cameras/<name>/live           wake the camera
 //   POST /api/cameras/<name>/idle           end the live session
+//   GET  /api/cameras/<name>/eufy-mode      its eufy mode (Home, Away, Disarmed, …) and station
+//   POST /api/cameras/<name>/eufy-mode      { "mode": "home" } switches it (eufy-mode.mjs)
 // The camera routes also answer without the /api/cameras prefix, and /status without /api (older URLs).
 
 import { createServer } from 'node:http';
@@ -20,6 +22,7 @@ import { serveStatic, sendJson, readJson, forward } from './http.mjs';
 import { signIn, signOut, refuse, tooManyLogins } from './signin-routes.mjs';
 import { noGuard } from '../../security/login-guard.mjs';
 import { crossSite, allowedHost, hostName } from '../../security/web-requests.mjs';
+import { eufyModeOf, setEufyMode, EUFY_MODE_NAMES } from '../eufy-mode.mjs';
 
 // On every answer: the page may not be shown inside another site (so no one can trick a click on
 // its buttons), types are not guessed, and no address of it leaks to other sites.
@@ -85,7 +88,9 @@ export function webHandler({ cameras, bridge, rtspPort, snapshot, auth = null, g
     if (route === 'GET /api/status' || route === 'GET /status') {
       return sendJson(res, 200, {
         bridge: bridge.status(), rtspPort, rtsp, gateway: { ...gateway(), login: !!auth, theme, streamLoginForApi: !!(auth && clientLogin) },
-        cameras: cameras.map((c) => ({ ...c.status(), model: modelOf(bridge.devices, c.serial), onvif: onvif(c.name) })),
+        cameras: cameras.map((c) => ({
+          ...c.status(), model: modelOf(bridge.devices, c.serial), onvif: onvif(c.name), eufyMode: eufyModeOf(c.serial, bridge.devices),
+        })),
       });
     }
     if (route === 'GET /api/devices') {
@@ -100,19 +105,20 @@ export function webHandler({ cameras, bridge, rtspPort, snapshot, auth = null, g
 
     const [name, action] = cameraRoute(path);
     const camera = byName.get(name);
-    if (camera) return cameraAction(req, res, camera, action, snapshot);
+    if (camera) return cameraAction(req, res, camera, action, { snapshot, bridge, log });
     sendJson(res, 404, { error: 'not found' });
   };
 }
 
 // What the stream login may do on the API: read the cameras (GET /api/status), fetch a snapshot, wake
-// a camera or let it sleep, in both URL forms. Not the eufy login, its 2FA, or the account's device
+// a camera or let it sleep, read or switch its eufy mode (so HomeKit can), in both URL forms. Not the eufy login, its 2FA, or the account's device
 // list. byName: the configured cameras by name.
 export function clientRoute(method, path, byName) {
   if (method === 'GET' && (path === '/api/status' || path === '/status')) return true;
   const [name, action, ...more] = cameraRoute(path);
   if (more.length || !byName.has(name)) return false;
-  return (method === 'GET' && action === 'snapshot.jpg') || (method === 'POST' && (action === 'live' || action === 'idle'));
+  return (method === 'GET' && action === 'snapshot.jpg') || (method === 'POST' && (action === 'live' || action === 'idle'))
+    || ((method === 'GET' || method === 'POST') && action === 'eufy-mode');
 }
 
 // The camera's model from the eufy account ("SoloCam S340"), or null while the device list is unknown.
@@ -130,7 +136,21 @@ export function cameraRoute(path) {
 const loginMessage = (body) => (body.captcha ? { cmd: 'auth.submit', captcha: String(body.captcha) }
   : body.code ? { cmd: 'auth.submit', code: String(body.code) } : null);
 
-async function cameraAction(req, res, camera, action, snapshot) {
+async function cameraAction(req, res, camera, action, { snapshot, bridge, log }) {
+  // The camera's eufy mode (eufy-mode.mjs): read it, or switch it with { "mode": "home" }.
+  if (action === 'eufy-mode' && req.method === 'GET') {
+    return sendJson(res, 200, { ...(eufyModeOf(camera.serial, bridge.devices) ?? { mode: null }), modes: EUFY_MODE_NAMES });
+  }
+  if (action === 'eufy-mode' && req.method === 'POST') {
+    const { mode } = await readJson(req);
+    try {
+      await setEufyMode({ bridge, serial: camera.serial, mode, log, name: camera.name });
+    } catch (e) {
+      const unknownMode = !EUFY_MODE_NAMES.includes(mode);
+      return sendJson(res, unknownMode ? 400 : 502, { error: `${camera.name}: ${e.message}` });
+    }
+    return sendJson(res, 200, { ...eufyModeOf(camera.serial, bridge.devices), modes: EUFY_MODE_NAMES });
+  }
   if (req.method === 'GET' && action === 'snapshot.jpg') {
     try {
       const jpg = await snapshot(camera);

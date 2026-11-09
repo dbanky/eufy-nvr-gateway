@@ -23,10 +23,11 @@ ARG BRIDGE_COMMIT=6b3ccbc09293da019e6f91db516856644501dbd2
 
 RUN apk add --no-cache ffmpeg tzdata curl git openssl
 
-# eufy bridge, with one addition: /audio/<serial>, the live audio of a camera that is streaming
-COPY patches/bridge-live-audio.patch /tmp/
+# eufy bridge, with two additions: /audio/<serial>, the live audio of a camera that is streaming,
+# and each device's station in the device list (whose guard mode applies to it)
+COPY patches/bridge-live-audio.patch patches/bridge-station.patch /tmp/
 RUN git clone "$BRIDGE_REPO" /opt/bridge && cd /opt/bridge && git checkout "$BRIDGE_COMMIT" \
- && git apply /tmp/bridge-live-audio.patch && rm /tmp/bridge-live-audio.patch \
+ && git apply /tmp/bridge-live-audio.patch /tmp/bridge-station.patch && rm /tmp/bridge-*.patch \
  && npm ci --omit=dev --no-audit --no-fund && rm -rf .git test docs
 
 # This project

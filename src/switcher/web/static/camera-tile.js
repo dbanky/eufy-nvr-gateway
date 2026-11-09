@@ -67,6 +67,7 @@ export function tileDetailsHtml(camera, where) {
   <dl>
     <dt>RTSP</dt>${rtspHtml(camera, where)}
     <dt>Video</dt><dd>${esc(camera.video?.text ?? '')}</dd>
+    ${eufyModeRow(camera.eufyMode)}
     <dt>Audio</dt><dd>${camera.audio ? `${esc(camera.audio)}<span class="sub">The camera's sound while live, silence while it sleeps</span>`
       : 'Off<span class="sub"><code>"audio": true</code> adds the camera\'s sound</span>'}</dd>
     <dt>Size</dt><dd>${esc(w)} × ${esc(h)}</dd>
@@ -82,4 +83,11 @@ function rtspHtml(camera, where) {
   return `<dd><div class="copy-row"><input readonly value="${esc(url)}" aria-label="RTSP address of ${esc(camera.name)}">`
     + `<button type="button" class="icon-button" data-copy="${esc(url)}" aria-label="Copy the RTSP address">${icon('copy')}</button></div>`
     + `<span class="sub">${rtsp.login ? 'Login required (rtsp.username / rtsp.password)' : 'No login: anyone on the LAN can watch'}</span></dd>`;
+}
+
+// The camera's eufy mode (its station's guard mode), switched in the eufy app or over the API.
+function eufyModeRow(eufyMode) {
+  if (!eufyMode?.mode) return '';
+  const where = eufyMode.shared ? `<span class="sub">Set on ${esc(eufyMode.station.name ?? eufyMode.station.serial)}, for every device on it</span>` : '';
+  return `<dt>eufy mode</dt><dd>${esc(eufyMode.label ?? eufyMode.mode)}${where}</dd>`;
 }

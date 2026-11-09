@@ -1,0 +1,12 @@
+--- a/src/device-view.mjs
++++ b/src/device-view.mjs
+@@ -27,6 +27,9 @@
+       name: m.name, // owner's device name (e.g. "Dining room"), from device_name
+       model: m.model || m.modelName, // T-code (e.g. "T8410"); product name as fallback
+       modelName: m.modelName, // product display name (e.g. "Indoor Cam Pan & Tilt")
++      // The station whose guard mode (eufy "mode": Home, Away, Disarmed, …) applies to this device: its
++      // HomeBase, or the device itself when it has none. Lets a host find which device to switch.
++      station: dev.stationSn,
+       codec: m.codec,
+       capabilities: m.capabilities,
+       state: propertyState(dev), // live property values ({ battery: 74, motion: false, … })

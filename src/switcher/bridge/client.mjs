@@ -3,16 +3,21 @@
 //
 // Events:  'device-event' { serial, event, message }   'devices' [device]
 
+import { eufyModeName } from '../eufy-mode.mjs';
 import { EventEmitter } from 'node:events';
 import { BridgeSocket } from './socket.mjs';
 
 export const OFFLINE_AFTER_MS = 30000;   // logged out or disconnected this long counts as offline
 
-// The bridge's device record, reduced to what the web page shows.
+// The bridge's device record, reduced to what the gateway uses. station: the device whose eufy mode
+// applies to this one (its HomeBase or chime, or itself); arming: it has eufy modes (a station);
+// eufyMode: its current one (eufy-mode.mjs).
 export function toDevice(d) {
   return {
     serial: d.sn, name: d.name, model: d.model, modelName: d.modelName,
     battery: d.decodedState?.battery?.level ?? null, error: d.error,
+    station: d.station ?? d.sn, arming: (d.capabilities ?? []).includes('arming'),
+    eufyMode: eufyModeName(d.state?.armingMode),
   };
 }
 

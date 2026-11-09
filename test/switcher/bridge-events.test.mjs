@@ -37,3 +37,14 @@ test('battery levels and models are kept up to date', () => {
   assert.equal(garden.model, 'T8170');
   assert.equal(garden.battery, 41);
 });
+
+test('a station reporting a new eufy mode makes the gateway read the device list again', async () => {
+  const { EventEmitter } = await import('node:events');
+  const { connectBridgeEvents } = await import('../../src/switcher/bridge-events.mjs');
+  const bridge = new EventEmitter();
+  let refreshed = 0;
+  bridge.refreshDevices = () => { refreshed++; };
+  connectBridgeEvents(bridge, [], () => {});
+  bridge.emit('device-event', { serial: 'CHIME', event: 'armingModeChanged', message: {} });   // a chime: no camera
+  assert.equal(refreshed, 1);
+});

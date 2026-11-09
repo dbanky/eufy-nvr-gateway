@@ -4,6 +4,9 @@ export function connectBridgeEvents(bridge, cameras, log) {
   const bySerial = new Map(cameras.map((c) => [c.serial, c]));
 
   bridge.on('device-event', ({ serial, event, message }) => {
+    // A station switched its eufy mode (from here, the eufy app or its schedule): read the list again,
+    // for every station, also a HomeBase or chime that is no camera.
+    if (event === 'armingModeChanged') return bridge.refreshDevices();
     const camera = bySerial.get(serial);
     if (!camera) return;
     if (event === 'batteryLevel') camera.battery = Number(message.to);

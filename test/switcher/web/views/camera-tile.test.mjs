@@ -103,3 +103,11 @@ describe('the RTSP line', () => {
     assert.match(tileDetailsHtml(camera(), { ...where, rtsp: { login: false } }), /No login: anyone on the LAN can watch/);
   });
 });
+
+test('the details show the camera\'s eufy mode, and where it is set when shared', () => {
+  const own = tileDetailsHtml(camera({ eufyMode: { mode: 'home', label: 'Home', station: { serial: 'G', name: 'Garden' }, shared: false } }), where);
+  assert.match(own, /<dt>eufy mode<\/dt><dd>Home<\/dd>/);
+  const shared = tileDetailsHtml(camera({ eufyMode: { mode: 'disarmed', label: 'Disarmed', station: { serial: 'C', name: 'Chime' }, shared: true } }), where);
+  assert.match(shared, /Disarmed<span class="sub">Set on Chime, for every device on it<\/span>/);
+  assert.doesNotMatch(tileDetailsHtml(camera({ eufyMode: null }), where), /eufy mode/);
+});
