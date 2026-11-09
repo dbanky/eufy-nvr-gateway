@@ -11,11 +11,16 @@ export const OFFLINE_AFTER_MS = 30000;   // logged out or disconnected this long
 
 // The bridge's device record, reduced to what the gateway uses. station: the device whose Eufy mode
 // applies to this one (its HomeBase or chime, or itself); arming: it has Eufy modes (a station);
-// eufyMode: its current one (eufy-mode.mjs).
+// eufyMode: its current one (eufy-mode.mjs). charging: the battery is charging (a cable or a solar
+// panel, as the eufy app decodes it); solar: a solar panel gets light right now. Both null when the
+// device doesn't report them.
 export function toDevice(d) {
+  const battery = d.decodedState?.battery ?? {};
   return {
     serial: d.sn, name: d.name, model: d.model, modelName: d.modelName,
-    battery: d.decodedState?.battery?.level ?? null, error: d.error,
+    battery: battery.level ?? null, error: d.error,
+    charging: typeof battery.charging === 'boolean' ? battery.charging : null,
+    solar: Number.isFinite(battery.solarIntensity) ? battery.solarIntensity > 0 : null,
     station: d.station ?? d.sn, arming: (d.capabilities ?? []).includes('arming'),
     eufyMode: eufyModeName(d.state?.armingMode),
   };

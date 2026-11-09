@@ -38,6 +38,19 @@ test('battery levels and models are kept up to date', () => {
   assert.equal(garden.battery, 41);
 });
 
+test('charging follows the device list and the camera\'s own announcements', () => {
+  const { bridge, garden } = setup();
+  bridge.emit('devices', [{ serial: 'T81XXXXXXXXXXXXX', battery: 41, charging: false, solar: false }]);
+  assert.equal(garden.charging, false);
+  bridge.emit('device-event', { serial: 'T81XXXXXXXXXXXXX', event: 'propertyChanged', message: { property: 'charging', value: true } });
+  assert.equal(garden.charging, true);
+  bridge.emit('device-event', { serial: 'T81XXXXXXXXXXXXX', event: 'propertyChanged', message: { property: 'solarIntensity', value: 40 } });
+  assert.equal(garden.solar, true);
+  bridge.emit('device-event', { serial: 'T81XXXXXXXXXXXXX', event: 'propertyChanged', message: { property: 'motionDetection', value: true } });
+  bridge.emit('devices', [{ serial: 'T81XXXXXXXXXXXXX', battery: 42, charging: null, solar: null }]);
+  assert.deepEqual([garden.charging, garden.solar], [true, true], 'a list without them keeps what is known');
+});
+
 test('a station reporting a new Eufy mode makes the gateway read the device list again', async () => {
   const { EventEmitter } = await import('node:events');
   const { connectBridgeEvents } = await import('../../src/switcher/bridge-events.mjs');

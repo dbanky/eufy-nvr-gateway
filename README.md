@@ -70,7 +70,7 @@ flowchart LR
   a CPU core and ~0.1–0.6 Mbit/s per camera.
 - **Clear states on the stream.** Sleeping, waking up, low battery, didn't wake up, offline: each
   has its own icon and a short label, readable even in a small NVR tile. Live video stays clean.
-- **Web page** for the eufy login (2FA code / captcha), each camera's state, battery, stream and
+- **Web page** for the eufy login (2FA code / captcha), each camera's state, battery (and whether it charges), stream and
   ONVIF details (address, login, whether an NVR is connected), *Wake up* / *Stop*, and the
   devices on your account. Light or dark, and it tells you when a newer version is out.
 - **Locked down if you want it.** Optional logins for the web page and for the streams (RTSP and
@@ -430,7 +430,7 @@ one; the ONVIF and UDP ports are set per camera (`onvif.port`, `udpPort`).
 
 | Request | What |
 |---|---|
-| `GET /api/status` | The eufy login state, the gateway's version and whether a newer one is out, and every camera's state (`IDLE` / `WAKING` / `LIVE`), battery, last seen, its video (codec, converted or passed through) and its ONVIF side |
+| `GET /api/status` | The eufy login state, the gateway's version and whether a newer one is out, and every camera's state (`IDLE` / `WAKING` / `LIVE`), battery, whether it charges (`charging`; `solar`: its solar panel gets light), last seen, its video (codec, converted or passed through) and its ONVIF side |
 | `GET /api/health` | `{ "ok": true }`; always open (Docker's health check) |
 | `GET /api/devices` | Devices on the eufy account, with serial numbers |
 | `GET /api/cameras/<name>/snapshot.jpg` | What the stream shows right now |

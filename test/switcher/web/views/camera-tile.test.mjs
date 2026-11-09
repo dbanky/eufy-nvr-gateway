@@ -76,6 +76,14 @@ describe('the status line under the picture', () => {
     assert.match(tileStatusHtml(camera({ battery: 12 })), /battery low/);
   });
 
+  test('says when the battery charges, from the sun or otherwise', () => {
+    assert.doesNotMatch(tileStatusHtml(camera()), /charging/);
+    assert.match(tileStatusHtml(camera({ charging: true })), /title="battery, charging"/);
+    assert.match(tileStatusHtml(camera({ charging: true, solar: true })), /charging from the sun/);
+    assert.match(tileStatusHtml(camera({ battery: 12, charging: true })), /title="battery low, charging"/);
+    assert.doesNotMatch(tileStatusHtml(camera({ charging: false, solar: true })), /charging/, 'light on the panel alone is not charging');
+  });
+
   test('a camera without a battery reading shows none', () => {
     assert.doesNotMatch(tileStatusHtml(camera({ battery: null })), /%/);
   });

@@ -7,6 +7,14 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Added
+
+- **Charging.** A battery that charges, from a cable or a solar panel (as the eufy app decides it),
+  shows a bolt next to its level on the web page, or a sun while the solar panel gets light. The API's
+  camera status says so too (`charging`, `solar`), and the
+  [Homebridge plugin](https://github.com/dbanky/homebridge-eufy-nvr-gateway) shows *Charging* in the
+  Home app. A plug or panel change shows at once; cameras that don't report it show nothing.
+
 ## [0.7.0-beta.1] - 2026-11-09
 
 The first beta of 0.7.0, with the

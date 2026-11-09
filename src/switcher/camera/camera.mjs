@@ -42,7 +42,7 @@ export class Camera {
     this.lastDetectionAt = 0;         // the camera's (or the web page's) last trigger
     this.thumbnail = null;            // the previous keyframe's thumbnail this session (picture-motion.mjs)
     this.movingSince = 0;             // when movement in the picture first kept this session live
-    this.battery = null; this.model = null;
+    this.battery = null; this.charging = null; this.solar = null; this.model = null;
     this.liveFeed = null;
     this.liveMode = null;             // 'transcode' | 'passthrough' for the current session
     this.closeWhenShown = null;       // a pass-through feed kept on air until the sleeping loop is ready
@@ -138,6 +138,7 @@ export class Camera {
     const { kind, title, detail } = this.view();
     return {
       name: this.name, serial: this.serial, state: this.state, battery: this.battery,
+      charging: this.charging, solar: this.solar,
       resolution: `${this.width}x${this.height}`, rtsp: `/${this.name}`,
       display: { kind, title, detail },
       video: videoInfo({ transcode: this.transcode, codec: this.codec, streamCodec: this.deps.feed.codec }),

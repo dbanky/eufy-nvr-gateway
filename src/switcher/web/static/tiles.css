@@ -54,6 +54,7 @@
 .battery { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); font-size: 13px;
   font-variant-numeric: tabular-nums; white-space: nowrap; }
 .battery.low { color: var(--lowbattery); }
+.battery.charging svg + svg { color: var(--ok); width: 14px; height: 14px; margin-left: -3px; }
 .tile-status .action { flex: none; }
 
 .tile-details { border-top: 1px solid var(--line); }

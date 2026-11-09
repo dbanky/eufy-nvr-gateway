@@ -51,14 +51,19 @@ export function tileStatusHtml(camera) {
     : `<button type="button" class="action primary" data-act="live">Wake up</button>`;
   return `<span class="capsule ${esc(kind)}"><span class="chip">${icon(kind)}</span>`
     + `<span class="capsule-text"><strong>${esc(title)}</strong><span>${esc(detail)}</span></span></span>`
-    + batteryHtml(camera.battery) + action;
+    + batteryHtml(camera) + action;
 }
 
-function batteryHtml(battery) {
+// The battery level; while it charges, a bolt (a cable, or a solar panel with no light on it) or a sun
+// (the solar panel in light) next to it.
+function batteryHtml({ battery, charging, solar }) {
   if (battery == null) return '';
   const low = battery < LOW_BATTERY;
-  return `<span class="battery${low ? ' low' : ''}" title="${low ? 'battery low' : 'battery'}">`
-    + `${icon('battery')}${battery} %${low ? '<span class="visually-hidden"> battery low</span>' : ''}</span>`;
+  const how = charging ? (solar ? 'charging from the sun' : 'charging') : '';
+  const title = [low ? 'battery low' : 'battery', how].filter(Boolean).join(', ');
+  return `<span class="battery${low ? ' low' : ''}${how ? ' charging' : ''}" title="${title}">`
+    + `${icon('battery')}${battery} %${how ? icon(solar ? 'sun' : 'charging') : ''}`
+    + `<span class="visually-hidden">${low ? ' battery low' : ''}${how ? `, ${how}` : ''}</span></span>`;
 }
 
 export function tileDetailsHtml(camera, where) {
