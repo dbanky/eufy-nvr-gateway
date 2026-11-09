@@ -7,6 +7,25 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.7.0-beta.1] - 2026-11-09
+
+The first beta of 0.7.0, with the
+[Homebridge plugin](https://github.com/dbanky/homebridge-eufy-nvr-gateway) 0.4.0-beta.1: switching a
+camera's Eufy mode (since 0.7.0-alpha.1), *Disarmed* on the picture, and the changes below. Update by
+its exact tag, `0.7.0-beta.1`; `latest` stays 0.6.0.
+
+### Changed
+
+- **Disarmed says since when**, like Sleeping: *Disarmed · since 18:33* (or *since yesterday 22:10*),
+  instead of what still wakes the camera. The time is kept across restarts.
+
+### Fixed
+
+- **The waking picture says who asked for it.** Every wake-up that wasn't an eufy event said
+  *Requested on the web page*, also one from HomeKit's live view. It now says *Live view in HomeKit*
+  (the Homebridge plugin says so, from 0.4.0-alpha.3), *Requested on the web page* (from a browser)
+  or *Requested over the API* (any other program). The log names it too.
+
 ## [0.7.0-alpha.2] - 2026-11-09
 
 A pre-release for testing, with the
