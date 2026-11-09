@@ -7,6 +7,12 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.7.0-beta.2] - 2026-11-09
+
+The second beta of 0.7.0, with the
+[Homebridge plugin](https://github.com/dbanky/homebridge-eufy-nvr-gateway) 0.4.0-beta.3: charging
+shown on the web page and in HomeKit. Update by its exact tag, `0.7.0-beta.2`; `latest` stays 0.6.0.
+
 ### Added
 
 - **Charging.** A battery that charges, from a cable or a solar panel (as the eufy app decides it),
