@@ -76,13 +76,17 @@ describe('re-rendering', () => {
 });
 
 describe('a camera whose Eufy mode is Disarmed', () => {
-  test('says Disarmed, not Sleeping, and what still wakes it', () => {
-    assert.deepEqual(label({ eufyMode: 'disarmed' }), { kind: 'disarmed', title: 'Disarmed', detail: 'Wakes only for live view' });
-    assert.equal(label({ eufyMode: 'disarmed', model: 'T8222' }).detail, 'Wakes for the doorbell and live view');
+  test('says Disarmed, not Sleeping, and since when, as sleeping does', () => {
+    assert.deepEqual(label({ eufyMode: 'disarmed', eufyModeSince: at('19:05') }), { kind: 'disarmed', title: 'Disarmed', detail: 'since 19:05' });
+    assert.equal(label({ eufyMode: 'disarmed', eufyModeSince: at('19:05') - 24 * 3600e3 }).detail, 'since yesterday 19:05');
   });
 
   test('eufy\'s Off mode is not armed either', () => {
-    assert.deepEqual(label({ eufyMode: 'off' }), { kind: 'disarmed', title: 'Eufy mode Off', detail: 'Wakes only for live view' });
+    assert.deepEqual(label({ eufyMode: 'off', eufyModeSince: at('07:30') }), { kind: 'disarmed', title: 'Eufy mode Off', detail: 'since 07:30' });
+  });
+
+  test('without a known time, it says only that it is the Eufy mode', () => {
+    assert.equal(label({ eufyMode: 'disarmed' }).detail, 'Eufy mode');
   });
 
   test('armed modes still sleep as before', () => {
@@ -94,5 +98,15 @@ describe('a camera whose Eufy mode is Disarmed', () => {
     assert.equal(label({ eufyMode: 'disarmed', state: 'LIVE', deadline: at('20:01') }).kind, 'live');
     assert.equal(label({ eufyMode: 'disarmed', state: 'WAKING', wakeReason: 'manual', wakeAt: at('19:59') }).kind, 'waking');
     assert.equal(label({ eufyMode: 'disarmed' }, 'connection').kind, 'offline');
+  });
+});
+
+describe('a wake-up someone asked for says who asked', () => {
+  const waking = (wakeBy) => label({ state: 'WAKING', wakeReason: 'manual', wakeBy, wakeAt: at('19:40') }).detail;
+  test('HomeKit\'s live view, the web page, or another program over the API', () => {
+    assert.equal(waking('homekit'), 'Live view in HomeKit · 19:40');
+    assert.equal(waking('web'), 'Requested on the web page · 19:40');
+    assert.equal(waking('api'), 'Requested over the API · 19:40');
+    assert.equal(waking(null), 'Requested over the API · 19:40');
   });
 });

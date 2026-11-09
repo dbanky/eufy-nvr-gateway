@@ -61,3 +61,13 @@ test('the device list gives each camera its Eufy mode, also one set on its chime
   ]);
   assert.deepEqual([garden.eufyMode, door.eufyMode, shed.eufyMode], ['disarmed', 'home', null]);
 });
+
+test('cameras note their Eufy mode through noteEufyMode, which keeps since when', () => {
+  const bridge = new EventEmitter();
+  bridge.refreshDevices = () => {};
+  const noted = [];
+  const garden = { serial: 'GARDEN', noteEufyMode: (mode) => noted.push(mode) };
+  connectBridgeEvents(bridge, [garden], () => {});
+  bridge.emit('devices', [{ serial: 'GARDEN', station: 'GARDEN', arming: true, eufyMode: 'disarmed' }]);
+  assert.deepEqual(noted, ['disarmed']);
+});

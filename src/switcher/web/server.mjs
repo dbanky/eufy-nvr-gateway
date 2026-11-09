@@ -145,7 +145,8 @@ async function cameraAction(req, res, camera, action, { snapshot, bridge, log })
     const { mode } = await readJson(req);
     try {
       await setEufyMode({ bridge, serial: camera.serial, mode, log, name: camera.name });
-      camera.eufyMode = mode;   // its picture follows at once (Disarmed instead of Sleeping)
+      if (camera.noteEufyMode) camera.noteEufyMode(mode);   // its picture follows at once (Disarmed · since …)
+      else camera.eufyMode = mode;
       camera.refresh?.();
     } catch (e) {
       const unknownMode = !EUFY_MODE_NAMES.includes(mode);
@@ -163,7 +164,11 @@ async function cameraAction(req, res, camera, action, { snapshot, bridge, log })
     }
   }
   if (req.method === 'POST' && action === 'live') {
-    camera.trigger('manual');
+    // Who asks, for the waking label: the Homebridge plugin says so; a browser (it always sends
+    // Sec-Fetch-Site; scripts and Node's fetch don't) is the web page; anything else the API.
+    const { by } = await readJson(req);
+    const asker = by === 'homekit' ? 'homekit' : req.headers['sec-fetch-site'] ? 'web' : 'api';
+    camera.trigger('manual', asker);
     return sendJson(res, 200, camera.status());
   }
   if (req.method === 'POST' && action === 'idle') {

@@ -38,7 +38,7 @@ export class Camera {
     this.codec = null;                // what the camera sends: 'h264' | 'hevc', once learned
     this.lastLiveAt = 0;
     this.deadline = 0; this.sessionStart = 0; this.liveStart = 0; this.lastStop = 0; this.reconnects = 0;
-    this.wakeReason = null; this.wakeAt = 0; this.failedAt = 0;
+    this.wakeReason = null; this.wakeBy = null; this.wakeAt = 0; this.failedAt = 0;
     this.lastDetectionAt = 0;         // the camera's (or the web page's) last trigger
     this.thumbnail = null;            // the previous keyframe's thumbnail this session (picture-motion.mjs)
     this.movingSince = 0;             // when movement in the picture first kept this session live
@@ -64,20 +64,23 @@ export class Camera {
     return showCurrentState(this);
   }
 
-  trigger(kind) {
+  // kind: a bridge event (motion, doorbellPress, …) or "manual"; by: who asked for a manual wake-up
+  // ("homekit", "web" or "api"), for its waking label.
+  trigger(kind, by = null) {
     const now = this.deps.now();
     const decision = decideTrigger(this, kind, now);
-    if (decision.action === 'ignore') return this.deps.log(this.name, `${kind}: ignored, ${decision.reason}`);
+    const what = by ? `${kind} (${by})` : kind;
+    if (decision.action === 'ignore') return this.deps.log(this.name, `${what}: ignored, ${decision.reason}`);
     this.deadline = decision.holdUntil;
     this.lastDetectionAt = now;
-    if (decision.action === 'extend') return this.deps.log(this.name, `${kind}: extended until ${this.deps.time.hms(this.deadline)}`);
+    if (decision.action === 'extend') return this.deps.log(this.name, `${what}: extended until ${this.deps.time.hms(this.deadline)}`);
 
     this.closeWhenShown?.stop();         // the previous session's feed, if still on air
     this.closeWhenShown = null;
-    Object.assign(this, { state: 'WAKING', sessionStart: now, liveStart: 0, reconnects: 0, wakeReason: kind, wakeAt: now, thumbnail: null, movingSince: 0 });
+    Object.assign(this, { state: 'WAKING', sessionStart: now, liveStart: 0, reconnects: 0, wakeReason: kind, wakeBy: by, wakeAt: now, thumbnail: null, movingSince: 0 });
     this.liveMode = chooseLiveMode(this);
     const how = this.liveMode === 'passthrough' ? `${this.codec} pass-through` : 'converting';
-    this.deps.log(this.name, `${kind}: waking camera (${how}, hold until ${this.deps.time.hms(this.deadline)})`);
+    this.deps.log(this.name, `${what}: waking camera (${how}, hold until ${this.deps.time.hms(this.deadline)})`);
     this.refresh();
     openLiveFeed(this);
     // Sound from the start: whatever the camera hears while it wakes is on the stream too, before

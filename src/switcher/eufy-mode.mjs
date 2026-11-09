@@ -3,6 +3,9 @@
 // camera behind a HomeBase or a doorbell chime shares that station's mode. The gateway only switches
 // it: what each mode does (which triggers record, notify, …) is set in the eufy app, as always.
 
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 // The SDK's names for eufy's modes, by the number a station reports.
 export const EUFY_MODES = { 0: 'away', 1: 'home', 2: 'schedule', 3: 'custom1', 4: 'custom2', 5: 'custom3', 6: 'off', 47: 'geo', 63: 'disarmed' };
 export const EUFY_MODE_NAMES = Object.values(EUFY_MODES);
@@ -49,4 +52,40 @@ export async function setEufyMode({ bridge, serial, mode, log = () => {}, name =
   station.eufyMode = mode;   // shown at once; the stations' own report follows
   for (const ms of [5000, 20000]) schedule(() => bridge.refreshDevices(), ms);
   return station;
+}
+
+// Since when a camera has been in its Eufy mode, kept per camera in dataDir (eufy-mode-<name>.json),
+// so "Disarmed · since 18:33" survives restarts like the sleeping picture's time does.
+const memoryFile = (dataDir, cam) => join(dataDir, `eufy-mode-${cam.name}.json`);
+
+export function eufyModeMemory(dataDir) {
+  return {
+    load(cam) {
+      try {
+        const saved = JSON.parse(readFileSync(memoryFile(dataDir, cam), 'utf8'));
+        return EUFY_MODE_NAMES.includes(saved.mode) && Number.isFinite(saved.since) ? saved : null;
+      } catch {
+        return null;
+      }
+    },
+    save(cam, record) {
+      try { writeFileSync(memoryFile(dataDir, cam), JSON.stringify(record)); } catch { /* only the time is lost */ }
+    },
+  };
+}
+
+// A camera's Eufy mode, as just read or set. Keeps cam.eufyMode and cam.eufyModeSince (when it went
+// into it): a change takes `now`; the first reading after a start takes the saved time when the
+// saved mode is the same one (otherwise it changed while the gateway was down: from now on).
+export function noteEufyMode(cam, mode, { now = Date.now(), memory = null } = {}) {
+  if (cam.eufyModeSince && mode === cam.eufyMode) return false;
+  let since = now;
+  if (cam.eufyMode === undefined) {
+    const saved = memory?.load(cam);
+    if (saved && saved.mode === mode) since = saved.since;
+  }
+  cam.eufyMode = mode;
+  cam.eufyModeSince = mode ? since : null;
+  if (mode) memory?.save(cam, { mode, since });
+  return true;
 }

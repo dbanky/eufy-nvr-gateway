@@ -1,6 +1,9 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { eufyModeName, eufyModeLabel, stationFor, eufyModeOf, setEufyMode } from '../../src/switcher/eufy-mode.mjs';
+import { eufyModeName, eufyModeLabel, stationFor, eufyModeOf, setEufyMode, noteEufyMode, eufyModeMemory } from '../../src/switcher/eufy-mode.mjs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { toDevice } from '../../src/switcher/bridge/client.mjs';
 
 // A standalone camera (its own station), and a doorbell behind its chime.
@@ -56,4 +59,47 @@ test('the device list says each device\'s station, whether it has modes, and its
     { serial: 'GARDEN', name: 'Garden', model: undefined, modelName: undefined, battery: null, error: undefined, station: 'GARDEN', arming: true, eufyMode: 'disarmed' });
   const attached = toDevice({ sn: 'DOOR', station: 'CHIME', capabilities: ['camera'], state: {} });
   assert.deepEqual([attached.station, attached.arming, attached.eufyMode], ['CHIME', false, null]);
+});
+
+describe('since when a camera is in its Eufy mode', () => {
+  const memory = () => eufyModeMemory(mkdtempSync(join(tmpdir(), 'eufy-mode-')));
+
+  test('a change takes the time it was seen, and is kept', () => {
+    const m = memory();
+    const cam = { name: 'lingonberry', eufyMode: 'away', eufyModeSince: 1000 };
+    assert.equal(noteEufyMode(cam, 'disarmed', { now: 5000, memory: m }), true);
+    assert.deepEqual([cam.eufyMode, cam.eufyModeSince], ['disarmed', 5000]);
+    assert.deepEqual(m.load(cam), { mode: 'disarmed', since: 5000 });
+  });
+
+  test('the same mode again changes nothing', () => {
+    const cam = { name: 'lingonberry', eufyMode: 'disarmed', eufyModeSince: 5000 };
+    assert.equal(noteEufyMode(cam, 'disarmed', { now: 9000 }), false);
+    assert.equal(cam.eufyModeSince, 5000);
+  });
+
+  test('after a restart, the saved time stays when the mode is still the same', () => {
+    const m = memory();
+    m.save({ name: 'lingonberry' }, { mode: 'disarmed', since: 5000 });
+    const restarted = { name: 'lingonberry' };   // eufyMode not read yet
+    noteEufyMode(restarted, 'disarmed', { now: 90000, memory: m });
+    assert.equal(restarted.eufyModeSince, 5000);
+  });
+
+  test('after a restart, a mode changed meanwhile counts from when it is first seen', () => {
+    const m = memory();
+    m.save({ name: 'lingonberry' }, { mode: 'away', since: 5000 });
+    const restarted = { name: 'lingonberry' };
+    noteEufyMode(restarted, 'disarmed', { now: 90000, memory: m });
+    assert.equal(restarted.eufyModeSince, 90000);
+  });
+
+  test('an unknown mode has no time, and a damaged file is ignored', () => {
+    const cam = { name: 'lingonberry', eufyMode: 'home', eufyModeSince: 5000 };
+    noteEufyMode(cam, null, { now: 9000 });
+    assert.deepEqual([cam.eufyMode, cam.eufyModeSince], [null, null]);
+    const dir = mkdtempSync(join(tmpdir(), 'eufy-mode-'));
+    writeFileSync(join(dir, 'eufy-mode-lingonberry.json'), '{"mode":"party","since":1}');
+    assert.equal(eufyModeMemory(dir).load({ name: 'lingonberry' }), null);
+  });
 });

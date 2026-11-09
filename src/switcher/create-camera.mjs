@@ -5,6 +5,7 @@ import { writeFileSync } from 'node:fs';
 import { Camera } from './camera/camera.mjs';
 import { lastFrameFile } from './initial-picture.mjs';
 import { loadCodec, saveCodec } from './codec-memory.mjs';
+import { eufyModeMemory, noteEufyMode } from './eufy-mode.mjs';
 import { Feed } from '../video/feed.mjs';
 import { Publisher } from '../video/publisher.mjs';
 import { LiveEncoder } from '../video/live-encoder.mjs';
@@ -33,6 +34,9 @@ export function createCamera(settings, { config, bridge, log, time, tmpDir, hub 
     saveCodec: (cam, codec) => saveCodec(config.dataDir, cam, codec),
   });
   camera.codec = loadCodec(config.dataDir, camera);
+  // Its Eufy mode, and since when (eufy-mode.mjs): "Disarmed · since 18:33".
+  const modeMemory = eufyModeMemory(config.dataDir);
+  camera.noteEufyMode = (mode) => noteEufyMode(camera, mode, { now: Date.now(), memory: modeMemory });
   feed.codec = camera.streamCodec();   // the publisher starts in the right format
   // With audio: an AAC track (the camera's sound while live, silence otherwise). Its silent frame is
   // made at start-up (silence.mjs) before the publisher starts.

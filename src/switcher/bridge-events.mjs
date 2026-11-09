@@ -18,7 +18,11 @@ export function connectBridgeEvents(bridge, cameras, log) {
 
   bridge.on('devices', (devices) => {
     // Each camera's Eufy mode (its station's), for its picture: Disarmed instead of Sleeping.
-    for (const camera of cameras) camera.eufyMode = stationFor(camera.serial, devices)?.eufyMode ?? null;
+    for (const camera of cameras) {
+      const mode = stationFor(camera.serial, devices)?.eufyMode ?? null;
+      if (camera.noteEufyMode) camera.noteEufyMode(mode);
+      else camera.eufyMode = mode;
+    }
     for (const d of devices) {
       const camera = bySerial.get(d.serial);
       if (!camera) continue;

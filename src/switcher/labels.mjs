@@ -8,8 +8,15 @@ export const WAKE_REASONS = {
   petDetection: 'Pet detected',
   strangerDetected: 'Stranger detected',
   doorbellPress: 'Doorbell pressed',
-  manual: 'Requested on the web page',
 };
+
+// A wake-up someone asked for (kind "manual"), by who asked (camera.wakeBy).
+export const MANUAL_WAKES = {
+  homekit: 'Live view in HomeKit',
+  web: 'Requested on the web page',
+  api: 'Requested over the API',
+};
+const wakeText = (cam) => (cam.wakeReason === 'manual' ? MANUAL_WAKES[cam.wakeBy] ?? MANUAL_WAKES.api : WAKE_REASONS[cam.wakeReason] ?? 'Waking');
 
 // Doorbell models (T82xx) can still be woken by a ring when the battery is low.
 const isDoorbell = (model) => /^T82/.test(model ?? '');
@@ -21,7 +28,7 @@ export function viewFor(cam, { offline, now, time }) {
   // The live hold is counted in seconds (30 s after the last detection), so its end shows them too.
   if (cam.state === 'LIVE') return { kind: 'live', title: 'Live', detail: `until ${time.hms(cam.deadline)}` };
   if (cam.state === 'WAKING') {
-    return { kind: 'waking', title: 'Waking up', detail: `${WAKE_REASONS[cam.wakeReason] ?? 'Waking'} · ${time.hm(cam.wakeAt)}` };
+    return { kind: 'waking', title: 'Waking up', detail: `${wakeText(cam)} · ${time.hm(cam.wakeAt)}` };
   }
   if (offline) {
     return { kind: 'offline', title: 'Offline', detail: offline === 'login' ? 'eufy login needed · see web page' : 'Reconnecting to eufy' };
@@ -33,10 +40,10 @@ export function viewFor(cam, { offline, now, time }) {
     return { kind: 'nowake', title: 'Didn’t wake up', detail: `${time.hm(cam.failedAt)} · picture from ${knownTime ? time.hm(cam.lastLiveAt) : 'the last event'}` };
   }
   // The camera's Eufy mode is Disarmed (or eufy's Off): it doesn't watch for anything, so it isn't
-  // just sleeping. Live view, and a doorbell's button, still wake it.
+  // just sleeping. Since when, as for sleeping (eufy-mode.mjs keeps the time).
   if (cam.eufyMode === 'disarmed' || cam.eufyMode === 'off') {
     return { kind: 'disarmed', title: cam.eufyMode === 'off' ? 'Eufy mode Off' : 'Disarmed',
-      detail: isDoorbell(cam.model) ? 'Wakes for the doorbell and live view' : 'Wakes only for live view' };
+      detail: cam.eufyModeSince ? time.since(cam.eufyModeSince, now) : 'Eufy mode' };
   }
   if (cam.battery != null && cam.battery < cam.minBatteryPct) {
     return { kind: 'lowbattery', title: `Sleeping · battery ${cam.battery} %`,

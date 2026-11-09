@@ -396,3 +396,23 @@ describe('a camera\'s Eufy mode (Home, Away, Disarmed, …)', () => {
     assert.equal((await res.json()).error, 'garden: station offline');
   });
 });
+
+describe('waking a camera says who asked', () => {
+  let server, url;
+  const asked = [];
+  const camera = { ...garden, trigger: (kind, by) => asked.push([kind, by]) };
+  before(async () => {
+    server = createWebServer({ cameras: [camera], bridge, rtspPort: 8554, snapshot: async () => Buffer.from('jpeg') });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    url = `http://127.0.0.1:${server.address().port}`;
+  });
+  after(() => server.close());
+
+  test('HomeKit (the plugin says so), the web page (a browser), or the API (anything else)', async () => {
+    await fetch(`${url}/api/cameras/garden/live`, { method: 'POST', body: JSON.stringify({ by: 'homekit' }) });
+    await raw(url, '/api/cameras/garden/live', { method: 'POST', headers: { 'sec-fetch-site': 'same-origin' } });
+    await fetch(`${url}/api/cameras/garden/live`, { method: 'POST' });
+    await fetch(`${url}/garden/live`, { method: 'POST', body: JSON.stringify({ by: 'somebody' }) });
+    assert.deepEqual(asked, [['manual', 'homekit'], ['manual', 'web'], ['manual', 'api'], ['manual', 'api']]);
+  });
+});

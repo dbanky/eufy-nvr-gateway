@@ -152,6 +152,7 @@ two CPU cores on a small NAS.
 | `config.json` | Your configuration (cameras etc.) — the only file you edit |
 | `bridge/.eufy-session.json` | eufy login session — delete it to force a fresh login |
 | `switcher/last-<name>.jpg` | Last live frame per camera, shown after a restart |
+| `switcher/eufy-mode-<name>.json` | The camera's Eufy mode and since when, for *Disarmed · since 18:33* after a restart |
 | `switcher/codec-<name>.txt` | The format a camera sends (`h264` / `hevc`), learned in its first live session for passing it through |
 | `web/cert.pem`, `web/key.pem` | The self-signed HTTPS certificate, made once when `web.https` is on without own files — delete both to make a new one |
 | `switcher/config.json` | Generated at every start from `config.json` — don't edit (they contain the logins) |
