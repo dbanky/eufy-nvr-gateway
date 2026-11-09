@@ -340,7 +340,7 @@ test('the stream login opens only the client routes', async () => {
   assert.equal(clientRoute('GET', '/api/cameras/shed/snapshot.jpg', byName), false);
 });
 
-describe('a camera\'s eufy mode (Home, Away, Disarmed, …)', () => {
+describe('a camera\'s Eufy mode (Home, Away, Disarmed, …)', () => {
   const basic = (user, password) => `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}`;
   let server, url, sent, answer;
   const stations = {

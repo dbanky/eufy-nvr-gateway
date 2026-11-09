@@ -36,6 +36,7 @@
 .tile[data-kind="live"] .tile-name .dot { box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.25); }
 
 .tile[data-kind="asleep"] { --accent: var(--asleep); --accent-bright: #a9b8ff; }
+.tile[data-kind="disarmed"] { --accent: var(--disarmed); --accent-bright: #86d6c4; }
 .tile[data-kind="waking"] { --accent: var(--waking); --accent-bright: #ffc447; }
 .tile[data-kind="live"] { --accent: var(--live); --accent-bright: #ff6b6b; }
 .tile[data-kind="lowbattery"] { --accent: var(--lowbattery); --accent-bright: #ffa94d; }

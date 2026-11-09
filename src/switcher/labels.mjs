@@ -32,6 +32,12 @@ export function viewFor(cam, { offline, now, time }) {
   if (cam.failedAt) {
     return { kind: 'nowake', title: 'Didn’t wake up', detail: `${time.hm(cam.failedAt)} · picture from ${knownTime ? time.hm(cam.lastLiveAt) : 'the last event'}` };
   }
+  // The camera's Eufy mode is Disarmed (or eufy's Off): it doesn't watch for anything, so it isn't
+  // just sleeping. Live view, and a doorbell's button, still wake it.
+  if (cam.eufyMode === 'disarmed' || cam.eufyMode === 'off') {
+    return { kind: 'disarmed', title: cam.eufyMode === 'off' ? 'Eufy mode Off' : 'Disarmed',
+      detail: isDoorbell(cam.model) ? 'Wakes for the doorbell and live view' : 'Wakes only for live view' };
+  }
   if (cam.battery != null && cam.battery < cam.minBatteryPct) {
     return { kind: 'lowbattery', title: `Sleeping · battery ${cam.battery} %`,
       detail: isDoorbell(cam.model) ? 'Wakes only for the doorbell' : 'Wakes only on request' };

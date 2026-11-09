@@ -11,7 +11,7 @@ const devices = [
   { serial: 'ORPHAN', name: 'Indoor', station: 'GONE', arming: false },
 ];
 
-describe('eufy modes', () => {
+describe('Eufy modes', () => {
   test('a station reports a number; the SDK names it', () => {
     assert.deepEqual([0, 1, 2, 3, 6, 47, 63].map(eufyModeName), ['away', 'home', 'schedule', 'custom1', 'off', 'geo', 'disarmed']);
     assert.equal(eufyModeName('63'), 'disarmed');
@@ -40,7 +40,7 @@ describe('eufy modes', () => {
     assert.deepEqual(sent, [{ cmd: 'device.set', sn: 'CHIME', name: 'armingMode', value: 'disarmed' }]);
     assert.equal(eufyModeOf('DOOR', bridge.devices).mode, 'disarmed');
     assert.deepEqual(later, [5000, 20000]);
-    assert.deepEqual(logged, ['front-door eufy mode Disarmed (on Chime)']);
+    assert.deepEqual(logged, ['front-door Eufy mode Disarmed (on Chime)']);
   });
 
   test('refuses an unknown mode, an unknown station, and passes on eufy\'s refusal', async () => {

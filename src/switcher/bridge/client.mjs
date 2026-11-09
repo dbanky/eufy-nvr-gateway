@@ -9,8 +9,8 @@ import { BridgeSocket } from './socket.mjs';
 
 export const OFFLINE_AFTER_MS = 30000;   // logged out or disconnected this long counts as offline
 
-// The bridge's device record, reduced to what the gateway uses. station: the device whose eufy mode
-// applies to this one (its HomeBase or chime, or itself); arming: it has eufy modes (a station);
+// The bridge's device record, reduced to what the gateway uses. station: the device whose Eufy mode
+// applies to this one (its HomeBase or chime, or itself); arming: it has Eufy modes (a station);
 // eufyMode: its current one (eufy-mode.mjs).
 export function toDevice(d) {
   return {

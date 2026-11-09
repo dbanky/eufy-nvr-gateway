@@ -33,6 +33,7 @@ export const NO_PICTURE_TEXT = { top: 0.07, titleColor: 'E6E9EF', detailColor: '
 // meaning alone.
 export const STATES = {
   asleep: { accent: [169, 184, 255], icon: 'moon' },
+  disarmed: { accent: [134, 214, 196], icon: 'disarmed' },
   waking: { accent: [255, 196, 71], icon: 'bolt' },
   lowbattery: { accent: [255, 169, 77], icon: 'battery' },
   nowake: { accent: [255, 138, 128], icon: 'alert' },

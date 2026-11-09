@@ -85,9 +85,9 @@ function rtspHtml(camera, where) {
     + `<span class="sub">${rtsp.login ? 'Login required (rtsp.username / rtsp.password)' : 'No login: anyone on the LAN can watch'}</span></dd>`;
 }
 
-// The camera's eufy mode (its station's guard mode), switched in the eufy app or over the API.
+// The camera's Eufy mode (its station's guard mode), switched in the eufy app or over the API.
 function eufyModeRow(eufyMode) {
   if (!eufyMode?.mode) return '';
   const where = eufyMode.shared ? `<span class="sub">Set on ${esc(eufyMode.station.name ?? eufyMode.station.serial)}, for every device on it</span>` : '';
-  return `<dt>eufy mode</dt><dd>${esc(eufyMode.label ?? eufyMode.mode)}${where}</dd>`;
+  return `<dt>Eufy mode</dt><dd>${esc(eufyMode.label ?? eufyMode.mode)}${where}</dd>`;
 }

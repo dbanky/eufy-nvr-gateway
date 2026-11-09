@@ -20,6 +20,7 @@
   --shadow: 0 1px 2px rgba(17, 20, 28, 0.06), 0 4px 16px rgba(17, 20, 28, 0.05);
   /* state accents, darkened to read on white */
   --asleep: #4b5bd4;
+  --disarmed: #2f7d6d;
   --waking: #9a6200;
   --live: #d42f2f;
   --lowbattery: #b95400;
@@ -36,7 +37,7 @@
     --bg: #0e1014; --surface: #16191f; --surface-2: #1d2128;
     --line: rgba(255, 255, 255, 0.10); --line-strong: rgba(255, 255, 255, 0.25);
     --text: #f4f6fa; --text-2: #c3c9d3; --muted: #9aa2b1; --focus: #a9b8ff; --shadow: none;
-    --asleep: #a9b8ff; --waking: #ffc447; --live: #ff6b6b; --lowbattery: #ffa94d; --nowake: #ff8a80;
+    --asleep: #a9b8ff; --disarmed: #86d6c4; --waking: #ffc447; --live: #ff6b6b; --lowbattery: #ffa94d; --nowake: #ff8a80;
     --offline: #b4bcc8; --ok: #6ee7a8;
   }
 }
@@ -45,7 +46,7 @@
   --bg: #0e1014; --surface: #16191f; --surface-2: #1d2128;
   --line: rgba(255, 255, 255, 0.10); --line-strong: rgba(255, 255, 255, 0.25);
   --text: #f4f6fa; --text-2: #c3c9d3; --muted: #9aa2b1; --focus: #a9b8ff; --shadow: none;
-  --asleep: #a9b8ff; --waking: #ffc447; --live: #ff6b6b; --lowbattery: #ffa94d; --nowake: #ff8a80;
+  --asleep: #a9b8ff; --disarmed: #86d6c4; --waking: #ffc447; --live: #ff6b6b; --lowbattery: #ffa94d; --nowake: #ff8a80;
   --offline: #b4bcc8; --ok: #6ee7a8;
 }
 

@@ -436,7 +436,7 @@ one; the ONVIF and UDP ports are set per camera (`onvif.port`, `udpPort`).
 | `GET /api/cameras/<name>/snapshot.jpg` | What the stream shows right now |
 | `POST /api/cameras/<name>/live` | Wake the camera and go live (e.g. from a Home Assistant button) |
 | `POST /api/cameras/<name>/idle` | End the live session now |
-| `GET /api/cameras/<name>/eufy-mode` | The camera's eufy mode (`home`, `away`, `disarmed`, `schedule`, `custom1`–`custom3`, `off`, `geo`) and the station it is set on |
+| `GET /api/cameras/<name>/eufy-mode` | The camera's Eufy mode (`home`, `away`, `disarmed`, `schedule`, `custom1`–`custom3`, `off`, `geo`) and the station it is set on |
 | `POST /api/cameras/<name>/eufy-mode` | Switch it, e.g. `{ "mode": "disarmed" }`, through the eufy SDK as the eufy app would. The mode belongs to the camera's station: a camera behind a HomeBase or chime shares it with every device on that station. What each mode does is set in the eufy app |
 | `POST /api/login` | `{ "code": "123456" }` or `{ "captcha": "AB3D" }` — the eufy verification |
 

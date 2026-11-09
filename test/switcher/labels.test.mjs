@@ -74,3 +74,25 @@ describe('re-rendering', () => {
     assert.notEqual(viewKey(label({})), viewKey(label({ lastLiveAt: at('18:34') })));
   });
 });
+
+describe('a camera whose Eufy mode is Disarmed', () => {
+  test('says Disarmed, not Sleeping, and what still wakes it', () => {
+    assert.deepEqual(label({ eufyMode: 'disarmed' }), { kind: 'disarmed', title: 'Disarmed', detail: 'Wakes only for live view' });
+    assert.equal(label({ eufyMode: 'disarmed', model: 'T8222' }).detail, 'Wakes for the doorbell and live view');
+  });
+
+  test('eufy\'s Off mode is not armed either', () => {
+    assert.deepEqual(label({ eufyMode: 'off' }), { kind: 'disarmed', title: 'Eufy mode Off', detail: 'Wakes only for live view' });
+  });
+
+  test('armed modes still sleep as before', () => {
+    for (const mode of ['home', 'away', 'schedule', 'custom1', 'geo', null]) assert.equal(label({ eufyMode: mode }).kind, 'asleep', String(mode));
+  });
+
+  test('Disarmed comes before a low battery; live, waking and offline still come first', () => {
+    assert.equal(label({ eufyMode: 'disarmed', battery: 5 }).kind, 'disarmed');
+    assert.equal(label({ eufyMode: 'disarmed', state: 'LIVE', deadline: at('20:01') }).kind, 'live');
+    assert.equal(label({ eufyMode: 'disarmed', state: 'WAKING', wakeReason: 'manual', wakeAt: at('19:59') }).kind, 'waking');
+    assert.equal(label({ eufyMode: 'disarmed' }, 'connection').kind, 'offline');
+  });
+});

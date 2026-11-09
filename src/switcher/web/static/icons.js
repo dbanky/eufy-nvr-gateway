@@ -3,6 +3,7 @@
 const PATHS = {
   // states, as on the stream
   asleep: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  disarmed: '<path d="M12 3 5 6v5c0 4.4 2.9 8.1 7 9.5 1.4-.5 2.7-1.3 3.8-2.3"/><path d="M19 14.7c.3-1.2.5-2.4.5-3.7V6L12 3"/><path d="M3 3l18 18"/>',
   waking: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
   live: '<circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>',
   lowbattery: '<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M5.5 10v4"/>',

@@ -38,7 +38,7 @@ test('battery levels and models are kept up to date', () => {
   assert.equal(garden.battery, 41);
 });
 
-test('a station reporting a new eufy mode makes the gateway read the device list again', async () => {
+test('a station reporting a new Eufy mode makes the gateway read the device list again', async () => {
   const { EventEmitter } = await import('node:events');
   const { connectBridgeEvents } = await import('../../src/switcher/bridge-events.mjs');
   const bridge = new EventEmitter();
@@ -47,4 +47,17 @@ test('a station reporting a new eufy mode makes the gateway read the device list
   connectBridgeEvents(bridge, [], () => {});
   bridge.emit('device-event', { serial: 'CHIME', event: 'armingModeChanged', message: {} });   // a chime: no camera
   assert.equal(refreshed, 1);
+});
+
+test('the device list gives each camera its Eufy mode, also one set on its chime', () => {
+  const bridge = new EventEmitter();
+  bridge.refreshDevices = () => {};
+  const garden = { serial: 'GARDEN' }, door = { serial: 'DOOR' }, shed = { serial: 'SHED' };
+  connectBridgeEvents(bridge, [garden, door, shed], () => {});
+  bridge.emit('devices', [
+    { serial: 'GARDEN', station: 'GARDEN', arming: true, eufyMode: 'disarmed' },
+    { serial: 'DOOR', station: 'CHIME', arming: false },
+    { serial: 'CHIME', station: 'CHIME', arming: true, eufyMode: 'home' },
+  ]);
+  assert.deepEqual([garden.eufyMode, door.eufyMode, shed.eufyMode], ['disarmed', 'home', null]);
 });

@@ -1,4 +1,4 @@
-// A camera's eufy mode (eufy's guard mode: Home, Away, Disarmed, …), read and switched through the
+// A camera's Eufy mode (eufy's guard mode: Home, Away, Disarmed, …), read and switched through the
 // bundled eufy SDK. The mode belongs to a station: a camera without a HomeBase is its own station; a
 // camera behind a HomeBase or a doorbell chime shares that station's mode. The gateway only switches
 // it: what each mode does (which triggers record, notify, …) is set in the eufy app, as always.
@@ -16,7 +16,7 @@ export function eufyModeName(value) {
   return EUFY_MODES[Number(value)] ?? null;
 }
 
-// The device whose eufy mode applies to a camera: the camera itself when it can be armed, else its
+// The device whose Eufy mode applies to a camera: the camera itself when it can be armed, else its
 // station (HomeBase, chime) from the device list. null while unknown.
 export function stationFor(serial, devices) {
   const device = devices.find((d) => d.serial === serial);
@@ -25,7 +25,7 @@ export function stationFor(serial, devices) {
   return devices.find((d) => d.serial === device.station && d.arming) ?? null;
 }
 
-// The camera's eufy mode for the API: { mode, label, station: { serial, name }, shared } or null.
+// The camera's Eufy mode for the API: { mode, label, station: { serial, name }, shared } or null.
 export function eufyModeOf(serial, devices) {
   const station = stationFor(serial, devices);
   if (!station) return null;
@@ -37,15 +37,15 @@ export function eufyModeOf(serial, devices) {
   };
 }
 
-// Switch a camera's eufy mode. Resolves with the station it was set on; rejects with a reason.
+// Switch a camera's Eufy mode. Resolves with the station it was set on; rejects with a reason.
 // The station reports its new mode on its own; the device list is read again to show it.
 export async function setEufyMode({ bridge, serial, mode, log = () => {}, name = serial, schedule = setTimeout }) {
-  if (!EUFY_MODE_NAMES.includes(mode)) throw new Error(`the eufy mode must be one of ${EUFY_MODE_NAMES.map((m) => `"${m}"`).join(', ')}`);
+  if (!EUFY_MODE_NAMES.includes(mode)) throw new Error(`the Eufy mode must be one of ${EUFY_MODE_NAMES.map((m) => `"${m}"`).join(', ')}`);
   const station = stationFor(serial, bridge.devices ?? []);
-  if (!station) throw new Error('its eufy mode is not known yet (the device list is read after the eufy login)');
+  if (!station) throw new Error('its Eufy mode is not known yet (the device list is read after the eufy login)');
   const answer = await bridge.request({ cmd: 'device.set', sn: station.serial, name: 'armingMode', value: mode }, 30000);
   if (answer?.ok === false || answer?.error) throw new Error(answer.error ?? 'eufy refused it');
-  log(name, `eufy mode ${eufyModeLabel(mode)}${station.serial === serial ? '' : ` (on ${station.name ?? station.serial})`}`);
+  log(name, `Eufy mode ${eufyModeLabel(mode)}${station.serial === serial ? '' : ` (on ${station.name ?? station.serial})`}`);
   station.eufyMode = mode;   // shown at once; the stations' own report follows
   for (const ms of [5000, 20000]) schedule(() => bridge.refreshDevices(), ms);
   return station;
