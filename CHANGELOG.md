@@ -7,6 +7,36 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-09
+
+Eufy modes, Disarmed on the picture, and charging, with the
+[Homebridge plugin](https://github.com/dbanky/homebridge-eufy-nvr-gateway) 0.4.0, which brings them to
+HomeKit. Everything since 0.6.0, from the pre-releases below:
+
+### Added
+
+- **Switch a camera's Eufy mode** (Home, Away, Disarmed, Schedule, Custom 1–3, Off, Geofencing) over
+  the API: `GET` / `POST /api/cameras/<name>/eufy-mode`, through the bundled eufy SDK, as the eufy
+  app would. The mode belongs to the camera's station, so a camera behind a HomeBase or chime shares
+  it; what each mode does stays set in the eufy app. The stream login may use it, so the Homebridge
+  plugin can switch it from HomeKit. `/api/status` and the camera details on the web page show it,
+  also a mode switched in the eufy app. The bundled bridge reports each device's station (a one-line
+  patch, `patches/bridge-station.patch`).
+- **Charging.** A battery that charges, from a cable or a solar panel, shows a bolt next to its level
+  on the web page, or a sun while the solar panel gets light; the API says so too (`charging`,
+  `solar`).
+
+### Changed
+
+- **A disarmed camera says Disarmed, not Sleeping**, on the stream and on the web page, with an icon
+  of its own and since when: *Disarmed · since 18:33*. The time is kept across restarts.
+- "Eufy mode" is written with a capital E everywhere.
+
+### Fixed
+
+- **The waking picture says who asked for it**: *Live view in HomeKit*, *Requested on the web page*
+  or *Requested over the API*, instead of always *Requested on the web page*. The log names it too.
+
 ## [0.7.0-beta.2] - 2026-11-09
 
 The second beta of 0.7.0, with the
