@@ -7,6 +7,19 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.7.0-alpha.2] - 2026-11-09
+
+A pre-release for testing, with the
+[Homebridge plugin](https://github.com/dbanky/homebridge-eufy-nvr-gateway) 0.4.0-alpha.2. Update by
+its exact tag, `0.7.0-alpha.2`; `latest` stays 0.6.0.
+
+### Changed
+
+- **A disarmed camera says Disarmed, not Sleeping.** When a camera's Eufy mode is Disarmed (or
+  eufy's Off), its picture on the stream and its tile on the web page show *Disarmed* with an icon of
+  its own (a crossed-out shield) and what still wakes it: live view, and a doorbell's button.
+- "Eufy mode" is written with a capital E everywhere.
+
 ## [0.7.0-alpha.1] - 2026-11-09
 
 A pre-release for testing: switching a camera's eufy mode over the API (and from HomeKit with the
