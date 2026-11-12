@@ -7,6 +7,10 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-12
+
+The bundled eufy bridge, up to date.
+
 ### Changed
 
 - The bundled eufy bridge (ha-eufy-sdk-bridge) is updated from 0.6.0 to 0.7.2. It reports each
@@ -596,7 +600,8 @@ First release: always-on H.264 RTSP streams for battery-powered eufy cameras, wi
 awake. One container with the eufy bridge, go2rtc and the switcher; frozen last frame while idle,
 live video on motion, person detection or a doorbell press; web page for the eufy login and status.
 
-[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.7.0...v0.7.1
 [0.5.1]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.5.0...v0.5.1
 [0.5.1-beta.1]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.5.0...v0.5.1-beta.1
 [0.5.0]: https://github.com/dbanky/eufy-nvr-gateway/compare/v0.4.1-beta.9...v0.5.0
