@@ -57,7 +57,7 @@ describe('Eufy modes', () => {
 test('the device list says each device\'s station, whether it has modes, and its mode', () => {
   assert.deepEqual(toDevice({ sn: 'GARDEN', name: 'Garden', capabilities: ['camera', 'arming'], state: { armingMode: 63 } }),
     { serial: 'GARDEN', name: 'Garden', model: undefined, modelName: undefined, battery: null, error: undefined, charging: null, solar: null, station: 'GARDEN', arming: true, eufyMode: 'disarmed' });
-  const attached = toDevice({ sn: 'DOOR', station: 'CHIME', capabilities: ['camera'], state: {} });
+  const attached = toDevice({ sn: 'DOOR', stationSn: 'CHIME', capabilities: ['camera'], state: {} });
   assert.deepEqual([attached.station, attached.arming, attached.eufyMode], ['CHIME', false, null]);
 });
 

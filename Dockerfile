@@ -17,17 +17,16 @@ RUN mkdir -p /out/icons /out/fonts \
 
 FROM node:24-alpine
 
-# ha-eufy-sdk-bridge 0.6.0 (Apache-2.0) — eufy login, events and on-demand P2P video
+# ha-eufy-sdk-bridge 0.7.2 (Apache-2.0) — eufy login, events and on-demand P2P video
 ARG BRIDGE_REPO=https://github.com/mega-yfue/ha-eufy-sdk-bridge.git
-ARG BRIDGE_COMMIT=6b3ccbc09293da019e6f91db516856644501dbd2
+ARG BRIDGE_COMMIT=350430b742a228f611a8b1b0fac9646b23f9b7fd
 
 RUN apk add --no-cache ffmpeg tzdata curl git openssl
 
-# eufy bridge, with two additions: /audio/<serial>, the live audio of a camera that is streaming,
-# and each device's station in the device list (whose guard mode applies to it)
-COPY patches/bridge-live-audio.patch patches/bridge-station.patch /tmp/
+# eufy bridge, with one addition: /audio/<serial>, the live audio of a camera that is streaming
+COPY patches/bridge-live-audio.patch /tmp/
 RUN git clone "$BRIDGE_REPO" /opt/bridge && cd /opt/bridge && git checkout "$BRIDGE_COMMIT" \
- && git apply /tmp/bridge-live-audio.patch /tmp/bridge-station.patch && rm /tmp/bridge-*.patch \
+ && git apply /tmp/bridge-live-audio.patch && rm /tmp/bridge-live-audio.patch \
  && npm ci --omit=dev --no-audit --no-fund && rm -rf .git test docs
 
 # This project

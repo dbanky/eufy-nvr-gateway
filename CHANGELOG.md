@@ -7,6 +7,11 @@ and `ghcr.io/dbanky/eufy-nvr-gateway:<version>`.
 
 ## [Unreleased]
 
+### Changed
+
+- The bundled eufy bridge (ha-eufy-sdk-bridge) is updated from 0.6.0 to 0.7.2. It reports each
+  device's station itself (`stationSn`), so `patches/bridge-station.patch` is gone.
+
 ## [0.7.0] - 2026-11-09
 
 Eufy modes, Disarmed on the picture, and charging, with the
